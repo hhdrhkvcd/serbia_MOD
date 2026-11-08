@@ -100,6 +100,7 @@ try {
     Download $devsrcUrl $dev 100MB
     & $seven x $dev "-o$engine" -y -aos
     if($LASTEXITCODE -gt 1){throw "7-Zip вернул код $LASTEXITCODE при распаковке devsrc."}
+    if(-not (Test-Path $asset)){throw "После распаковки не найден ресурс сцены: $asset. Архив может быть неполным или другой версии."}
   }
 
   if(Test-Path $pack){Remove-Item $pack -Recurse -Force}
