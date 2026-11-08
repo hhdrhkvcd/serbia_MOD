@@ -1,0 +1,29 @@
+// Сетевая конфигурация онлайн-матчмейкинга и выделенного сервера Dagor Engine (daNetGame)
+net{
+  protocolVersion:i=104
+  tickRate:i=30
+  snapshotRate:i=20
+  useHostedServerFallback:b=yes
+  listenPort:i=20042
+  masterServerUrl:t="http://127.0.0.1:20080"
+
+  matchmaking{
+    playlists{
+      conquest_balkan{
+        scene:t="gamedata/scenes/balkan_pass_conquest.blk"
+        maxPlayers:i=16
+        botFillCount:i=12
+      }
+      conquest_factory18{
+        scene:t="gamedata/scenes/factory_18_conquest.blk"
+        maxPlayers:i=16
+        botFillCount:i=12
+      }
+      conquest_karelia{
+        scene:t="gamedata/scenes/karelia_ridge_conquest.blk"
+        maxPlayers:i=16
+        botFillCount:i=12
+      }
+    }
+  }
+}

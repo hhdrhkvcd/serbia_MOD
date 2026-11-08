@@ -1,0 +1,1568 @@
+// Dagor Engine 6.5 DataBlock — Полный реестр бронетехники (7 наций • 23 машины)
+// Можно свободно редактировать броню, перезарядку, мощность двигателя и снаряды (F5 в ангаре — горячая перезагрузка .blk!)
+
+nations{
+  ru{
+    idx:i=0
+    name:t="РОССИЯ"
+    subtitle:t="СУХОПУТНЫЕ ВОЙСКА РФ"
+    accentColor:p3=0.850, 0.220, 0.160
+  }
+  rs{
+    idx:i=1
+    name:t="СЕРБИЯ"
+    subtitle:t="ВОЈСКА СРБИЈЕ • SERBIA MOD"
+    accentColor:p3=0.780, 0.200, 0.240
+  }
+  cn{
+    idx:i=2
+    name:t="КИТАЙ"
+    subtitle:t="СУХОПУТНЫЕ ВОЙСКА НОАК"
+    accentColor:p3=0.870, 0.230, 0.140
+  }
+  us{
+    idx:i=3
+    name:t="США"
+    subtitle:t="UNITED STATES ARMY"
+    accentColor:p3=0.230, 0.470, 0.780
+  }
+  eu{
+    idx:i=4
+    name:t="НАТО / ЕС"
+    subtitle:t="ОБЪЕДИНЁННЫЙ ЕВРОКОРПУС НАТО"
+    accentColor:p3=0.210, 0.410, 0.740
+  }
+  fr{
+    idx:i=5
+    name:t="ФРАНЦИЯ"
+    subtitle:t="ARMÉE DE TERRE"
+    accentColor:p3=0.280, 0.460, 0.810
+  }
+  se{
+    idx:i=6
+    name:t="ШВЕЦИЯ"
+    subtitle:t="PANSARTRUPPERNA ШВЕЦИИ"
+    accentColor:p3=0.870, 0.690, 0.160
+  }
+}
+
+vehicles{
+  t72b3{
+    idx:i=0
+    nationIdx:i=0
+    nation:t="ru"
+    name:t="Т-72Б3 УБХ"
+    shortName:t="Т-72Б3"
+    br:t="10.7"
+    rank:t="VII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм 2А46М-5"
+    coaxName:t="7.62мм ПКТМ • 12.7мм Корд"
+    eraName:t="Контакт-5 + Реликт"
+    history:t="Модернизация Т-72Б с многоканальным тепловизором «Сосна-У», двигателем В-92С2Ф (1130 л.с.) и бортовыми экранами ДЗ «Реликт»."
+    reloadSec:r=7.10
+    crew:i=3
+    hp:i=2350
+    hullArmor:ip3=530, 85, 45
+    turretArmor:ip3=610, 140, 65
+    fwdKmh:r=65.0
+    revKmh:r=4.5
+    engineHp:i=1130
+    weightTons:r=46.5
+    turretDegSec:r=36.0
+    hullDegSec:r=34.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="tseries"
+    baseColor:p3=0.250, 0.300, 0.200
+    wedgeTurret:b=no
+    hasLog:b=yes
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=no
+    isTurbine:b=no
+    shell0{
+      code:t="3БМ60"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1660.0
+      damage:r=640.0
+      basePenMM:i=580
+      guided:b=no
+    }
+    shell1{
+      code:t="3БК18М"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=905.0
+      damage:r=540.0
+      basePenMM:i=550
+      guided:b=no
+    }
+    shell2{
+      code:t="9М119М1"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=340.0
+      damage:r=760.0
+      basePenMM:i=850
+      guided:b=yes
+    }
+  }
+
+  t80u{
+    idx:i=1
+    nationIdx:i=0
+    nation:t="ru"
+    name:t="Т-80У"
+    shortName:t="Т-80У"
+    br:t="11.3"
+    rank:t="VII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм 2А46М-1"
+    coaxName:t="7.62мм ПКТ • 12.7мм НСВТ"
+    eraName:t="Контакт-5"
+    history:t="Знаменитый советский ОБТ с газотурбинным двигателем ГТД-1250 (1250 л.с.) и встроенной динамической защитой 2-го поколения «Контакт-5»."
+    reloadSec:r=6.50
+    crew:i=3
+    hp:i=2400
+    hullArmor:ip3=550, 80, 50
+    turretArmor:ip3=630, 145, 65
+    fwdKmh:r=70.0
+    revKmh:r=11.0
+    engineHp:i=1250
+    weightTons:r=46.0
+    turretDegSec:r=35.0
+    hullDegSec:r=38.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="tseries"
+    baseColor:p3=0.230, 0.290, 0.190
+    wedgeTurret:b=no
+    hasLog:b=yes
+    hasFuelDrums:b=yes
+    hasAtgmRails:b=no
+    hasSearchlight:b=yes
+    hasRcws:b=yes
+    hasBustle:b=no
+    isTurbine:b=yes
+    shell0{
+      code:t="3БМ46"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1700.0
+      damage:r=625.0
+      basePenMM:i=532
+      guided:b=no
+    }
+    shell1{
+      code:t="3БК18М"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=905.0
+      damage:r=530.0
+      basePenMM:i=550
+      guided:b=no
+    }
+    shell2{
+      code:t="9М119"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=345.0
+      damage:r=740.0
+      basePenMM:i=750
+      guided:b=yes
+    }
+  }
+
+  t80bvm{
+    idx:i=2
+    nationIdx:i=0
+    nation:t="ru"
+    name:t="Т-80БВМ"
+    shortName:t="Т-80БВМ"
+    br:t="11.7"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм 2А46М-4"
+    coaxName:t="7.62мм ПКТМ • 12.7мм НСВТ"
+    eraName:t="Реликт"
+    history:t="Скоростной реактивный штурмовой танк с модульной динамической защитой «Реликт», газотурбиной ГТД-1250ТФ и мгновенным разгоном."
+    reloadSec:r=6.50
+    crew:i=3
+    hp:i=2450
+    hullArmor:ip3=590, 120, 50
+    turretArmor:ip3=660, 180, 65
+    fwdKmh:r=70.0
+    revKmh:r=12.0
+    engineHp:i=1250
+    weightTons:r=46.0
+    turretDegSec:r=40.0
+    hullDegSec:r=40.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="tseries"
+    baseColor:p3=0.210, 0.270, 0.180
+    wedgeTurret:b=no
+    hasLog:b=yes
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=no
+    isTurbine:b=yes
+    shell0{
+      code:t="3БМ60"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1660.0
+      damage:r=650.0
+      basePenMM:i=580
+      guided:b=no
+    }
+    shell1{
+      code:t="3БК29М"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=915.0
+      damage:r=560.0
+      basePenMM:i=650
+      guided:b=no
+    }
+    shell2{
+      code:t="9М119М1"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=350.0
+      damage:r=780.0
+      basePenMM:i=850
+      guided:b=yes
+    }
+  }
+
+  t90m{
+    idx:i=3
+    nationIdx:i=0
+    nation:t="ru"
+    name:t="Т-90М «Прорыв»"
+    shortName:t="Т-90М"
+    br:t="12.0"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм 2А46М-5-01"
+    coaxName:t="7.62мм ПКТМ • 12.7мм ДУМВ Корд-МТ"
+    eraName:t="Реликт + Сварная башня"
+    history:t="Флагманский российский ОБТ со сварной башней, кормовым бронеотсеком БК, комплексом «Реликт» и панорамным тепловизором ПК ПАН."
+    reloadSec:r=7.10
+    crew:i=3
+    hp:i=2550
+    hullArmor:ip3=620, 130, 50
+    turretArmor:ip3=710, 190, 75
+    fwdKmh:r=60.0
+    revKmh:r=4.5
+    engineHp:i=1130
+    weightTons:r=48.0
+    turretDegSec:r=40.0
+    hullDegSec:r=35.0
+    unlockedDefault:b=no
+    costRp:i=45000
+    costSilver:i=280000
+    arch:t="tseries"
+    baseColor:p3=0.270, 0.290, 0.200
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="3БМ60"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1680.0
+      damage:r=665.0
+      basePenMM:i=590
+      guided:b=no
+    }
+    shell1{
+      code:t="3ОФ26"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=850.0
+      damage:r=820.0
+      basePenMM:i=68
+      guided:b=no
+    }
+    shell2{
+      code:t="9М119М1"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=355.0
+      damage:r=790.0
+      basePenMM:i=850
+      guided:b=yes
+    }
+  }
+
+  bvp_m80ab1{
+    idx:i=4
+    nationIdx:i=1
+    nation:t="rs"
+    name:t="BVP M-80AB1"
+    shortName:t="M-80AB1"
+    br:t="9.7"
+    rank:t="VI"
+    roleClass:t="БМП / ИСТРЕБИТЕЛЬ"
+    gunName:t="30мм Zastava M86 + 2× Маљутка-2Т5"
+    coaxName:t="7.62мм M86"
+    eraName:t="Модульная броня AB1"
+    history:t="Сербская глубокая модернизация БМП М-80А с тепловизионной СУО и пусковыми рельсами сверхзвуковых тандемных ПТУР «Маљутка 2Т5» (860 мм пробития)."
+    reloadSec:r=3.40
+    crew:i=3
+    hp:i=1850
+    hullArmor:ip3=110, 45, 30
+    turretArmor:ip3=130, 50, 35
+    fwdKmh:r=68.0
+    revKmh:r=14.0
+    engineHp:i=360
+    weightTons:r=15.8
+    turretDegSec:r=48.0
+    hullDegSec:r=46.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="ifv"
+    baseColor:p3=0.240, 0.300, 0.200
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=yes
+    hasSearchlight:b=no
+    hasRcws:b=no
+    hasBustle:b=no
+    isTurbine:b=no
+    shell0{
+      code:t="30мм APFSDS"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1380.0
+      damage:r=420.0
+      basePenMM:i=310
+      guided:b=no
+    }
+    shell1{
+      code:t="Маљутка-2Т5"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=330.0
+      damage:r=830.0
+      basePenMM:i=860
+      guided:b=yes
+    }
+    shell2{
+      code:t="30мм ОФЗТ"
+      type:t="he"
+      label:t="ОФЗ"
+      speedMs:r=1100.0
+      damage:r=460.0
+      basePenMM:i=85
+      guided:b=no
+    }
+  }
+
+  m84as1{
+    idx:i=5
+    nationIdx:i=1
+    nation:t="rs"
+    name:t="M-84AS1"
+    shortName:t="M-84AS1"
+    br:t="11.0"
+    rank:t="VII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм 2А46М"
+    coaxName:t="7.62мм M86 • 12.7мм ДУМВ M15"
+    eraName:t="ERO-19 Gen.2"
+    history:t="Модернизированный основной боевой танк Войска Сербии: сербская динамическая защита ERO-19, датчики лазерного облучения и боевой модуль М15."
+    reloadSec:r=6.80
+    crew:i=3
+    hp:i=2400
+    hullArmor:ip3=555, 110, 48
+    turretArmor:ip3=625, 165, 65
+    fwdKmh:r=68.0
+    revKmh:r=8.0
+    engineHp:i=1000
+    weightTons:r=45.0
+    turretDegSec:r=38.0
+    hullDegSec:r=37.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="tseries"
+    baseColor:p3=0.230, 0.290, 0.200
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=yes
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=no
+    isTurbine:b=no
+    shell0{
+      code:t="M88 ППОБ"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1715.0
+      damage:r=635.0
+      basePenMM:i=545
+      guided:b=no
+    }
+    shell1{
+      code:t="M88 ТФК"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=910.0
+      damage:r=545.0
+      basePenMM:i=560
+      guided:b=no
+    }
+    shell2{
+      code:t="Рефлекс"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=345.0
+      damage:r=760.0
+      basePenMM:i=780
+      guided:b=yes
+    }
+  }
+
+  m91_vihor{
+    idx:i=6
+    nationIdx:i=1
+    nation:t="rs"
+    name:t="M-91 «Вихор»"
+    shortName:t="Вихор"
+    br:t="11.3"
+    rank:t="VII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм 2А46М-Вихор"
+    coaxName:t="7.62мм M86 • 12.7мм M87"
+    eraName:t="Композит + ERO"
+    history:t="Югославско-сербский скоростной танк нового поколения с 1200-сильным дизелем V46-TK1 (27 л.с./т) и переработанной сварно-литой башней."
+    reloadSec:r=6.40
+    crew:i=3
+    hp:i=2420
+    hullArmor:ip3=560, 95, 50
+    turretArmor:ip3=640, 155, 70
+    fwdKmh:r=72.0
+    revKmh:r=12.0
+    engineHp:i=1200
+    weightTons:r=44.0
+    turretDegSec:r=42.0
+    hullDegSec:r=42.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="tseries"
+    baseColor:p3=0.270, 0.310, 0.220
+    wedgeTurret:b=yes
+    hasLog:b=yes
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=no
+    isTurbine:b=no
+    shell0{
+      code:t="M95 ОБПС"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1740.0
+      damage:r=645.0
+      basePenMM:i=568
+      guided:b=no
+    }
+    shell1{
+      code:t="M91 КС"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=915.0
+      damage:r=550.0
+      basePenMM:i=580
+      guided:b=no
+    }
+    shell2{
+      code:t="M86 ОФС"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=850.0
+      damage:r=800.0
+      basePenMM:i=65
+      guided:b=no
+    }
+  }
+
+  m84as2{
+    idx:i=7
+    nationIdx:i=1
+    nation:t="rs"
+    name:t="M-84AS2 «Војвода»"
+    shortName:t="M-84AS2"
+    br:t="12.0"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм 2А46М-AS2"
+    coaxName:t="7.62мм M86 • 12.7мм ДУМВ M20"
+    eraName:t="ERO-19M Тяжёлая"
+    history:t="Новейший флагман сербского танкостроения: плотное перекрытие ВЛД и башни модулями ERO-19M, панорамный тепловизор 3-го пок. и снаряд М20."
+    reloadSec:r=6.30
+    crew:i=3
+    hp:i=2540
+    hullArmor:ip3=615, 135, 55
+    turretArmor:ip3=695, 195, 75
+    fwdKmh:r=70.0
+    revKmh:r=11.0
+    engineHp:i=1200
+    weightTons:r=46.5
+    turretDegSec:r=42.0
+    hullDegSec:r=39.0
+    unlockedDefault:b=no
+    costRp:i=40000
+    costSilver:i=250000
+    arch:t="tseries"
+    baseColor:p3=0.210, 0.280, 0.190
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="M20 ОБПС"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1750.0
+      damage:r=665.0
+      basePenMM:i=605
+      guided:b=no
+    }
+    shell1{
+      code:t="M19 Тандем"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=930.0
+      damage:r=570.0
+      basePenMM:i=660
+      guided:b=no
+    }
+    shell2{
+      code:t="Рефлекс-М"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=355.0
+      damage:r=800.0
+      basePenMM:i=860
+      guided:b=yes
+    }
+  }
+
+  ztz96b{
+    idx:i=8
+    nationIdx:i=2
+    nation:t="cn"
+    name:t="ZTZ-96B"
+    shortName:t="ZTZ-96B"
+    br:t="10.7"
+    rank:t="VII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм ZPT-98"
+    coaxName:t="7.62мм Type 86 • 12.7мм QJC-88"
+    eraName:t="FY-4"
+    history:t="Скоростная модификация китайского ОБТ ZTZ-96 с 1000-сильным дизелем, гидромеханической КПП и клиновидной башней FY-4."
+    reloadSec:r=7.10
+    crew:i=3
+    hp:i=2360
+    hullArmor:ip3=520, 85, 45
+    turretArmor:ip3=620, 140, 60
+    fwdKmh:r=71.0
+    revKmh:r=15.0
+    engineHp:i=1000
+    weightTons:r=42.5
+    turretDegSec:r=36.0
+    hullDegSec:r=38.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="chinese"
+    baseColor:p3=0.320, 0.320, 0.220
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=yes
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="DTC10-125"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1760.0
+      damage:r=640.0
+      basePenMM:i=577
+      guided:b=no
+    }
+    shell1{
+      code:t="DJB-125"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=920.0
+      damage:r=540.0
+      basePenMM:i=560
+      guided:b=no
+    }
+    shell2{
+      code:t="GP125"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=340.0
+      damage:r=755.0
+      basePenMM:i=780
+      guided:b=yes
+    }
+  }
+
+  vt4{
+    idx:i=9
+    nationIdx:i=2
+    nation:t="cn"
+    name:t="VT-4A1"
+    shortName:t="VT-4A1"
+    br:t="11.7"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм ZPT-98E"
+    coaxName:t="7.62мм Type 86 • 12.7мм ДУМВ"
+    eraName:t="FY-4E + КАЗ"
+    history:t="Современный китайский ОБТ 3-го поколения с цифровой СУО «охотник-стрелок», двигателем 1300 л.с. и модульной защитой FY-4E."
+    reloadSec:r=6.70
+    crew:i=3
+    hp:i=2480
+    hullArmor:ip3=575, 110, 50
+    turretArmor:ip3=665, 175, 65
+    fwdKmh:r=70.0
+    revKmh:r=17.0
+    engineHp:i=1300
+    weightTons:r=52.0
+    turretDegSec:r=40.0
+    hullDegSec:r=38.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="chinese"
+    baseColor:p3=0.360, 0.340, 0.240
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="BTA4 ОБПС"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1750.0
+      damage:r=650.0
+      basePenMM:i=585
+      guided:b=no
+    }
+    shell1{
+      code:t="BTJ1 КС"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=925.0
+      damage:r=555.0
+      basePenMM:i=600
+      guided:b=no
+    }
+    shell2{
+      code:t="GP125-T"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=350.0
+      damage:r=785.0
+      basePenMM:i=840
+      guided:b=yes
+    }
+  }
+
+  ztz99a{
+    idx:i=10
+    nationIdx:i=2
+    nation:t="cn"
+    name:t="ZTZ-99A"
+    shortName:t="ZTZ-99A"
+    br:t="12.0"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="125мм ZPT-98A (L/50)"
+    coaxName:t="7.62мм QJT-88 • 12.7мм QJC-88A"
+    eraName:t="FY-5 Тяжёлая"
+    history:t="Элитный тяжёлый ОБТ НОАК с двигателем 1500 л.с. (задний ход 34 км/ч!), тяжёлой ДЗ FY-5 и лазерным комплексом JD-3."
+    reloadSec:r=6.50
+    crew:i=3
+    hp:i=2580
+    hullArmor:ip3=630, 125, 55
+    turretArmor:ip3=720, 190, 75
+    fwdKmh:r=75.0
+    revKmh:r=34.0
+    engineHp:i=1500
+    weightTons:r=55.0
+    turretDegSec:r=40.0
+    hullDegSec:r=40.0
+    unlockedDefault:b=no
+    costRp:i=45000
+    costSilver:i=290000
+    arch:t="chinese"
+    baseColor:p3=0.290, 0.320, 0.220
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="DTC10-125"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1770.0
+      damage:r=665.0
+      basePenMM:i=602
+      guided:b=no
+    }
+    shell1{
+      code:t="DJB-2"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=930.0
+      damage:r=560.0
+      basePenMM:i=620
+      guided:b=no
+    }
+    shell2{
+      code:t="GP125M"
+      type:t="atgm"
+      label:t="ПТУР"
+      speedMs:r=355.0
+      damage:r=790.0
+      basePenMM:i=850
+      guided:b=yes
+    }
+  }
+
+  m10{
+    idx:i=11
+    nationIdx:i=3
+    nation:t="us"
+    name:t="M10 Booker"
+    shortName:t="M10 Booker"
+    br:t="10.3"
+    rank:t="VII"
+    roleClass:t="ЛЁГКИЙ ТАНК"
+    gunName:t="105мм XM35"
+    coaxName:t="7.62мм M240C • 12.7мм M2HB"
+    eraName:t="Модульная броня"
+    history:t="Машина огневой поддержки армии США со скорострельным 105-мм орудием (перезарядка 5.0с) и панорамным тепловизором CITV."
+    reloadSec:r=5.00
+    crew:i=4
+    hp:i=2050
+    hullArmor:ip3=220, 65, 40
+    turretArmor:ip3=280, 80, 45
+    fwdKmh:r=72.0
+    revKmh:r=28.0
+    engineHp:i=800
+    weightTons:r=38.0
+    turretDegSec:r=46.0
+    hullDegSec:r=44.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="ifv"
+    baseColor:p3=0.310, 0.330, 0.250
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="M900"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1505.0
+      damage:r=575.0
+      basePenMM:i=522
+      guided:b=no
+    }
+    shell1{
+      code:t="M456A2"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1170.0
+      damage:r=500.0
+      basePenMM:i=440
+      guided:b=no
+    }
+    shell2{
+      code:t="M393A3"
+      type:t="he"
+      label:t="БФС"
+      speedMs:r=730.0
+      damage:r=720.0
+      basePenMM:i=127
+      guided:b=no
+    }
+  }
+
+  m1a1{
+    idx:i=12
+    nationIdx:i=3
+    nation:t="us"
+    name:t="M1A1HC Abrams"
+    shortName:t="M1A1HC"
+    br:t="11.3"
+    rank:t="VII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм M256"
+    coaxName:t="7.62мм M240 • 12.7мм M2HB"
+    eraName:t="Chobham HAP-2"
+    history:t="Тяжёлая версия M1A1 с усиленными скулами башни, вышибными панелями боекомплекта и 1500-сильной газотурбиной AGT1500."
+    reloadSec:r=6.00
+    crew:i=4
+    hp:i=2560
+    hullArmor:ip3=450, 95, 45
+    turretArmor:ip3=660, 150, 55
+    fwdKmh:r=68.0
+    revKmh:r=38.0
+    engineHp:i=1500
+    weightTons:r=61.2
+    turretDegSec:r=40.0
+    hullDegSec:r=38.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="western"
+    baseColor:p3=0.350, 0.340, 0.260
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=yes
+    shell0{
+      code:t="M829A1"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1575.0
+      damage:r=645.0
+      basePenMM:i=598
+      guided:b=no
+    }
+    shell1{
+      code:t="M830A1"
+      type:t="heatfs"
+      label:t="КС-РВ"
+      speedMs:r=1410.0
+      damage:r=560.0
+      basePenMM:i=500
+      guided:b=no
+    }
+    shell2{
+      code:t="M908"
+      type:t="he"
+      label:t="ББ-ОФ"
+      speedMs:r=1410.0
+      damage:r=730.0
+      basePenMM:i=185
+      guided:b=no
+    }
+  }
+
+  m1a2sep{
+    idx:i=13
+    nationIdx:i=3
+    nation:t="us"
+    name:t="M1A2 SEP v3"
+    shortName:t="M1A2 SEP v3"
+    br:t="12.0"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм M256E1"
+    coaxName:t="7.62мм M240 • 12.7мм CROWS-LP"
+    eraName:t="NGAP + ARAT"
+    history:t="Вершина развития «Абрамса»: комбинированная броня нового поколения NGAP, модуль CROWS-LP, ТВП 3-го пок. и снаряд M829A2."
+    reloadSec:r=6.00
+    crew:i=4
+    hp:i=2680
+    hullArmor:ip3=540, 125, 50
+    turretArmor:ip3=730, 185, 60
+    fwdKmh:r=68.0
+    revKmh:r=36.0
+    engineHp:i=1500
+    weightTons:r=66.8
+    turretDegSec:r=42.0
+    hullDegSec:r=36.0
+    unlockedDefault:b=no
+    costRp:i=45000
+    costSilver:i=295000
+    arch:t="western"
+    baseColor:p3=0.380, 0.370, 0.280
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=yes
+    shell0{
+      code:t="M829A2"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1680.0
+      damage:r=670.0
+      basePenMM:i=629
+      guided:b=no
+    }
+    shell1{
+      code:t="M830A1"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1410.0
+      damage:r=570.0
+      basePenMM:i=520
+      guided:b=no
+    }
+    shell2{
+      code:t="M1147"
+      type:t="he"
+      label:t="ОФС-П"
+      speedMs:r=1150.0
+      damage:r=810.0
+      basePenMM:i=110
+      guided:b=no
+    }
+  }
+
+  ariete{
+    idx:i=14
+    nationIdx:i=4
+    nation:t="eu"
+    name:t="C1 Ariete AMV"
+    shortName:t="Ariete AMV"
+    br:t="11.7"
+    rank:t="VII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм OTO Breda L/44"
+    coaxName:t="7.62мм MG42/59 × 2"
+    eraName:t="WAR + PSO"
+    history:t="Итальянский ОБТ с форсированным дизелем IVECO V12 (1500 л.с.), пакетами бронирования WAR/PSO и пробивным снарядом DM53."
+    reloadSec:r=6.00
+    crew:i=4
+    hp:i=2420
+    hullArmor:ip3=460, 105, 45
+    turretArmor:ip3=610, 160, 55
+    fwdKmh:r=70.0
+    revKmh:r=32.0
+    engineHp:i=1500
+    weightTons:r=57.0
+    turretDegSec:r=42.0
+    hullDegSec:r=40.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="western"
+    baseColor:p3=0.280, 0.310, 0.230
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="DM53"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1670.0
+      damage:r=655.0
+      basePenMM:i=623
+      guided:b=no
+    }
+    shell1{
+      code:t="DM12A1"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1140.0
+      damage:r=550.0
+      basePenMM:i=480
+      guided:b=no
+    }
+    shell2{
+      code:t="DM11"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=980.0
+      damage:r=790.0
+      basePenMM:i=75
+      guided:b=no
+    }
+  }
+
+  challenger2{
+    idx:i=15
+    nationIdx:i=4
+    nation:t="eu"
+    name:t="Challenger 2 TES"
+    shortName:t="Challenger 2"
+    br:t="11.7"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм L30A1 (нарезная)"
+    coaxName:t="7.62мм L94A1 • 12.7мм Enforcer"
+    eraName:t="Dorchester 2E + NERA"
+    history:t="Британская бронекрепость в обвесе Theatre Entry Standard: мощнейшая круговая защита Dorchester 2E и перезарядка 5.3с."
+    reloadSec:r=5.30
+    crew:i=4
+    hp:i=2720
+    hullArmor:ip3=570, 185, 55
+    turretArmor:ip3=725, 220, 70
+    fwdKmh:r=59.0
+    revKmh:r=36.0
+    engineHp:i=1200
+    weightTons:r=74.0
+    turretDegSec:r=36.0
+    hullDegSec:r=32.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="western"
+    baseColor:p3=0.280, 0.320, 0.240
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="L27A1"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1650.0
+      damage:r=650.0
+      basePenMM:i=564
+      guided:b=no
+    }
+    shell1{
+      code:t="L31A7"
+      type:t="he"
+      label:t="БФС"
+      speedMs:r=670.0
+      damage:r=850.0
+      basePenMM:i=152
+      guided:b=no
+    }
+    shell2{
+      code:t="L23A1"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1535.0
+      damage:r=590.0
+      basePenMM:i=480
+      guided:b=no
+    }
+  }
+
+  leo2a7{
+    idx:i=16
+    nationIdx:i=4
+    nation:t="eu"
+    name:t="Leopard 2A7V"
+    shortName:t="Leopard 2A7V"
+    br:t="12.0"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм Rh-120 L/55A1"
+    coaxName:t="7.62мм MG3A1 × 2"
+    eraName:t="NERA 3-го пок. + ВЛД"
+    history:t="Эталонный германский ОБТ с длинноствольным орудием L/55A1 (рекордные 652 мм пробития DM53) и клиновидными щеками башни."
+    reloadSec:r=6.00
+    crew:i=4
+    hp:i=2660
+    hullArmor:ip3=625, 115, 50
+    turretArmor:ip3=750, 190, 65
+    fwdKmh:r=68.0
+    revKmh:r=31.0
+    engineHp:i=1500
+    weightTons:r=66.5
+    turretDegSec:r=42.0
+    hullDegSec:r=38.0
+    unlockedDefault:b=no
+    costRp:i=48000
+    costSilver:i=310000
+    arch:t="western"
+    baseColor:p3=0.270, 0.300, 0.220
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=no
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="DM53 L/55"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1750.0
+      damage:r=680.0
+      basePenMM:i=652
+      guided:b=no
+    }
+    shell1{
+      code:t="DM12A1"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1140.0
+      damage:r=560.0
+      basePenMM:i=480
+      guided:b=no
+    }
+    shell2{
+      code:t="DM11"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=990.0
+      damage:r=810.0
+      basePenMM:i=80
+      guided:b=no
+    }
+  }
+
+  amx40{
+    idx:i=17
+    nationIdx:i=5
+    nation:t="fr"
+    name:t="AMX-40"
+    shortName:t="AMX-40"
+    br:t="10.0"
+    rank:t="VI"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм GIAT CN120-25 + 20мм M693"
+    coaxName:t="20мм автопушка M693"
+    eraName:t="Разнесённая броня"
+    history:t="Стремительный французский танк со спаренной 20-мм автопушкой и 1300-сильным дизелем для агрессивных фланговых атак."
+    reloadSec:r=6.50
+    crew:i=4
+    hp:i=2220
+    hullArmor:ip3=330, 75, 40
+    turretArmor:ip3=410, 105, 45
+    fwdKmh:r=72.0
+    revKmh:r=28.0
+    engineHp:i=1300
+    weightTons:r=43.7
+    turretDegSec:r=40.0
+    hullDegSec:r=42.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="western"
+    baseColor:p3=0.290, 0.330, 0.240
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="OFL 120 G1"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1650.0
+      damage:r=600.0
+      basePenMM:i=495
+      guided:b=no
+    }
+    shell1{
+      code:t="OCC 120 G1"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1100.0
+      damage:r=540.0
+      basePenMM:i=480
+      guided:b=no
+    }
+    shell2{
+      code:t="OE 120 F1"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=1000.0
+      damage:r=760.0
+      basePenMM:i=65
+      guided:b=no
+    }
+  }
+
+  leclerc{
+    idx:i=18
+    nationIdx:i=5
+    nation:t="fr"
+    name:t="Leclerc S2"
+    shortName:t="Leclerc S2"
+    br:t="11.7"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм CN120-26 L/52"
+    coaxName:t="12.7мм M2HB • 7.62мм AAN F1"
+    eraName:t="Модульная NERA"
+    history:t="Французский ОБТ с кормовым конвейерным автоматом заряжания (стабильные 5.0с перезарядки!) и двигателем Hyperbar 1500 л.с."
+    reloadSec:r=5.00
+    crew:i=3
+    hp:i=2450
+    hullArmor:ip3=520, 100, 45
+    turretArmor:ip3=635, 160, 55
+    fwdKmh:r=71.0
+    revKmh:r=38.0
+    engineHp:i=1500
+    weightTons:r=56.3
+    turretDegSec:r=42.0
+    hullDegSec:r=40.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="western"
+    baseColor:p3=0.260, 0.310, 0.230
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="OFL 120 F1"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1790.0
+      damage:r=645.0
+      basePenMM:i=575
+      guided:b=no
+    }
+    shell1{
+      code:t="OCC 120 F1"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1100.0
+      damage:r=550.0
+      basePenMM:i=480
+      guided:b=no
+    }
+    shell2{
+      code:t="OE 120 F1"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=1020.0
+      damage:r=780.0
+      basePenMM:i=70
+      guided:b=no
+    }
+  }
+
+  leclercxlr{
+    idx:i=19
+    nationIdx:i=5
+    nation:t="fr"
+    name:t="Leclerc SXXI XLR"
+    shortName:t="Leclerc XLR"
+    br:t="12.0"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм CN120-26 L/52"
+    coaxName:t="12.7мм M2HB • 7.62мм ДУМВ T2B"
+    eraName:t="Титан-NERA + AZUR"
+    history:t="Модернизация программы SCORPION: титаново-композитные вставки башни, бортовая ДЗ AZUR и снаряд OFL 120 F2."
+    reloadSec:r=5.00
+    crew:i=3
+    hp:i=2540
+    hullArmor:ip3=570, 145, 50
+    turretArmor:ip3=685, 185, 65
+    fwdKmh:r=72.0
+    revKmh:r=38.0
+    engineHp:i=1500
+    weightTons:r=57.6
+    turretDegSec:r=44.0
+    hullDegSec:r=40.0
+    unlockedDefault:b=no
+    costRp:i=45000
+    costSilver:i=290000
+    arch:t="western"
+    baseColor:p3=0.280, 0.320, 0.240
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="OFL 120 F2"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1790.0
+      damage:r=660.0
+      basePenMM:i=604
+      guided:b=no
+    }
+    shell1{
+      code:t="OCC 120 F1"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1120.0
+      damage:r=560.0
+      basePenMM:i=510
+      guided:b=no
+    }
+    shell2{
+      code:t="OE 120 МП"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=1030.0
+      damage:r=815.0
+      basePenMM:i=85
+      guided:b=no
+    }
+  }
+
+  cv90120{
+    idx:i=20
+    nationIdx:i=6
+    nation:t="se"
+    name:t="CV 90120-T Ghost"
+    shortName:t="CV 90120"
+    br:t="11.3"
+    rank:t="VII"
+    roleClass:t="ЛЁГКИЙ ТАНК"
+    gunName:t="120мм CTG L/50"
+    coaxName:t="7.62мм ksp 58"
+    eraName:t="Стелс-плиты Adaptiv"
+    history:t="Сверхбыстрый шведский истребитель танков (78 км/ч!) со 120-мм гладкоствольным орудием и автоматом заряжания 5.0 секунд."
+    reloadSec:r=5.00
+    crew:i=4
+    hp:i=2020
+    hullArmor:ip3=140, 55, 35
+    turretArmor:ip3=175, 65, 40
+    fwdKmh:r=78.0
+    revKmh:r=42.0
+    engineHp:i=800
+    weightTons:r=27.7
+    turretDegSec:r=48.0
+    hullDegSec:r=48.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="ifv"
+    baseColor:p3=0.260, 0.320, 0.240
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=no
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="slpprj m/95"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1700.0
+      damage:r=645.0
+      basePenMM:i=598
+      guided:b=no
+    }
+    shell1{
+      code:t="slsgr m/95"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=980.0
+      damage:r=790.0
+      basePenMM:i=75
+      guided:b=no
+    }
+    shell2{
+      code:t="slpsgr m/95"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1140.0
+      damage:r=545.0
+      basePenMM:i=480
+      guided:b=no
+    }
+  }
+
+  strv121{
+    idx:i=21
+    nationIdx:i=6
+    nation:t="se"
+    name:t="Strv 121"
+    shortName:t="Strv 121"
+    br:t="10.7"
+    rank:t="VII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм kan Strv 121 (L/44)"
+    coaxName:t="7.62мм ksp 94 × 2"
+    eraName:t="Многослойная NERA"
+    history:t="Шведская версия Leopard 2A4 с гранатомётами Galix, высокой задней скоростью 31 км/ч и точной СУО EMES-15."
+    reloadSec:r=6.00
+    crew:i=4
+    hp:i=2520
+    hullArmor:ip3=450, 95, 45
+    turretArmor:ip3=560, 145, 55
+    fwdKmh:r=68.0
+    revKmh:r=31.0
+    engineHp:i=1500
+    weightTons:r=55.2
+    turretDegSec:r=40.0
+    hullDegSec:r=38.0
+    unlockedDefault:b=yes
+    costRp:i=0
+    costSilver:i=0
+    arch:t="western"
+    baseColor:p3=0.260, 0.300, 0.220
+    wedgeTurret:b=no
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=no
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="slpprj m/90A"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1650.0
+      damage:r=615.0
+      basePenMM:i=515
+      guided:b=no
+    }
+    shell1{
+      code:t="slpsgr m/88"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1140.0
+      damage:r=540.0
+      basePenMM:i=480
+      guided:b=no
+    }
+    shell2{
+      code:t="slsgr m/98"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=950.0
+      damage:r=760.0
+      basePenMM:i=65
+      guided:b=no
+    }
+  }
+
+  strv122{
+    idx:i=22
+    nationIdx:i=6
+    nation:t="se"
+    name:t="Strv 122B+ Evolution"
+    shortName:t="Strv 122B+"
+    br:t="12.0"
+    rank:t="VIII"
+    roleClass:t="ОСНОВНОЙ ТАНК"
+    gunName:t="120мм kan Strv 122 (L/44)"
+    coaxName:t="7.62мм ksp 94 × 2"
+    eraName:t="Åkers Krutbruk NERA+"
+    history:t="Один из самых бронированных танков мира: тяжёлые шведские накладки ВЛД (670 мм!) и усиленная броня скул башни (765 мм!)."
+    reloadSec:r=6.00
+    crew:i=4
+    hp:i=2740
+    hullArmor:ip3=670, 155, 55
+    turretArmor:ip3=765, 215, 70
+    fwdKmh:r=68.0
+    revKmh:r=31.0
+    engineHp:i=1500
+    weightTons:r=64.5
+    turretDegSec:r=42.0
+    hullDegSec:r=38.0
+    unlockedDefault:b=no
+    costRp:i=48000
+    costSilver:i=310000
+    arch:t="western"
+    baseColor:p3=0.270, 0.320, 0.230
+    wedgeTurret:b=yes
+    hasLog:b=no
+    hasFuelDrums:b=no
+    hasAtgmRails:b=no
+    hasSearchlight:b=no
+    hasRcws:b=yes
+    hasBustle:b=yes
+    isTurbine:b=no
+    shell0{
+      code:t="slpprj m/95"
+      type:t="apfsds"
+      label:t="ОБПС"
+      speedMs:r=1680.0
+      damage:r=660.0
+      basePenMM:i=595
+      guided:b=no
+    }
+    shell1{
+      code:t="slpsgr m/95"
+      type:t="heatfs"
+      label:t="КС"
+      speedMs:r=1140.0
+      damage:r=555.0
+      basePenMM:i=480
+      guided:b=no
+    }
+    shell2{
+      code:t="slsgr m/01"
+      type:t="he"
+      label:t="ОФС"
+      speedMs:r=980.0
+      damage:r=805.0
+      basePenMM:i=80
+      guided:b=no
+    }
+  }
+
+}

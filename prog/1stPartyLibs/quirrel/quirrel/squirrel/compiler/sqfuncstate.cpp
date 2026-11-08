@@ -1,0 +1,698 @@
+/*
+    see copyright notice in squirrel.h
+*/
+#include "sqpcheader.h"
+#include "sqstring.h"
+#include "sqfuncproto.h"
+#include "sqtable.h"
+#include "opcodes.h"
+#include "sqfuncstate.h"
+#include "sqclosure.h"
+#include "sqarray.h"
+
+#include <stdarg.h>
+
+
+SQFuncState::SQFuncState(SQSharedState *ss,SQFuncState *parent,SQCompilationContext &ctx) :
+    _vlocals(ss->_alloc_ctx),
+    _vlocals_info(ss->_alloc_ctx),
+    _targetstack(ss->_alloc_ctx),
+    _unresolvedbreaks(ss->_alloc_ctx),
+    _unresolvedcontinues(ss->_alloc_ctx),
+    _expr_block_results(ss->_alloc_ctx),
+    _functions(ss->_alloc_ctx),
+    _parameters(ss->_alloc_ctx),
+    _param_type_masks(ss->_alloc_ctx),
+    _outervalues(ss->_alloc_ctx),
+    _outervalues_info(ss->_alloc_ctx),
+    _instructions(ss->_alloc_ctx),
+    _localvarinfos(ss->_alloc_ctx),
+    _full_line_infos(ss->_alloc_ctx),
+    _breaktargets(ss->_alloc_ctx),
+    _continuetargets(ss->_alloc_ctx),
+    _blockstacksizes(ss->_alloc_ctx),
+    _defaultparams(ss->_alloc_ctx),
+    _childstates(ss->_alloc_ctx),
+    _ctx(ctx)
+{
+        _nliterals = 0;
+        _literals = SQTable::Create(ss,0);
+        _sharedstate = ss;
+        _lastline = 0;
+        _optimization = true;
+        _parent = parent;
+        _stacksize = 0;
+        _traps = 0;
+        _returnexp = 0;
+        _varparams = false;
+        _bgenerator = false;
+        _purefunction = false;
+        _nodiscard = false;
+        _isAsync = false;
+        _outers = 0;
+        _hoistLevel = 0;
+        _ss = ss;
+        _result_type_mask = ~0u;
+        lang_features = parent ? parent->lang_features : ss->defaultLangFeatures;
+}
+
+
+SQInteger SQFuncState::GetNumericConstant(const SQInteger cons)
+{
+    return GetConstant(SQObjectPtr(cons));
+}
+
+SQInteger SQFuncState::GetNumericConstant(const SQFloat cons)
+{
+    return GetConstant(SQObjectPtr(cons));
+}
+
+SQInteger SQFuncState::GetConstant(const SQObjectPtr &cons, int max_const_no)
+{
+    SQObjectPtr val;
+    max_const_no = max_const_no < MAX_LITERALS ? max_const_no : MAX_LITERALS;
+    if(!_table(_literals)->Get(cons,val))
+    {
+        if(_nliterals >= max_const_no) {
+            if (max_const_no == MAX_LITERALS)
+            {
+                val.Null();
+                _ctx.throwError("internal compiler error: too many literals");
+            } else
+                return -1;
+        }
+        val = _nliterals;
+        _table(_literals)->NewSlot(cons,val);
+        _nliterals++;
+    }
+    int iv = _integer(val);
+    return iv <= max_const_no ? iv : -1;
+}
+
+bool SQFuncState::IsNullConstant(SQInteger idx) const
+{
+    SQObjectPtr nullidx;
+    return _table(_literals)->Get(SQObjectPtr(), nullidx) && _integer(nullidx) == idx;
+}
+
+void SQFuncState::SetInstructionParams(SQInteger pos,SQInteger arg0,SQInteger arg1,SQInteger arg2,SQInteger arg3)
+{
+    _instructions[pos]._arg0=(unsigned char)*((SQUnsignedInteger *)&arg0);
+    _instructions[pos]._arg1=(SQInt32)*((SQUnsignedInteger *)&arg1);
+    _instructions[pos]._arg2=(unsigned char)*((SQUnsignedInteger *)&arg2);
+    _instructions[pos]._arg3=(unsigned char)*((SQUnsignedInteger *)&arg3);
+}
+
+void SQFuncState::SetInstructionParam(SQInteger pos,SQInteger arg,SQInteger val)
+{
+    switch(arg){
+        case 0:_instructions[pos]._arg0=(unsigned char)*((SQUnsignedInteger *)&val);break;
+        case 1:case 4:_instructions[pos]._arg1=(SQInt32)*((SQUnsignedInteger *)&val);break;
+        case 2:_instructions[pos]._arg2=(unsigned char)*((SQUnsignedInteger *)&val);break;
+        case 3:_instructions[pos]._arg3=(unsigned char)*((SQUnsignedInteger *)&val);break;
+    };
+}
+
+SQInteger SQFuncState::AllocStackPos()
+{
+    SQInteger npos=_vlocals.size();
+    if(npos >= MAX_FUNC_STACKSIZE)
+        _ctx.throwError("too many function stack slots: bytecode supports at most %d slots per function; slot %d cannot be encoded because 0x%02X is reserved",
+            int(MAX_FUNC_STACKSIZE), int(npos), int(MAX_FUNC_STACKSIZE));
+    _vlocals.push_back(SQLocalVarInfo());
+    _vlocals_info.push_back(SQCompiletimeVarInfo{});
+    if(_vlocals.size()>((SQUnsignedInteger)_stacksize)) {
+        _stacksize=_vlocals.size();
+    }
+    return npos;
+}
+
+SQInteger SQFuncState::PushTarget(SQInteger n)
+{
+    if(n!=-1){
+        _targetstack.push_back(n);
+        return n;
+    }
+    n=AllocStackPos();
+    _targetstack.push_back(n);
+    return n;
+}
+
+SQInteger SQFuncState::GetUpTarget(SQInteger n){
+    return _targetstack[((_targetstack.size()-1)-n)];
+}
+
+SQInteger SQFuncState::TopTarget(){
+    return _targetstack.back();
+}
+SQInteger SQFuncState::PopTarget()
+{
+    SQUnsignedInteger npos=_targetstack.back();
+    assert(npos < _vlocals.size());
+    SQLocalVarInfo &t = _vlocals[npos];
+    if(sq_type(t._name)==OT_NULL){
+        _vlocals.pop_back();
+        _vlocals_info.pop_back();
+    }
+    _targetstack.pop_back();
+    return npos;
+}
+
+SQInteger SQFuncState::GetStackSize()
+{
+    return _vlocals.size();
+}
+
+SQInteger SQFuncState::CountOuters(SQInteger stacksize)
+{
+    SQInteger outers = 0;
+    SQInteger k = _vlocals.size() - 1;
+    while(k >= stacksize) {
+        SQLocalVarInfo &lvi = _vlocals[k];
+        k--;
+        if(lvi._end_op == UINT32_MINUS_ONE) { //this means is an outer
+            outers++;
+        }
+    }
+    return outers;
+}
+
+void SQFuncState::SetStackSize(SQInteger n)
+{
+    SQInteger size=_vlocals.size();
+    while(size>n){
+        size--;
+        SQLocalVarInfo lvi = _vlocals.back();
+        if(sq_type(lvi._name)!=OT_NULL){
+            if(lvi._end_op == UINT32_MINUS_ONE) { //this means is an outer
+                _outers--;
+            }
+            lvi._end_op = GetCurrentPos();
+            if (!(_vlocals_info.back().var_flags & VF_PARAM)) // the proto names params by _parameters
+                _localvarinfos.push_back(lvi);
+        }
+        _vlocals.pop_back();
+        _vlocals_info.pop_back();
+    }
+}
+
+
+bool SQFuncState::IsLocal(SQUnsignedInteger stkpos)
+{
+    if(stkpos>=_vlocals.size())return false;
+    else if(sq_type(_vlocals[stkpos]._name)!=OT_NULL)return true;
+    return false;
+}
+
+SQInteger SQFuncState::PushLocalVariable(const SQObject &name, const SQCompiletimeVarInfo& ct_var_info)
+{
+    SQInteger pos=_vlocals.size();
+    if(pos >= MAX_FUNC_STACKSIZE) {
+        const char *varName = sq_type(name) == OT_STRING ? _stringval(name) : "<anonymous>";
+        _ctx.throwError("too many function stack slots: cannot allocate local '%s' at slot %d; bytecode supports at most %d slots per function",
+            varName, int(pos), int(MAX_FUNC_STACKSIZE));
+    }
+    SQLocalVarInfo lvi;
+    lvi._name=name;
+    lvi._start_op=GetCurrentPos()+1;
+    lvi._pos=_vlocals.size();
+    _vlocals.push_back(lvi);
+    _vlocals_info.push_back(ct_var_info);
+    if(_vlocals.size()>((SQUnsignedInteger)_stacksize))_stacksize=_vlocals.size();
+    return pos;
+}
+
+
+
+SQInteger SQFuncState::GetLocalVariable(const SQObject &name, SQCompiletimeVarInfo& ct_var_info)
+{
+    SQInteger locals=_vlocals.size();
+    while(locals>=1){
+        SQLocalVarInfo &lvi = _vlocals[locals-1];
+        if(sq_type(lvi._name)==OT_STRING && _string(lvi._name)==_string(name)){
+            ct_var_info = _vlocals_info[locals-1];
+            return locals-1;
+        }
+        locals--;
+    }
+    return -1;
+}
+
+void SQFuncState::MarkLocalAsOuter(SQInteger pos)
+{
+    SQLocalVarInfo &lvi = _vlocals[pos];
+    lvi._end_op = UINT32_MINUS_ONE;
+    _outers++;
+}
+
+
+SQInteger SQFuncState::GetOuterVariable(const SQObject &name, SQCompiletimeVarInfo &varInfo)
+{
+    SQInteger outers = _outervalues.size();
+    for(SQInteger i = 0; i<outers; i++) {
+        if(_string(_outervalues[i]._name) == _string(name)) {
+            varInfo = _outervalues_info[i];
+            return i;
+        }
+    }
+    SQInteger pos=-1;
+    if(_parent) {
+        pos = _parent->GetLocalVariable(name, varInfo);
+        if(pos == -1) {
+            pos = _parent->GetOuterVariable(name, varInfo);
+            if(pos != -1) {
+                _outervalues.push_back({SQObjectPtr(name), uint32_t(pos), otOUTER});
+                _outervalues_info.push_back(varInfo);
+                return _outervalues.size() - 1;
+            }
+        }
+        else {
+            bool bycopy = varInfo.hasFinalValue();
+            if (!bycopy)
+                _parent->MarkLocalAsOuter(pos);
+            _outervalues.push_back({SQObjectPtr(name), uint32_t(pos), bycopy ? otCOPY : otLOCAL});
+            _outervalues_info.push_back(varInfo);
+            return _outervalues.size() - 1;
+        }
+    }
+    return -1;
+}
+
+bool SQFuncState::FindOuterVariable(const SQObject &name, SQCompiletimeVarInfo &varInfo)
+{
+    for(SQUnsignedInteger i = 0; i < _outervalues.size(); i++) {
+        if(_string(_outervalues[i]._name) == _string(name)) {
+            varInfo = _outervalues_info[i];
+            return true;
+        }
+    }
+    return _parent && (_parent->GetLocalVariable(name, varInfo) != -1 || _parent->FindOuterVariable(name, varInfo));
+}
+
+void SQFuncState::AddParameter(const SQObject &name, SQUnsignedInteger32 type_mask) // TODO: initializer node
+{
+    PushLocalVariable(name, SQCompiletimeVarInfo{VF_PARAM | VF_ASSIGNABLE, type_mask, nullptr});
+    _parameters.push_back(SQObjectPtr(name));
+    _param_type_masks.push_back(type_mask);
+}
+
+void SQFuncState::AddLineInfos(SQInteger line, bool is_dbg_step_point, bool force)
+{
+    if(_lastline!=line || force){
+        if(_lastline!=line) {
+            SQFullLineInfo li;
+            li._op = (GetCurrentPos()+1);
+            li._line_offset = line;
+            li._is_dbg_step_point = is_dbg_step_point;
+            _full_line_infos.push_back(li);
+            if (is_dbg_step_point && _ctx.getVm()->_compile_line_hook)
+                _ctx.getVm()->_compile_line_hook(_ctx.getVm(), _ctx.sourceName(), line);
+        }
+        _lastline=line;
+    }
+}
+
+void SQFuncState::DiscardTarget()
+{
+    SQInteger discardedtarget = PopTarget();
+    SQInteger size = _instructions.size();
+    if(size > 0 && _optimization){
+        SQInstruction &pi = _instructions[size-1];//previous instruction
+        switch(pi.op) {
+        case _OP_SETI:case _OP_SETK:case _OP_SET:case _OP_NEWSLOTK:case _OP_NEWSLOT:case _OP_SETOUTER:case _OP_CALL:case _OP_FASTCALL:case _OP_NULLCALL:
+            if(pi._arg0 == discardedtarget) {
+                pi._arg0 = 0xFF;
+            }
+        }
+    }
+}
+
+void SQFuncState::AddInstruction(SQInstruction &i)
+{
+    SQInteger size = _instructions.size();
+    if (size > 0 && _optimization && !(lang_features & LF_DISABLE_OPTIMIZER)){ //simple optimizer
+
+        if (i.op == _OP_MOVE && i._arg0 == i._arg1)
+            return;
+
+        SQInstruction &pi = _instructions[size-1];//previous instruction
+        switch(i.op) {
+        case _OP_JZ: {
+            if( pi.op == _OP_CMP && pi._arg1 < 0xFF) {
+                pi.op = _OP_JCMP;
+                pi._arg0 = (unsigned char)pi._arg1;
+                pi._arg3 |= (uint8_t(i._arg2 ? 1 : 0)<<3);
+                pi._arg1 = i._arg1;
+                return;
+            }
+            // x == null: ObjCmp with a null operand neither throws nor calls _cmp,
+            // and gives 0 only for null, so JCMPK on the EQUAL relation is exact
+            const bool isNullTest = (pi.op == _OP_EQ || pi.op == _OP_NE) &&
+                pi._arg3 != 0 && IsNullConstant(pi._arg1); // arg3 != 0: arg1 is a constant
+            if( isNullTest && pi._arg1 <= 0xFF && pi._arg0 == i._arg0 && !IsLocal(pi._arg0)) {
+                const uint8_t trueRels = pi.op == _OP_EQ ? CMP_REL_EQUAL : (CMP_REL_LESS | CMP_REL_GREATER);
+                const uint8_t jumpOnTrue = i._arg2 ? 8 : 0;
+                pi.op = _OP_JCMPK;
+                pi._arg0 = (unsigned char)pi._arg1; // the null constant
+                pi._arg1 = i._arg1;
+                pi._arg3 = trueRels | jumpOnTrue;
+                return;
+            }
+            break;
+        }
+        case _OP_SET:
+            if(i._arg0 == i._arg3) {
+                i._arg0 = 0xFF;
+            }
+            if( pi.op == _OP_LOAD && pi._arg0 == i._arg1 && (!IsLocal(pi._arg0))){
+                // arg1 is size of int
+                pi._arg2 = i._arg2;
+                pi.op = _OP_SETK;
+                pi._arg0 = i._arg0;
+                pi._arg3 = i._arg3;
+                return;
+            }
+            if( pi.op == _OP_LOADINT && pi._arg0 == i._arg1 && (!IsLocal(pi._arg0))){
+                pi._arg2 = i._arg2;
+                pi.op = _OP_SETI;
+                // arg1 is size of int
+                pi._arg0 = i._arg0;
+                pi._arg3 = i._arg3;
+                return;
+            }
+            break;
+        case _OP_NEWSLOT:
+            if(i._arg0 == i._arg3) {
+                i._arg0 = 0xFF;
+            }
+            if( (pi.op == _OP_LOADINT || pi.op == _OP_LOAD) && pi._arg0 == i._arg1 && (!IsLocal(pi._arg0))){
+                // arg1 is size of int
+                pi._arg1 = pi.op == _OP_LOADINT ? GetNumericConstant((SQInteger)pi._arg1) : pi._arg1;
+                pi._arg0 = i._arg0;
+                pi._arg3 = i._arg3;
+                pi._arg2 = i._arg2;
+                pi.op = _OP_NEWSLOTK;
+                return;
+            }
+            break;
+        case _OP_SETI:
+        case _OP_SETK:
+        case _OP_NEWSLOTK:
+            if(i._arg0 == i._arg3) {
+                i._arg0 = 0xFF;
+            }
+            break;
+        case _OP_SETOUTER:
+            if(i._arg0 == i._arg2) {
+                i._arg0 = 0xFF;
+            }
+            break;
+        case _OP_RETURN:
+            // Deliberately not converting _OP_FASTCALL: a native "tailcall" goes
+            // through the generic path anyway, so staying FASTCALL is faster.
+            if( _parent && i._arg0 != MAX_FUNC_STACKSIZE && pi.op == _OP_CALL && _returnexp < size-1) {
+                pi.op = _OP_TAILCALL;
+            } else if(pi.op == _OP_CLOSE){
+                pi = i;
+                return;
+            }
+        break;
+        case _OP_GET:
+            if( pi.op == _OP_LOAD && pi._arg0 == i._arg1 && (!IsLocal(pi._arg0))){
+                // arg1 is size of int
+                pi._arg2 = i._arg2;
+                pi.op = _OP_GETK;
+                pi._arg0 = i._arg0;
+                pi._arg3 = i._arg3;
+                return;
+            }
+            if( pi.op == _OP_LOADINT && pi._arg0 == i._arg1 && (!IsLocal(pi._arg0))){
+                // arg1 is size of int
+                // if (GetNumericConstant((SQInteger)pi._arg1) < 256)
+                pi._arg2 = i._arg2;
+                pi._arg1 = GetNumericConstant((SQInteger)pi._arg1);
+                pi.op = _OP_GETK;
+                pi._arg0 = i._arg0;
+                pi._arg3 = i._arg3;
+                return;
+            }
+        break;
+        case _OP_PREPCALL:
+            if( pi.op == _OP_LOAD  && pi._arg0 == i._arg1 && (!IsLocal(pi._arg0))){
+                pi.op = _OP_PREPCALLK;
+                pi._arg0 = i._arg0;
+                pi._arg2 = i._arg2;
+                pi._arg3 = i._arg3;
+                return;
+            }
+            break;
+        case _OP_APPENDARRAY: {
+            SQInteger aat = -1;
+            switch(pi.op) {
+            case _OP_LOAD: aat = AAT_LITERAL; break;
+            case _OP_LOADINT: aat = AAT_INT; break;
+            case _OP_LOADBOOL: aat = AAT_BOOL; break;
+            case _OP_LOADFLOAT: aat = AAT_FLOAT; break;
+            default: break;
+            }
+            if(aat != -1 && pi._arg0 == i._arg1 && (!IsLocal(pi._arg0))){
+                pi.op = _OP_APPENDARRAY;
+                pi._arg0 = i._arg0;
+                pi._arg2 = (unsigned char)aat;
+                pi._arg3 = MAX_FUNC_STACKSIZE;
+                return;
+            }
+                              }
+            break;
+        case _OP_ADD:
+            // result = STK(arg2) + STK(arg1); a just-loaded int in the right
+            // operand folds into ADDI's stk + imm exactly, for every type
+            // including string concat; the left operand and SUB do not
+            if( pi.op == _OP_LOADINT && !IsLocal(pi._arg0) &&
+                pi._arg0 == i._arg1 && i._arg1 != i._arg2) {
+                pi._arg2 = i._arg2;
+                pi._arg3 = 0;
+                pi.op = _OP_ADDI;
+                pi._arg0 = i._arg0;
+                return;
+            }
+            break;
+        case _OP_MOVE:
+            switch(pi.op) {
+            case _OP_GET: case _OP_GETK:
+            case _OP_ADD: case _OP_SUB: case _OP_MUL: case _OP_DIV: case _OP_MOD: case _OP_BITW:
+            case _OP_LOADINT: case _OP_LOADFLOAT: case _OP_LOADBOOL: case _OP_LOAD:
+            case _OP_NEG: case _OP_NOT: case _OP_BWNOT:
+            case _OP_ADDI:
+            case _OP_CMP:
+            case _OP_TYPEOF:
+            case _OP_CLONE:
+
+                if(pi._arg0 == i._arg1 && !IsLocal(pi._arg0))
+                {
+                    pi._arg0 = i._arg0;
+                    _optimization = false;
+                    return;
+                }
+            }
+
+            if(pi.op == _OP_GETOUTER && i._arg1 < 256 && i._arg0 && !pi._arg2)
+            {
+                pi._arg2 = i._arg0;
+                pi._arg3 = (unsigned char)i._arg1;
+                return;
+            }
+
+            if(pi.op == _OP_LOADCALLEE && i._arg1 < 256 && i._arg0 && !pi._arg2)
+            {
+                pi._arg2 = i._arg0;
+                pi._arg3 = (unsigned char)i._arg1;
+                return;
+            }
+
+            if(pi.op == _OP_LOAD && i._arg1 < 256)
+            {
+                pi.op = _OP_LOAD_MOVE;
+                pi._arg2 = i._arg0;
+                pi._arg3 = (unsigned char)i._arg1;
+                return;
+            }
+
+            if(pi.op == _OP_MOVE && i._arg1 < 256)
+            {
+                pi.op = _OP_DMOVE;
+                pi._arg2 = i._arg0;
+                pi._arg3 = (unsigned char)i._arg1;
+                return;
+            }
+            break;
+        case _OP_LOAD:
+            if(pi.op == _OP_LOAD && i._arg1 < 256) {
+                pi.op = _OP_DLOAD;
+                pi._arg2 = i._arg0;
+                pi._arg3 = (unsigned char)i._arg1;
+                return;
+            }
+            break;
+        case _OP_EQ:case _OP_NE:
+            if((pi.op == _OP_LOAD || pi.op == _OP_LOADINT || pi.op == _OP_LOADFLOAT || pi.op == _OP_LOADBOOL ||
+                (pi.op == _OP_LOADNULLS && pi._arg1 == 1)) && pi._arg0 == i._arg1 && (!IsLocal(pi._arg0) ))
+            {
+                if (pi.op == _OP_LOADNULLS)
+                    pi._arg1 = GetConstant(SQObjectPtr());
+                else if (pi.op != _OP_LOAD)
+                {
+                    pi._arg1 = pi.op == _OP_LOADINT ? GetNumericConstant((SQInteger)pi._arg1) : pi.op == _OP_LOADFLOAT ? GetNumericConstant(pi._farg1) : GetConstant(SQObjectPtr(bool(pi._arg1)));
+                }
+                pi.op = i.op;
+                pi._arg0 = i._arg0;
+                pi._arg2 = i._arg2;
+                pi._arg3 = 1;
+                return;
+            }
+            break;
+        case _OP_LOADNULLS:
+            if((pi.op == _OP_LOADNULLS && pi._arg0+pi._arg1 == i._arg0)) {
+
+                pi._arg1 = pi._arg1 + 1;
+                pi.op = _OP_LOADNULLS; //-V1048
+                return;
+            }
+            break;
+        }
+    }
+    _optimization = true;
+    _instructions.push_back(i);
+}
+
+SQObjectPtr SQFuncState::CreateString(const char *s,SQInteger len)
+{
+    return SQObjectPtr(SQString::Create(_sharedstate,s,len));
+}
+
+SQFunctionProto *SQFuncState::BuildProto()
+{
+    bool useCompressedLineInfos = true;
+    int firstLine = INT_MAX;
+    int lastLine = 0;
+
+    for (SQUnsignedInteger ni = 0; ni < _full_line_infos.size(); ni++) {
+        int line = _full_line_infos[ni]._line_offset;
+        if (line < firstLine)
+            firstLine = line;
+        if (line > lastLine)
+            lastLine = line;
+        if (_full_line_infos[ni]._op > 255)
+            useCompressedLineInfos = false;
+    }
+
+    if (lastLine - firstLine > 127)
+        useCompressedLineInfos = false;
+
+    bool typedParams = false;
+    for(SQUnsignedInteger np = 0; np < _param_type_masks.size(); np++)
+        typedParams = typedParams || _param_type_masks[np] != SQFunctionProto::DefaultParamTypeMask(np);
+
+    SQFunctionProto *f=SQFunctionProto::Create(_ss,_instructions.size(),
+        _nliterals,_parameters.size(),_functions.size(),_outervalues.size(),
+        _full_line_infos.size(),useCompressedLineInfos,_localvarinfos.size(),_defaultparams.size(),
+        typedParams);
+
+    SQObjectPtr refidx,key,val;
+    SQInteger idx;
+
+    f->_stacksize = _stacksize;
+    f->_sourcename = _sourcename;
+    f->_bgenerator = _bgenerator;
+    f->_purefunction = _purefunction;
+    f->_nodiscard = _nodiscard;
+    f->_isAsync = _isAsync;
+    bool derivedName = _stringval(_name)[0] == '(';
+    if (derivedName) {
+        char buf[256];
+        SQFunctionProto::FormatDerivedName(buf, sizeof(buf), _stringval(_sourcename), firstLine);
+        derivedName = strcmp(buf, _stringval(_name)) == 0;
+    }
+    if (!derivedName)
+        f->_name = _name;
+    f->_inside_hoisted_scope = _hoistLevel > 0;
+    f->_result_type_mask = _result_type_mask;
+
+    while((idx=_table(_literals)->Next(false,refidx,key,val))!=-1) {
+        f->_literals[_integer(val)]=key;
+        refidx=idx;
+    }
+
+    for(SQUnsignedInteger nf = 0; nf < _functions.size(); nf++) f->_functions[nf] = _functions[nf];
+    for(SQUnsignedInteger no = 0; no < _outervalues.size(); no++) {
+        SQFuncOuterVar &ov = f->_outervalues[no];
+        ov._name = _string(_outervalues[no]._name);
+        __ObjAddRef(ov._name);
+        ov._src = _outervalues[no]._src;
+        ov._type = _outervalues[no]._type;
+    }
+    uint8_t *localSlots = f->GetLocalVarSlots();
+    for(SQUnsignedInteger nl = 0; nl < _localvarinfos.size(); nl++) {
+        SQFuncLocalVar &lv = f->_localvarinfos[nl];
+        lv._name = _string(_localvarinfos[nl]._name);
+        __ObjAddRef(lv._name);
+        lv._start_op = _localvarinfos[nl]._start_op;
+        lv._end_op = _localvarinfos[nl]._end_op;
+        localSlots[nl] = uint8_t(_localvarinfos[nl]._pos);
+    }
+
+    for(SQUnsignedInteger np = 0; np < _parameters.size(); np++) {
+        f->_parameters[np] = _parameters[np];
+        if (typedParams)
+            f->_param_type_masks[np] = _param_type_masks[np];
+    }
+
+    f->_lineinfos->_is_compressed = useCompressedLineInfos;
+    f->_lineinfos->_first_line = firstLine;
+    if (useCompressedLineInfos) {
+        for(SQUnsignedInteger ni = 0; ni < _full_line_infos.size(); ni++) {
+            SQCompressedLineInfo *li = (SQCompressedLineInfo *)(void *)(f->_lineinfos + 1) + ni;
+            li->_op = _full_line_infos[ni]._op;
+            li->_line_offset = _full_line_infos[ni]._line_offset - (unsigned)firstLine;
+            li->_is_dbg_step_point = _full_line_infos[ni]._is_dbg_step_point;
+        }
+    } else {
+        for(SQUnsignedInteger ni = 0; ni < _full_line_infos.size(); ni++) {
+            SQFullLineInfo *li = (SQFullLineInfo *)(void *)(f->_lineinfos + 1) + ni;
+            *li = _full_line_infos[ni];
+            li->_line_offset -= firstLine;
+        }
+    }
+
+    for(SQUnsignedInteger nd = 0; nd < _defaultparams.size(); nd++) f->_defaultparams[nd] = _defaultparams[nd];
+
+    memcpy(f->_instructions,&_instructions[0],_instructions.size()*sizeof(SQInstruction));
+
+    f->_varparams = _varparams;
+
+    return f;
+}
+
+SQFuncState *SQFuncState::PushChildState(SQSharedState *ss)
+{
+    SQFuncState *child = (SQFuncState *)sq_malloc(ss->_alloc_ctx, sizeof(SQFuncState));
+    new (child) SQFuncState(ss,this,_ctx);
+    _childstates.push_back(child);
+    return child;
+}
+
+void SQFuncState::PopChildState()
+{
+    SQFuncState *child = _childstates.back();
+    SQAllocContext ctx = _ss->_alloc_ctx;
+    sq_delete(ctx, child,SQFuncState);
+    _childstates.pop_back();
+}
+
+SQFuncState::~SQFuncState()
+{
+    while(_childstates.size() > 0)
+    {
+        PopChildState();
+    }
+}

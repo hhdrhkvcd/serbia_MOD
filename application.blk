@@ -1,0 +1,57 @@
+// Dagor Engine 6.5 Application Manifest — Steel Front: Online (Serbia MOD + 7 Nations)
+projectName:t="steel_front_online"
+engineVersion:t="Dagor Engine 6.5 (daNetGame + DagorRT DX11)"
+windowTitle:t="STEEL FRONT: ONLINE — Dagor Engine 6.5"
+
+video{
+  driver:t="auto"
+  fallbackDriver:t="dx11"
+  mode:t="fullscreenwindowed"
+  resolution:t="1920 x 1080"
+  vsync:b=yes
+  msaaSamples:i=4
+  shadowsQuality:i=3
+  daSkiesClouds:b=yes
+}
+
+mountPoints{
+  "%gameBase":t="prog/gameBase"
+  "%scripts":t="prog/scripts"
+  "%danetlibs":t="../DagorEngine/prog/daNetGameLibs"
+}
+
+vromfs{
+  primaryPack:t="game/res/gamedata.vromfs.bin"
+  preferLooseFilesForModding:b=yes
+}
+
+game{
+  units_blk:t="gamedata/units/tanks_all_nations.blk"
+  weapons_blk:t="gamedata/weapons/cannons_120_125mm.blk"
+  levels_blk:t="gamedata/levels/levels_steel_front.blk"
+  camouflages_blk:t="gamedata/camouflages.blk"
+  entities_blk:t="gamedata/templates/steel_front.entities.blk"
+  main_scene:t="gamedata/levels/levels_steel_front.blk"
+  playerTemplateName:t="steel_front_player"
+  defaultNation:t="rs"
+  defaultVehicle:t="m84as2"
+}
+
+daSkies{
+  sunZenithDeg:r=56.0
+  mieScattering:r=0.42
+  cumulusCoverage:r=0.54
+  aerialPerspective:b=yes
+}
+
+sessionLaunchParams{
+  netPort:i=27015
+  netTickHz:i=30
+  maxPlayers:i=16
+  ticketsStart:i=2500
+  enableBotBackfill:b=yes
+}
+
+shaders{
+  path:t="game/compiledShaders/game"
+}

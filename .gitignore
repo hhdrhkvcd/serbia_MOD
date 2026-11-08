@@ -1,0 +1,10 @@
+*.obj
+*.pdb
+*.ilk
+*.part
+*.log
+.DS_Store
+steam_output/
+config/profile.ini
+dagor_engine_mod/.dagor_sdk/
+dagor_engine_mod/DagorEngine/

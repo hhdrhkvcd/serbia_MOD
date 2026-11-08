@@ -1,0 +1,31 @@
+"DepotBuildConfig"
+{
+    "DepotID" "481"
+    "ContentRoot" "."
+    "FileMapping"
+    {
+        "LocalPath" "SteelFrontLauncher.exe"
+        "DepotPath" "."
+        "recursive" "0"
+    }
+    "FileMapping"
+    {
+        "LocalPath" "bin\win64\*"
+        "DepotPath" "bin\win64"
+        "recursive" "1"
+    }
+    "FileMapping"
+    {
+        "LocalPath" "config\settings.ini"
+        "DepotPath" "config"
+        "recursive" "0"
+    }
+    "FileMapping"
+    {
+        "LocalPath" "steam_appid.txt"
+        "DepotPath" "."
+        "recursive" "0"
+    }
+    "FileExclusion" "*.pdb"
+    "FileExclusion" "*.part"
+}
