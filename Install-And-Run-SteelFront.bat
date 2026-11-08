@@ -25,7 +25,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $f='%BAT_FILE%'; $p='%BOOT_PS1%'; $c=[IO.File]::ReadAllText($f); $m='### POWERSHELL SCRIPT BELOW ###'; $i=$c.IndexOf($m); if($i -lt 0){throw 'Embedded setup script marker missing.'}; $body=$c.Substring($i+$m.Length); [IO.File::WriteAllText($p,$body,[Text.UTF8Encoding]::new($false)); & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $p; exit $LASTEXITCODE"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $f='%BAT_FILE%'; $p='%BOOT_PS1%'; $c=[IO.File]::ReadAllText($f); $m='### POWERSHELL SCRIPT BELOW ###'; $i=$c.LastIndexOf($m); if($i -lt 0){throw 'Embedded setup script marker missing.'}; $body=$c.Substring($i+$m.Length); [IO.File::WriteAllText($p,$body,[Text.UTF8Encoding]::new($false)); & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $p; exit $LASTEXITCODE"
 set "RESULT=%ERRORLEVEL%"
 
 echo.
