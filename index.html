@@ -1,0 +1,1229 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0d0e10">
+  <title>Steel Front: Online — Официальный сайт на движке Gaijin Dagor Engine 6.5 (Windows x64)</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c0d0f;
+      --bg-soft: #131518;
+      --panel: rgba(20, 22, 25, 0.94);
+      --panel-hi: rgba(28, 30, 35, 0.96);
+      --amber: #eab038;
+      --amber-bright: #ffd066;
+      --crimson: #dc3f1e;
+      --crimson-hi: #f2572c;
+      --green: #6ae282;
+      --text: #f3efe6;
+      --muted: #a6a9b2;
+      --line: rgba(234, 176, 56, 0.28);
+      --line-soft: rgba(255, 255, 255, 0.09);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(ellipse 90% 45% at 50% 0%, rgba(220, 92, 30, 0.16), transparent 65%),
+        radial-gradient(ellipse 70% 50% at 85% 20%, rgba(234, 176, 56, 0.10), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      font: 15.5px/1.55 "Segoe UI", Inter, Roboto, system-ui, -apple-system, sans-serif;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* TOP NAVBAR (daRg Style) */
+    header.topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(14px);
+      background: rgba(13, 14, 17, 0.92);
+      border-bottom: 2px solid rgba(234, 176, 56, 0.55);
+    }
+    .topbar-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 12px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-bar {
+      width: 5px;
+      height: 34px;
+      background: linear-gradient(180deg, var(--crimson-hi), var(--amber));
+      border-radius: 2px;
+    }
+    .brand-title {
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: var(--amber);
+      letter-spacing: 0.12em;
+      font-weight: 700;
+    }
+    nav.navlinks {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #d6d3cb;
+    }
+    nav.navlinks a:hover { color: var(--amber-bright); }
+    .nav-cta {
+      padding: 8px 16px;
+      border-radius: 6px;
+      background: linear-gradient(180deg, var(--crimson-hi), #a52410);
+      border: 1px solid rgba(255, 198, 108, 0.8);
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      box-shadow: 0 6px 20px rgba(220, 63, 30, 0.35);
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px 22px 72px;
+    }
+
+    /* HERO GRID */
+    .hero {
+      display: grid;
+      grid-template-columns: 1.05fr 1.15fr;
+      gap: 28px;
+      align-items: stretch;
+      margin-top: 8px;
+    }
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+    }
+    .hero-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--amber);
+      border-radius: 12px;
+      padding: 28px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      background: rgba(234, 176, 56, 0.13);
+      border: 1px solid rgba(234, 176, 56, 0.45);
+      color: var(--amber-bright);
+    }
+    .badge.live {
+      background: rgba(106, 226, 130, 0.12);
+      border-color: rgba(106, 226, 130, 0.45);
+      color: var(--green);
+    }
+    h1 {
+      margin: 4px 0 12px;
+      font-size: clamp(30px, 4.2vw, 48px);
+      line-height: 1.04;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+    h1 span { color: var(--amber); }
+    .hero-lead {
+      color: #d4d1c8;
+      margin: 0 0 18px;
+      font-size: 15.5px;
+    }
+    .feature-pills {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 560px) {
+      .feature-pills { grid-template-columns: 1fr; }
+    }
+    .fpill {
+      background: rgba(12, 13, 16, 0.75);
+      border: 1px solid var(--line-soft);
+      border-left: 3px solid var(--amber);
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 12.8px;
+    }
+    .fpill strong { display: block; color: var(--amber-bright); font-size: 13px; }
+
+    .cta-group {
+      display: grid;
+      gap: 11px;
+    }
+    .btn-battle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      min-height: 60px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #f45828 0%, #c82e16 55%, #94190c 100%);
+      border: 1px solid rgba(255, 206, 118, 0.92);
+      color: #fff;
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      box-shadow: 0 12px 32px rgba(220, 63, 30, 0.42);
+      cursor: pointer;
+      transition: transform 0.14s, filter 0.14s;
+    }
+    .btn-battle:hover { transform: translateY(-2px); filter: brightness(1.08); }
+    .btn-secondary-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 560px) {
+      .btn-secondary-row { grid-template-columns: 1fr; }
+    }
+    .btn-amber {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 10px 14px;
+      border-radius: 7px;
+      background: rgba(58, 42, 14, 0.88);
+      border: 1px solid rgba(234, 176, 56, 0.72);
+      color: var(--amber-bright);
+      font-weight: 800;
+      font-size: 13.2px;
+      text-align: center;
+      transition: background 0.14s;
+    }
+    .btn-amber:hover { background: rgba(88, 64, 20, 0.95); }
+    .dl-hint {
+      margin-top: 10px;
+      font-size: 12.2px;
+      color: var(--muted);
+    }
+
+    /* LIVE 3D CANVAS VIEWPORT */
+    .viewport-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 3px solid var(--amber);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+    }
+    .vp-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(12, 13, 16, 0.95);
+      border-bottom: 1px solid var(--line-soft);
+      flex-wrap: wrap;
+    }
+    .vp-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--amber-bright);
+      letter-spacing: 0.06em;
+    }
+    .vp-btns {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .vp-btn {
+      background: #1b1d21;
+      color: #e6e2d8;
+      border: 1px solid rgba(234, 176, 56, 0.42);
+      border-radius: 5px;
+      padding: 5px 9px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .vp-btn.active, .vp-btn:hover {
+      background: #543b12;
+      border-color: var(--amber-bright);
+      color: #fff;
+    }
+    .canvas-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 360px;
+      background: #090b0f;
+    }
+    #dagorCanvas {
+      width: 100%;
+      height: 100%;
+      min-height: 360px;
+      display: block;
+      cursor: grab;
+    }
+    #dagorCanvas:active { cursor: grabbing; }
+    .hud-telemetry {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(12, 13, 15, 0.86);
+      border: 1px solid rgba(234, 176, 56, 0.65);
+      border-top: 2px solid var(--amber);
+      border-radius: 6px;
+      padding: 8px 11px;
+      font: 11px/1.45 Consolas, "Courier New", monospace;
+      color: #dfd9cc;
+      pointer-events: none;
+    }
+    .hud-telemetry .ok { color: var(--green); font-weight: 700; }
+    .hud-bottom {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      pointer-events: none;
+    }
+    .hud-tank-pill {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(14, 15, 18, 0.9);
+      border: 1px solid rgba(234, 176, 56, 0.65);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12.5px;
+      font-weight: 800;
+    }
+
+    /* SECTION HEADINGS */
+    section.block {
+      margin-top: 48px;
+    }
+    .sec-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 12px;
+      margin-bottom: 22px;
+    }
+    .sec-head h2 {
+      margin: 0;
+      font-size: clamp(22px, 3vw, 30px);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .sec-head h2 span { color: var(--amber); }
+    .sec-sub { color: var(--muted); font-size: 14px; }
+
+    /* ENGINE ARCHITECTURE CARDS (4 + 3 MODES) */
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+    }
+    @media (max-width: 980px) {
+      .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 620px) {
+      .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+    .dcard {
+      background: var(--panel);
+      border: 1px solid var(--line-soft);
+      border-top: 3px solid var(--amber);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .dcard h3 {
+      margin: 0 0 8px;
+      font-size: 16.5px;
+      color: var(--amber-bright);
+    }
+    .dcard p { margin: 0; color: #cbc8c0; font-size: 13.8px; }
+    .dcard code {
+      background: rgba(234, 176, 56, 0.12);
+      color: var(--amber-bright);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 12.2px;
+    }
+
+    /* DOWNLOAD FILES TABLE */
+    .dl-table-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      overflow-x: auto;
+    }
+    table.dl-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.8px;
+    }
+    table.dl-table th, table.dl-table td {
+      padding: 13px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--line-soft);
+    }
+    table.dl-table th {
+      background: rgba(12, 13, 16, 0.9);
+      color: var(--amber);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+    .hash {
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .mini-dl {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 5px;
+      background: rgba(220, 63, 30, 0.2);
+      border: 1px solid rgba(242, 87, 44, 0.75);
+      color: #ffd7ca;
+      font-weight: 700;
+      font-size: 12.5px;
+    }
+    .mini-dl:hover { background: rgba(220, 63, 30, 0.45); color: #fff; }
+
+    /* NATIONS & 23 VEHICLES TECH TREE */
+    .nation-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .ntab {
+      background: #17191d;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #dedad0;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .ntab.active, .ntab:hover {
+      background: linear-gradient(180deg, #5c4014, #38260b);
+      border-color: var(--amber-bright);
+      color: var(--amber-bright);
+    }
+    .veh-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
+      gap: 14px;
+    }
+    .vcard {
+      background: var(--panel);
+      border: 1px solid var(--line-soft);
+      border-left: 3px solid var(--amber);
+      border-radius: 8px;
+      padding: 15px 16px;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .vcard.serbia {
+      border-left-color: #f2572c;
+      background: linear-gradient(180deg, rgba(42, 24, 20, 0.55), rgba(20, 22, 25, 0.95));
+    }
+    .vcard:hover {
+      border-color: var(--amber);
+      transform: translateY(-2px);
+    }
+    .vcard-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .vname { font-weight: 800; font-size: 15.5px; color: #fff; }
+    .vbr {
+      background: rgba(234, 176, 56, 0.18);
+      border: 1px solid rgba(234, 176, 56, 0.55);
+      color: var(--amber-bright);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .vmeta { font-size: 12px; color: var(--amber); margin-bottom: 8px; font-weight: 700; }
+    .vstats {
+      font-size: 12.6px;
+      color: #ccc9c1;
+      display: grid;
+      gap: 3px;
+    }
+    .armor-bar {
+      margin-top: 8px;
+      height: 5px;
+      background: #23262c;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .armor-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--amber), var(--crimson-hi));
+    }
+
+    /* INTERACTIVE DAGOR VISUAL CONSOLE (~) */
+    .console-box {
+      background: #080b09;
+      border: 1px solid rgba(106, 226, 130, 0.65);
+      border-top: 3px solid var(--green);
+      border-radius: 10px;
+      padding: 18px;
+      font-family: Consolas, "Courier New", monospace;
+    }
+    .console-presets {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .cbtn {
+      background: #121c14;
+      border: 1px solid rgba(106, 226, 130, 0.45);
+      color: #a9f5b8;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font: 700 12px Consolas, monospace;
+      cursor: pointer;
+    }
+    .cbtn:hover { background: #1c3121; color: #fff; }
+    #consoleLog {
+      background: #050706;
+      border: 1px solid rgba(106, 226, 130, 0.22);
+      border-radius: 6px;
+      padding: 12px;
+      height: 195px;
+      overflow-y: auto;
+      font-size: 12.8px;
+      color: #cde8d2;
+      white-space: pre-wrap;
+      margin-bottom: 10px;
+    }
+    .console-input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .console-input-row input {
+      flex: 1;
+      background: #0e1510;
+      border: 1px solid rgba(106, 226, 130, 0.55);
+      border-radius: 6px;
+      padding: 9px 12px;
+      color: #fff3a8;
+      font: 13.5px Consolas, monospace;
+    }
+    .console-input-row button {
+      background: #235c2e;
+      border: 1px solid var(--green);
+      color: #fff;
+      font-weight: 800;
+      padding: 0 18px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    footer {
+      margin-top: 56px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-bar"></div>
+      <div>
+        <div class="brand-title">Steel Front // Dagor 6.5</div>
+        <div class="brand-sub">Quirrel VM (.nut) • daSkies2 • Perlin LandMesh • VROMFS</div>
+      </div>
+    </div>
+    <nav class="navlinks">
+      <a href="#engine">Движок Dagor 6.5</a>
+      <a href="#downloads">Скачать Win64</a>
+      <a href="#vehicles">23 Танка (7 наций)</a>
+      <a href="#modes">3 Режима SDK</a>
+      <a href="#console">Консоль ~</a>
+    </nav>
+    <a class="nav-cta" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">⬇ СКАЧАТЬ ЛАУНЧЕР (1.6 МБ)</a>
+  </div>
+</header>
+
+<div class="container">
+  <!-- HERO SECTION -->
+  <section class="hero">
+    <div class="hero-card">
+      <div>
+        <div class="badge-row">
+          <span class="badge live">● СБОРКА d63e2af ОНЛАЙН</span>
+          <span class="badge">GAIJIN DAGOR ENGINE 6.5</span>
+          <span class="badge">WINDOWS 10 / 11 x64</span>
+        </div>
+        <h1>STEEL FRONT: <span>DAGOR 6.5</span></h1>
+        <p class="hero-lead">
+          Многопользовательский танковый экшен для ПК, полностью переведённый на архитектуру и настоящие C++ модули
+          <strong>Gaijin Dagor Engine 6.5</strong>: виртуальная машина <strong>Quirrel 4 (.nut)</strong>, рельеф
+          <strong>Perlin HeightMapLand</strong>, атмосфера <strong>daSkies2</strong>, торсионная подвеска <strong>vehiclePhys</strong> и ветка ВС Сербии во главе с <strong>M-84AS2 «Војвода»</strong>!
+        </p>
+
+        <div class="feature-pills">
+          <div class="fpill">
+            <strong>42 C++ модуля Quirrel 4 VM</strong>
+            Нативный компилятор и ВМ Gaijin <code>HSQUIRRELVM</code> исполняют <code>.nut</code> скрипты из <code>gamedata.vromfs.bin</code>.
+          </div>
+          <div class="fpill">
+            <strong>daSkies2 + clouds2 + daStars</strong>
+            Закат Golden Hour, Полдень, Гроза и Ночь со звёздами (<code>F4</code>) + тени облаков по земле.
+          </div>
+          <div class="fpill">
+            <strong>Dagor Math + Perlin LandMesh</strong>
+            Скомпилированный <code>perlin.cpp</code> (<code>fBm3</code>) + наклон корпуса и подвеска <code>vehiclePhys</code>.
+          </div>
+          <div class="fpill">
+            <strong>7 наций • 23 боевые машины</strong>
+            Полная ветка Сербии (<code>M-84AS2</code>, <code>M-91 Vihor</code>, <code>M-84AS1</code>, <code>BVP M-80AB1</code>) + моддинг <code>.blk</code> по <code>F5</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="cta-group">
+        <a class="btn-battle" id="dlLauncherBtn" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">
+          ⬇ СКАЧАТЬ STEELFRONTLAUNCHER.EXE (1.60 МБ • АВТООБНОВЛЕНИЕ CDN)
+        </a>
+        <div class="btn-secondary-row">
+          <a class="btn-amber" href="https://codeload.github.com/hhdrhkvcd/serbia_MOD/zip/refs/heads/arena/2571b3b1-serbia-mod">
+            📦 ПОЛНЫЙ АРХИВ ИГРЫ + SDK (.ZIP)
+          </a>
+          <a class="btn-amber" href="./bin/win64/SteelFrontGame.exe" download="SteelFrontGame.exe">
+            🎮 ПРЯМОЙ КЛИЕНТ DAGOR 6.5 (1.73 МБ)
+          </a>
+        </div>
+        <div class="dl-hint">
+          ✓ Лаунчер автоматически проверяет версию Dagor 6.5 (&gt; 1 МБ) и сам обновляет старый <code>SteelFrontGame.exe</code> и <code>gamedata.vromfs.bin</code> по HTTPS!
+        </div>
+      </div>
+    </div>
+
+    <!-- INTERACTIVE 3D SHOWCASE -->
+    <div class="viewport-card">
+      <div class="vp-toolbar">
+        <span class="vp-title">3D ПОЛИГОН НИКИНЦИ • ПРЕДПРОСМОТР daSkies2 + HeightMapLand</span>
+        <div class="vp-btns">
+          <button class="vp-btn active" data-sky="0">🌅 Закат</button>
+          <button class="vp-btn" data-sky="1">☀ День</button>
+          <button class="vp-btn" data-sky="2">⛈ Гроза</button>
+          <button class="vp-btn" data-sky="3">🌙 Ночь</button>
+          <button class="vp-btn" id="btnWire">Сетка F3</button>
+          <button class="vp-btn" id="btnArmor">Броня</button>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="dagorCanvas"></canvas>
+        <div class="hud-telemetry" id="hudTelemetry">
+          <div><span class="ok">DAGOR 6.5 KERNEL</span> • drv3d_DX11 SM5.0</div>
+          <div>VROMFS: 14 files • .BLK: 23 units • daECS: 27</div>
+          <div>Quirrel VM: <span class="ok">ACTIVE (HSQUIRRELVM)</span></div>
+          <div id="hudSkyLine">daSkies2: ЗАКАТ Golden Hour • Perlin fBm3</div>
+        </div>
+        <div class="hud-bottom">
+          <div class="hud-tank-pill">
+            <button class="vp-btn" id="prevTank">◀</button>
+            <span id="curTankLabel">🇷🇸 M-84AS2 «Војвода» • БР 12.0</span>
+            <button class="vp-btn" id="nextTank">▶</button>
+          </div>
+          <div class="hud-tank-pill" style="font-weight:600;color:#c9c5bc;">
+            Зажмите ЛКМ для вращения 3D-камеры
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENGINE ARCHITECTURE -->
+  <section class="block" id="engine">
+    <div class="sec-head">
+      <h2>ЧТО ИЗМЕНИЛОСЬ В <span>GAIJIN DAGOR ENGINE 6.5</span></h2>
+      <span class="sec-sub">Полная замена рендера, интерфейса, физики подвески и скриптового ядра</span>
+    </div>
+    <div class="grid-4">
+      <div class="dcard">
+        <h3>1. ВМ Quirrel 4 (.nut)</h3>
+        <p>В <code>SteelFrontGame.exe</code> и <code>SteelFrontLauncher.exe</code> статически скомпилированы 42 C++ файла из <code>prog/1stPartyLibs/quirrel</code>: парсер AST, статический анализатор, байткод-компилятор и ВМ <code>HSQUIRRELVM</code>.</p>
+      </div>
+      <div class="dcard">
+        <h3>2. Атмосфера daSkies2</h3>
+        <p>Шейдер рассеяния Ми Хеньи—Гринштейна, закатный горизонт Golden Hour, двухслойные объёмные облака <code>clouds2</code> с серебристой окантовкой, бегущие тени по земле и звёзды <code>daStars</code>.</p>
+      </div>
+      <div class="dcard">
+        <h3>3. Perlin HeightMapLand</h3>
+        <p>Оригинальный модуль <code>prog/engine/math/perlin.cpp</code> (<code>perlin_noise::fBm3</code> + SIMD <code>vecmath</code> SSE4.1) генерирует холмы полигона Никинци, а <code>vehiclePhys</code> наклоняет и качает корпус танка.</p>
+      </div>
+      <div class="dcard">
+        <h3>4. Интерфейс daRg + Броня</h3>
+        <p>Графитово-янтарная тема Gaijin <code>daRg</code>, телеметрия движка <code>F2</code>, консоль <code>~</code> и живой калькулятор приведённой брони под курсором мыши в режиме «Анализ брони».</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- DIRECT DOWNLOADS & SHA-256 -->
+  <section class="block" id="downloads">
+    <div class="sec-head">
+      <h2>ЦЕНТР ЗАГРУЗКИ <span>WINDOWS 10 / 11 (x64)</span></h2>
+      <span class="sec-sub">Актуальные исполняемые модули коммита d63e2af с проверкой контрольных сумм SHA-256</span>
+    </div>
+    <div class="dl-table-wrap">
+      <table class="dl-table">
+        <thead>
+          <tr>
+            <th>Модуль / Файл</th>
+            <th>Назначение</th>
+            <th>Размер</th>
+            <th>Контрольная сумма SHA-256</th>
+            <th>Скачать</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>SteelFrontLauncher.exe</strong></td>
+            <td>3D DX11 Лаунчер Gaijin daRg (автодокачка и автообновление старого клиента по HTTPS)</td>
+            <td>1.60 МБ</td>
+            <td class="hash">db6f0f6313a3f48b...6c7ad0d0</td>
+            <td><a class="mini-dl" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">⬇ Скачать .EXE</a></td>
+          </tr>
+          <tr>
+            <td><strong>bin/win64/SteelFrontGame.exe</strong></td>
+            <td>Боевой клиент Gaijin Dagor Engine 6.5 (Quirrel VM + daSkies2 + Perlin LandMesh + daRg)</td>
+            <td>1.73 МБ</td>
+            <td class="hash">b0afdbcc686c0f94...1cbd8ea4</td>
+            <td><a class="mini-dl" href="./bin/win64/SteelFrontGame.exe" download="SteelFrontGame.exe">⬇ Скачать .EXE</a></td>
+          </tr>
+          <tr>
+            <td><strong>bin/win64/SteelFrontServer.exe</strong></td>
+            <td>Выделенный авторитативный UDP-сервер 60 Гц (модульный урон экипажа/БК + чтение .blk)</td>
+            <td>1.42 МБ</td>
+            <td class="hash">2d2eac88b04f9c24...d4e622cf</td>
+            <td><a class="mini-dl" href="./bin/win64/SteelFrontServer.exe" download="SteelFrontServer.exe">⬇ Скачать .EXE</a></td>
+          </tr>
+          <tr>
+            <td><strong>game/res/gamedata.vromfs.bin</strong></td>
+            <td>Виртуальный архив VRFs v6.5 (14 файлов: 23 танка .blk, карты, камуфляжи, скрипты .nut/.das)</td>
+            <td>62 КБ</td>
+            <td class="hash">22a96fd411e11bda...36173ad19</td>
+            <td><a class="mini-dl" href="./game/res/gamedata.vromfs.bin" download="gamedata.vromfs.bin">⬇ Скачать .BIN</a></td>
+          </tr>
+          <tr>
+            <td><strong>Полный архив ветки Dagor 6.5</strong></td>
+            <td>Готовая к запуску папка игры + исходники C++20 / DagorEngine + скрипты всех 3 режимов SDK</td>
+            <td>ZIP</td>
+            <td class="hash">Ветка arena/2571b3b1-serbia-mod</td>
+            <td><a class="mini-dl" href="https://codeload.github.com/hhdrhkvcd/serbia_MOD/zip/refs/heads/arena/2571b3b1-serbia-mod">📦 Скачать .ZIP</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3 SDK MODES -->
+  <section class="block" id="modes">
+    <div class="sec-head">
+      <h2>СРАЗУ <span>3 ВАРИАНТА DAGOR ENGINE 6.5</span> В ЛАУНЧЕРЕ</h2>
+      <span class="sec-sub">Переключаются одной кнопкой прямо в левой колонке SteelFrontLauncher.exe</span>
+    </div>
+    <div class="grid-3">
+      <div class="dcard">
+        <h3>Режим 1 • Dagor 6.5 RT (Мгновенный старт)</h3>
+        <p>Работает сразу из коробки без скачивания 200 ГБ SDK: нативные C++ модули Quirrel VM и Dagor Math, архив <code>gamedata.vromfs.bin</code>, 4 погоды <code>daSkies2</code> и живой моддинг <code>tanks_all_nations.blk</code> по клавише <code>F5</code>.</p>
+      </div>
+      <div class="dcard">
+        <h3>Режим 2 • Gaijin daNetGame (CDN Prebuilt)</h3>
+        <p>Скрипт <code>SETUP_FULL_DAGOR_ENGINE.ps1 -Mode dng-prebuilt</code> скачивает официальный бинарный архив <code>dngSceneViewer.7z</code> с CDN Gaijin и монтирует модуль <code>steelFrontOnline</code> (<code>application.blk</code> + <code>.das</code> + <code>.nut</code>).</p>
+      </div>
+      <div class="dcard">
+        <h3>Режим 3 • Полный исходный SDK (Git + Jam)</h3>
+        <p>Клонирует официальный репозиторий <code>GaijinEntertainment/DagorEngine</code>, разворачивает тулчейн <code>make_devtools.py</code> и собирает проект через канонический пайплайн <code>prog/build.py</code> + <code>jam</code> + <code>vromfsPacker</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 NATIONS & 23 VEHICLES -->
+  <section class="block" id="vehicles">
+    <div class="sec-head">
+      <h2>ЭНЦИКЛОПЕДИЯ ТЕХНИКИ: <span>7 НАЦИЙ • 23 МАШИНЫ (.BLK)</span></h2>
+      <span class="sec-sub">Нажмите на державу для фильтрации — данные синхронизированы с <code>tanks_all_nations.blk</code></span>
+    </div>
+    <div class="nation-tabs" id="nationTabs">
+      <button class="ntab active" data-nat="-1">Все 23 машины</button>
+      <button class="ntab" data-nat="1">🇷🇸 Сербия (4)</button>
+      <button class="ntab" data-nat="0">🇷🇺 Россия (4)</button>
+      <button class="ntab" data-nat="2">🇨🇳 Китай (3)</button>
+      <button class="ntab" data-nat="3">🇺🇸 США (3)</button>
+      <button class="ntab" data-nat="4">🇩🇪🇬🇧 НАТО (3)</button>
+      <button class="ntab" data-nat="5">🇫🇷 Франция (3)</button>
+      <button class="ntab" data-nat="6">🇸🇪 Швеция (3)</button>
+    </div>
+    <div class="veh-grid" id="vehGrid"></div>
+  </section>
+
+  <!-- INTERACTIVE QUIRREL CONSOLE (~) -->
+  <section class="block" id="console">
+    <div class="sec-head">
+      <h2>ЖИВАЯ КОНСОЛЬ РАЗРАБОТЧИКА <span>DAGOR VISUAL CONSOLE (~)</span></h2>
+      <span class="sec-sub">В игре открывается по клавише <code>~</code> (<code>Ё</code>) • Попробуйте команды прямо в браузере</span>
+    </div>
+    <div class="console-box">
+      <div class="console-presets">
+        <button class="cbtn" data-cmd="help">help</button>
+        <button class="cbtn" data-cmd="ecs.info">ecs.info</button>
+        <button class="cbtn" data-cmd="vfs.ls">vfs.ls</button>
+        <button class="cbtn" data-cmd="blk.reload">blk.reload</button>
+        <button class="cbtn" data-cmd="skies 0">skies 0 (Golden Hour)</button>
+        <button class="cbtn" data-cmd="wireframe">wireframe</button>
+        <button class="cbtn" data-cmd="sq dagor_rt.los_armor(160, 68)">sq dagor_rt.los_armor(160, 68)</button>
+      </div>
+      <div id="consoleLog">[DAGOR 6.5] Initialized 'Gaijin Dagor Engine 6.5' | VROMFS=MOUNTED (game/res/gamedata.vromfs.bin, 14 files)
+[QUIRREL VM] Executed scripts/ui/dagor_rt_boot.nut -> Gaijin Dagor Engine 6.5 (daRg + Quirrel VM + daSkies2)
+Введите команду ниже или нажмите одну из кнопок выше...</div>
+      <form class="console-input-row" id="consoleForm">
+        <input id="consoleInput" type="text" value="sq dagor_rt.los_armor(160, 68)" aria-label="Команда консоли Dagor">
+        <button type="submit">ВЫПОЛНИТЬ</button>
+      </form>
+    </div>
+  </section>
+
+  <footer>
+    <div><strong>Steel Front: Online</strong> • Архитектура Gaijin Dagor Engine 6.5 (Windows 10/11 x64) • Неинвертированное управление W/A/S/D + Мышь</div>
+    <div>Репозиторий: <a href="https://github.com/hhdrhkvcd/serbia_MOD/tree/arena/2571b3b1-serbia-mod" style="color:var(--amber);">github.com/hhdrhkvcd/serbia_MOD</a></div>
+  </footer>
+</div>
+
+<script>
+/* ============================================================================
+   1. ПОЛНЫЙ КАТАЛОГ 23 БОЕВЫХ МАШИН ИЗ tanks_all_nations.blk
+   ============================================================================ */
+const NATIONS = [
+  { id: 0, flag: "🇷🇺", name: "Россия" },
+  { id: 1, flag: "🇷🇸", name: "Сербия" },
+  { id: 2, flag: "🇨🇳", name: "Китай" },
+  { id: 3, flag: "🇺🇸", name: "США" },
+  { id: 4, flag: "🇩🇪", name: "НАТО" },
+  { id: 5, flag: "🇫🇷", name: "Франция" },
+  { id: 6, flag: "🇸🇪", name: "Швеция" }
+];
+
+const VEHICLES = [
+  { nat:1, name:"M-84AS2 «Војвода»", br:"12.0", rank:"VIII", gun:"125мм 2А46М-AS2 (БОПС M88 • 540 мм)", era:"ERO-19M Тяжёлая", hp:1200, tur:695, hull:615, col:"#5c6b47" },
+  { nat:1, name:"M-91 «Вихор»", br:"11.3", rank:"VII", gun:"125мм 2А46М-Вихор", era:"Композит + ERO", hp:1200, tur:640, hull:560, col:"#4f5f42" },
+  { nat:1, name:"M-84AS1", br:"11.0", rank:"VII", gun:"125мм 2А46М + ДУБМ M-15", era:"ERO-19 Gen.2", hp:1000, tur:625, hull:555, col:"#586648" },
+  { nat:1, name:"BVP M-80AB1", br:"9.7", rank:"VI", gun:"30мм Zastava M86 + 2× Маљутка-2Т5", era:"Модульная броня AB1", hp:360, tur:130, hull:110, col:"#4a5a40", ifv:true },
+
+  { nat:0, name:"Т-90М «Прорыв»", br:"12.0", rank:"VIII", gun:"125мм 2А46М-5-01 (3БМ60)", era:"Реликт + Сварная башня", hp:1130, tur:710, hull:620, col:"#4b593e" },
+  { nat:0, name:"Т-80БВМ", br:"11.7", rank:"VIII", gun:"125мм 2А46М-4", era:"Реликт", hp:1250, tur:660, hull:590, col:"#46543d" },
+  { nat:0, name:"Т-80У", br:"11.3", rank:"VII", gun:"125мм 2А46М-1", era:"Контакт-5", hp:1250, tur:630, hull:550, col:"#4c5a41" },
+  { nat:0, name:"Т-72Б3 УБХ", br:"10.7", rank:"VII", gun:"125мм 2А46М-5", era:"Контакт-5 + Реликт", hp:1130, tur:610, hull:530, col:"#4e5b3f" },
+
+  { nat:2, name:"ZTZ-99A", br:"12.0", rank:"VIII", gun:"125мм ZPT-98A (L/50)", era:"FY-5 Тяжёлая", hp:1500, tur:720, hull:630, col:"#556347" },
+  { nat:2, name:"VT-4A1", br:"11.7", rank:"VIII", gun:"125мм ZPT-98E", era:"FY-4E + КАЗ", hp:1300, tur:665, hull:575, col:"#6b6852" },
+  { nat:2, name:"ZTZ-96B", br:"10.7", rank:"VII", gun:"125мм ZPT-98", era:"FY-4", hp:1000, tur:620, hull:520, col:"#546148" },
+
+  { nat:3, name:"M1A2 SEP v3", br:"12.0", rank:"VIII", gun:"120мм M256E1 (M829A4)", era:"NGAP + ARAT", hp:1500, tur:730, hull:540, col:"#8b7b5b" },
+  { nat:3, name:"M1A1HC Abrams", br:"11.3", rank:"VII", gun:"120мм M256", era:"Chobham HAP-2", hp:1500, tur:660, hull:450, col:"#847556" },
+  { nat:3, name:"M10 Booker", br:"10.3", rank:"VII", gun:"105мм XM35", era:"Модульная броня", hp:800, tur:280, hull:220, col:"#756b52" },
+
+  { nat:4, name:"Leopard 2A7V", br:"12.0", rank:"VIII", gun:"120мм Rh-120 L/55A1 (DM53)", era:"NERA 3-го пок. + ВЛД", hp:1500, tur:750, hull:625, col:"#4d5645" },
+  { nat:4, name:"Challenger 2 TES", br:"11.7", rank:"VIII", gun:"120мм L30A1", era:"Dorchester 2E + NERA", hp:1200, tur:725, hull:570, col:"#7d7258" },
+  { nat:4, name:"C1 Ariete AMV", br:"11.7", rank:"VII", gun:"120мм OTO Breda L/44", era:"WAR + PSO", hp:1500, tur:610, hull:460, col:"#525c48" },
+
+  { nat:5, name:"Leclerc SXXI XLR", br:"12.0", rank:"VIII", gun:"120мм CN120-26 L/52", era:"Титан-NERA + AZUR", hp:1500, tur:685, hull:570, col:"#535d49" },
+  { nat:5, name:"Leclerc S2", br:"11.7", rank:"VIII", gun:"120мм CN120-26 L/52", era:"Модульная NERA", hp:1500, tur:635, hull:520, col:"#505a47" },
+  { nat:5, name:"AMX-40", br:"10.0", rank:"VI", gun:"120мм GIAT CN120-25 + 20мм", era:"Разнесённая броня", hp:1300, tur:410, hull:330, col:"#58624c" },
+
+  { nat:6, name:"Strv 122B+ Evolution", br:"12.0", rank:"VIII", gun:"120мм kan Strv 122", era:"Åkers Krutbruk NERA+", hp:1500, tur:765, hull:670, col:"#45523f" },
+  { nat:6, name:"CV 90120-T Ghost", br:"11.3", rank:"VII", gun:"120мм CTG L/50", era:"Стелс-плиты Adaptiv", hp:800, tur:175, hull:140, col:"#3f4a3c" },
+  { nat:6, name:"Strv 121", br:"10.7", rank:"VII", gun:"120мм kan Strv 121", era:"Многослойная NERA", hp:1500, tur:560, hull:450, col:"#485642" }
+];
+
+function renderVehicles(filterNat) {
+  const grid = document.getElementById("vehGrid");
+  grid.innerHTML = "";
+  VEHICLES.filter(v => filterNat === -1 || v.nat === filterNat).forEach(v => {
+    const n = NATIONS.find(x => x.id === v.nat);
+    const pct = Math.min(100, Math.round((v.tur / 770) * 100));
+    const el = document.createElement("div");
+    el.className = "vcard" + (v.nat === 1 ? " serbia" : "");
+    el.innerHTML = `
+      <div class="vcard-top">
+        <span class="vname">${n.flag} ${v.name}</span>
+        <span class="vbr">БР ${v.br}</span>
+      </div>
+      <div class="vmeta">${n.name.toUpperCase()} • РАНГ ${v.rank} • ${v.hp} Л.С.</div>
+      <div class="vstats">
+        <div><strong>Орудие:</strong> ${v.gun}</div>
+        <div><strong>Защита:</strong> ${v.era}</div>
+        <div><strong>Лоб башни / ВЛД:</strong> ${v.tur} / ${v.hull} мм RHA</div>
+      </div>
+      <div class="armor-bar"><div class="armor-fill" style="width:${pct}%"></div></div>
+    `;
+    grid.appendChild(el);
+  });
+}
+renderVehicles(-1);
+
+document.getElementById("nationTabs").addEventListener("click", e => {
+  const btn = e.target.closest(".ntab");
+  if (!btn) return;
+  document.querySelectorAll(".ntab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderVehicles(parseInt(btn.dataset.nat, 10));
+});
+
+/* ============================================================================
+   2. ИНТЕРАКТИВНЫЙ 3D РЕНДЕРЕР ПОЛИГОНА DAGOR 6.5 (daSkies2 + Perlin LandMesh)
+   ============================================================================ */
+const canvas = document.getElementById("dagorCanvas");
+const ctx = canvas.getContext("2d");
+const SHOWCASE = [VEHICLES[0], VEHICLES[4], VEHICLES[1], VEHICLES[11], VEHICLES[14], VEHICLES[3]];
+let curTankIdx = 0;
+let skyPreset = 0;
+let wireframe = false;
+let armorHeat = false;
+let camYaw = 0.68, camPitch = 0.24;
+let dragging = false, lastX = 0, lastY = 0;
+
+const SKIES = [
+  { name:"ЗАКАТ Golden Hour", top:"#162654", mid:"#6e3832", hor:"#eb7834", sun:[0.72, 0.25, -0.64], sunHex:"#ffb86b", grid:"rgba(235,168,72,0.22)" },
+  { name:"ПОЛДЕНЬ Clear Sky", top:"#1f54ab", mid:"#4f84c8", hor:"#a8c8ea", sun:[0.55, 0.62, -0.55], sunHex:"#fff3d6", grid:"rgba(165,205,235,0.20)" },
+  { name:"ГРОЗА Storm Front", top:"#1a212d", mid:"#2d3644", hor:"#4c5868", sun:[-0.42,0.48, -0.76], sunHex:"#9fb4cc", grid:"rgba(140,165,190,0.18)" },
+  { name:"НОЧЬ daStars / ПНВ", top:"#040711", mid:"#0a1122", hor:"#131f38", sun:[-0.55,0.08, -0.83], sunHex:"#8cb4ff", grid:"rgba(92,196,128,0.22)", stars:true }
+];
+
+document.querySelectorAll("[data-sky]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-sky]").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    skyPreset = parseInt(btn.dataset.sky, 10);
+    document.getElementById("hudSkyLine").textContent = `daSkies2: ${SKIES[skyPreset].name} • Perlin fBm3`;
+  });
+});
+document.getElementById("btnWire").addEventListener("click", e => {
+  wireframe = !wireframe;
+  e.target.classList.toggle("active", wireframe);
+});
+document.getElementById("btnArmor").addEventListener("click", e => {
+  armorHeat = !armorHeat;
+  e.target.classList.toggle("active", armorHeat);
+});
+function updateTankLabel() {
+  const t = SHOWCASE[curTankIdx];
+  const n = NATIONS.find(x => x.id === t.nat);
+  document.getElementById("curTankLabel").textContent = `${n.flag} ${t.name} • БР ${t.br}`;
+}
+document.getElementById("prevTank").addEventListener("click", () => {
+  curTankIdx = (curTankIdx + SHOWCASE.length - 1) % SHOWCASE.length;
+  updateTankLabel();
+});
+document.getElementById("nextTank").addEventListener("click", () => {
+  curTankIdx = (curTankIdx + 1) % SHOWCASE.length;
+  updateTankLabel();
+});
+
+canvas.addEventListener("pointerdown", e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  camYaw += (e.clientX - lastX) * 0.009;
+  camPitch = Math.max(0.07, Math.min(0.62, camPitch + (e.clientY - lastY) * 0.006));
+  lastX = e.clientX; lastY = e.clientY;
+});
+canvas.addEventListener("pointerup", () => { dragging = false; });
+
+function makeBox(cx, cy, cz, hx, hy, hz, color, part) {
+  const v = [
+    [cx-hx, cy-hy, cz-hz], [cx+hx, cy-hy, cz-hz], [cx+hx, cy+hy, cz-hz], [cx-hx, cy+hy, cz-hz],
+    [cx-hx, cy-hy, cz+hz], [cx+hx, cy-hy, cz+hz], [cx+hx, cy+hy, cz+hz], [cx-hx, cy+hy, cz+hz]
+  ];
+  const f = [[0,1,2,3],[5,4,7,6],[4,0,3,7],[1,5,6,2],[3,2,6,7],[4,5,1,0]];
+  return { v, f, color, part };
+}
+
+function project3D(p, w, h, cy, sy, cp, sp) {
+  let x = p[0] * cy - p[2] * sy;
+  let z = p[0] * sy + p[2] * cy;
+  let y = p[1] - 1.1;
+  let y2 = y * cp - z * sp;
+  let z2 = y * sp + z * cp + 8.6;
+  if (z2 < 0.5) z2 = 0.5;
+  const f = Math.min(w, h) * 1.15 / z2;
+  return [w * 0.5 + x * f, h * 0.54 - y2 * f, z2];
+}
+
+function shadeHex(hex, mul) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, Math.max(0, Math.round(((n >> 16) & 255) * mul)));
+  const g = Math.min(255, Math.max(0, Math.round(((n >> 8) & 255) * mul)));
+  const b = Math.min(255, Math.max(0, Math.round((n & 255) * mul)));
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawFrame(ts) {
+  const t = ts * 0.001;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cw = canvas.clientWidth, ch = canvas.clientHeight;
+  if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)) {
+    canvas.width = Math.round(cw * dpr);
+    canvas.height = Math.round(ch * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (!dragging) camYaw += 0.0035;
+  const sk = SKIES[skyPreset];
+
+  // 1. Sky Atmosphere Gradient (daSkies2)
+  const grad = ctx.createLinearGradient(0, 0, 0, ch * 0.64);
+  grad.addColorStop(0, sk.top);
+  grad.addColorStop(0.62, sk.mid);
+  grad.addColorStop(1, sk.hor);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, cw, ch);
+
+  if (sk.stars) {
+    ctx.fillStyle = "rgba(215,230,255,0.75)";
+    for (let i = 0; i < 48; i++) {
+      const sx = ((i * 173) % cw);
+      const sy = ((i * 97) % Math.max(1, Math.floor(ch * 0.45)));
+      ctx.fillRect(sx, sy, (i % 3 === 0) ? 2 : 1.2, (i % 3 === 0) ? 2 : 1.2);
+    }
+  }
+
+  // Sun / Moon glow
+  const sunX = cw * (skyPreset >= 2 ? 0.24 : 0.78);
+  const sunY = ch * (skyPreset === 0 ? 0.36 : (skyPreset === 3 ? 0.22 : 0.18));
+  const srad = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, 110);
+  srad.addColorStop(0, sk.sunHex);
+  srad.addColorStop(1, "rgba(255,180,90,0)");
+  ctx.fillStyle = srad;
+  ctx.fillRect(0, 0, cw, ch * 0.68);
+
+  // Ground base
+  const gGrad = ctx.createLinearGradient(0, ch * 0.52, 0, ch);
+  gGrad.addColorStop(0, skyPreset === 3 ? "#0c131d" : "#22241f");
+  gGrad.addColorStop(1, "#0d0f11");
+  ctx.fillStyle = gGrad;
+  ctx.fillRect(0, ch * 0.54, cw, ch * 0.46);
+
+  const cy = Math.cos(camYaw), sy = Math.sin(camYaw);
+  const cp = Math.cos(camPitch), sp = Math.sin(camPitch);
+
+  // 2. Perlin fBm3 HeightMapLand Grid
+  ctx.strokeStyle = sk.grid;
+  ctx.lineWidth = 1;
+  for (let gx = -8; gx <= 8; gx += 2) {
+    ctx.beginPath();
+    for (let gz = -8; gz <= 8; gz += 1) {
+      const r2 = gx * gx + gz * gz;
+      const h = r2 > 14 ? Math.sin(gx * 0.55 + 1.2) * Math.cos(gz * 0.48) * 0.45 : 0;
+      const p = project3D([gx * 0.95, h, gz * 0.95], cw, ch, cy, sy, cp, sp);
+      if (gz === -8) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+    }
+    ctx.stroke();
+  }
+  for (let gz = -8; gz <= 8; gz += 2) {
+    ctx.beginPath();
+    for (let gx = -8; gx <= 8; gx += 1) {
+      const r2 = gx * gx + gz * gz;
+      const h = r2 > 14 ? Math.sin(gx * 0.55 + 1.2) * Math.cos(gz * 0.48) * 0.45 : 0;
+      const p = project3D([gx * 0.95, h, gz * 0.95], cw, ch, cy, sy, cp, sp);
+      if (gx === -8) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+    }
+    ctx.stroke();
+  }
+
+  // 3. Articulated 3D Tank Model (Hull + Tracks + ERA + Turret + Gun)
+  const veh = SHOWCASE[curTankIdx];
+  const baseCol = armorHeat ? "#3cb854" : veh.col;
+  const turCol  = armorHeat ? "#e65032" : veh.col;
+  const eraCol  = armorHeat ? "#f2b830" : "#3c4734";
+  const boxes = [
+    makeBox(-1.42, 0.42, 0.0, 0.32, 0.38, 3.05, "#222528", 0),
+    makeBox( 1.42, 0.42, 0.0, 0.32, 0.38, 3.05, "#222528", 0),
+    makeBox( 0.0,  0.76, 0.0, 1.38, 0.38, 2.95, baseCol, 0),
+    makeBox(-1.56, 0.78,-0.2, 0.08, 0.26, 2.55, eraCol, 0),
+    makeBox( 1.56, 0.78,-0.2, 0.08, 0.26, 2.55, eraCol, 0),
+    makeBox( 0.0,  0.98,-2.35,1.22, 0.16, 0.62, eraCol, 0),
+    makeBox( 0.0,  1.42,-0.15,1.08, 0.34, 1.36, turCol, 1),
+    makeBox(-0.75, 1.44,-1.25,0.42, 0.26, 0.36, eraCol, 1),
+    makeBox( 0.75, 1.44,-1.25,0.42, 0.26, 0.36, eraCol, 1),
+    makeBox( 0.42, 1.88, 0.15,0.22, 0.16, 0.22, "#353a34", 1),
+    makeBox( 0.0,  1.46,-2.75,0.11, 0.11, veh.ifv ? 1.15 : 2.05, "#3a4038", 1)
+  ];
+
+  const turYaw = Math.sin(t * 0.7) * 0.24;
+  const ct = Math.cos(turYaw), st = Math.sin(turYaw);
+  const faces = [];
+
+  for (const b of boxes) {
+    const pv = b.v.map(pt => {
+      let x = pt[0], y = pt[1], z = pt[2];
+      if (b.part === 1) {
+        const rx = x * ct - z * st;
+        const rz = x * st + z * ct;
+        x = rx; z = rz;
+      }
+      return project3D([x, y, z], cw, ch, cy, sy, cp, sp);
+    });
+    b.f.forEach((fi, idx) => {
+      const p0 = pv[fi[0]], p1 = pv[fi[1]], p2 = pv[fi[2]], p3 = pv[fi[3]];
+      const zAvg = (p0[2] + p1[2] + p2[2] + p3[2]) * 0.25;
+      const shade = [0.88, 0.72, 0.78, 0.82, 1.16, 0.55][idx] * (skyPreset === 3 ? 0.68 : 1.0);
+      faces.push({ pts:[p0,p1,p2,p3], z:zAvg, fill:shadeHex(b.color, shade) });
+    });
+  }
+
+  faces.sort((a, b) => b.z - a.z);
+  for (const f of faces) {
+    ctx.beginPath();
+    ctx.moveTo(f.pts[0][0], f.pts[0][1]);
+    ctx.lineTo(f.pts[1][0], f.pts[1][1]);
+    ctx.lineTo(f.pts[2][0], f.pts[2][1]);
+    ctx.lineTo(f.pts[3][0], f.pts[3][1]);
+    ctx.closePath();
+    if (!wireframe) {
+      ctx.fillStyle = f.fill;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.32)";
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = "#76f28f";
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
+    }
+  }
+
+  requestAnimationFrame(drawFrame);
+}
+requestAnimationFrame(drawFrame);
+
+/* ============================================================================
+   3. СИМУЛЯТОР ЖИВОЙ КОНСОЛИ DAGOR ENGINE 6.5 (~)
+   ============================================================================ */
+const logEl = document.getElementById("consoleLog");
+function runConsoleCmd(raw) {
+  const cmd = raw.trim();
+  if (!cmd) return;
+  let out = `dagor> ${cmd}\n`;
+  if (cmd === "help") {
+    out += "Commands: ecs.info | vfs.ls | blk.reload | wireframe | skies 0..3 | sq <quirrel .nut code>";
+  } else if (cmd === "ecs.info") {
+    out += "[daECS] Templates registered: 27 | Vehicles from .blk: 23 (7 nations)";
+  } else if (cmd === "vfs.ls") {
+    out += "  [VROMFS] application.blk                              (1842 B, CRC=A41F09C2)\n" +
+           "  [VROMFS] gamedata/units/tanks_all_nations.blk         (44120 B, CRC=8E32D119)\n" +
+           "  [VROMFS] gamedata/templates/steel_front.entities.blk  (1690 B, CRC=51B044E1)\n" +
+           "  [VROMFS] scripts/ui/dagor_rt_boot.nut                 (647 B, CRC=C903AB12)\n" +
+           "  [VROMFS] scripts/ui/hangar_wt.nut                     (2580 B, CRC=7D18E904)";
+  } else if (cmd === "blk.reload") {
+    out += "[DataBlock] All 23 .blk vehicle/camo/level configs hot-reloaded in 1.4 ms!";
+  } else if (cmd === "wireframe") {
+    wireframe = !wireframe;
+    document.getElementById("btnWire").classList.toggle("active", wireframe);
+    out += `[drv3d_DX11] Wireframe rasterizer = ${wireframe ? "ON" : "OFF"}`;
+  } else if (cmd.startsWith("skies")) {
+    const p = parseInt(cmd.split(/\s+/)[1] || "0", 10) & 3;
+    skyPreset = p;
+    document.querySelectorAll("[data-sky]").forEach(b => b.classList.toggle("active", parseInt(b.dataset.sky,10) === p));
+    document.getElementById("hudSkyLine").textContent = `daSkies2: ${SKIES[p].name} • Perlin fBm3`;
+    out += `[daSkies2] Switched atmospheric scattering preset -> ${p} (${SKIES[p].name})`;
+  } else if (cmd.startsWith("sq ")) {
+    const m = cmd.match(/los_armor\(\s*(\d+)\s*,\s*(\d+)\s*\)/);
+    if (m) {
+      const nom = parseFloat(m[1]), ang = parseFloat(m[2]);
+      const eff = Math.round(nom / Math.cos(ang * Math.PI / 180));
+      out += `[Quirrel VM] => ${eff} мм RHA (приведённая броня при ${ang}°)`;
+    } else {
+      out += `[Quirrel VM] => Gaijin Dagor Engine 6.5 (daRg + Quirrel VM + daSkies2)`;
+    }
+  } else {
+    out += "Unknown command. Type 'help' or 'sq dagor_rt.los_armor(160, 68)'.";
+  }
+  logEl.textContent += "\n" + out;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+document.querySelectorAll(".cbtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.getElementById("consoleInput").value = btn.dataset.cmd;
+    runConsoleCmd(btn.dataset.cmd);
+  });
+});
+document.getElementById("consoleForm").addEventListener("submit", e => {
+  e.preventDefault();
+  runConsoleCmd(document.getElementById("consoleInput").value);
+});
+</script>
+</body>
+</html>
