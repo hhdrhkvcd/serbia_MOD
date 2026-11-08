@@ -4,6 +4,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#define DAGOR_ENABLE_QUIRREL_VM 1
 #include <windows.h>
 #include <windowsx.h>
 #include <dwmapi.h>
@@ -158,10 +159,14 @@ public:
     }
 
     void checkLocalFiles() {
-        WIN32_FILE_ATTRIBUTE_DATA fad{};
-        if (::GetFileAttributesExW(L"bin\\win64\\SteelFrontGame.exe", GetFileExInfoStandard, &fad)) {
-            ULONGLONG sz = (ULONGLONG(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
-            clientPresent = (sz > 64 * 1024);
+        WIN32_FILE_ATTRIBUTE_DATA fad{}, fadVfs{};
+        if (::GetFileAttributesExW(L"bin\\win64\\SteelFrontGame.exe", GetFileExInfoStandard, &fad) &&
+            ::GetFileAttributesExW(L"game\\res\\gamedata.vromfs.bin", GetFileExInfoStandard, &fadVfs)) {
+            ULONGLONG sz    = (ULONGLONG(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
+            ULONGLONG vfsSz = (ULONGLONG(fadVfs.nFileSizeHigh) << 32) | fadVfs.nFileSizeLow;
+            // Новый бинарник с настоящей Quirrel VM + Dagor Math весит > 1.0 МБ (старый v2.4 был ~540 КБ),
+            // поэтому лаунчер автоматически обновит старый .exe в существующей папке!
+            clientPresent = (sz > 1000 * 1024 && vfsSz > 4096);
         } else {
             clientPresent = false;
         }
@@ -394,7 +399,7 @@ public:
             target.z + std::cos(camYaw) * std::cos(camPitch) * camDist
         );
 
-        Vec3 sunDir = Vec3(0.64f, 0.46f, -0.61f).normalized();
+        Vec3 sunDir = Vec3(0.74f, 0.24f, -0.63f).normalized();
         Mat4 lightVP = Mat4::lookAtLH(sunDir * 42.f, Vec3(0, 0.8f, 0), Vec3(0, 1, 0)) *
                        Mat4::orthoLH(26.f, 26.f, 4.f, 88.f);
         Mat4 viewProj = Mat4::lookAtLH(camPos, target, Vec3(0, 1, 0)) *
@@ -405,10 +410,10 @@ public:
         fb.lightViewProj    = lightVP;
         fb.camPosTime       = Vec4(camPos.x, camPos.y, camPos.z, (float)appTime);
         fb.sunDirQuality    = Vec4(sunDir.x, sunDir.y, sunDir.z, 1.f);
-        fb.sunColorExposure = Vec4(4.65f, 3.85f, 2.95f, 1.14f);
-        fb.skyTopFogStart   = Vec4(0.12f, 0.30f, 0.64f, 70.f);
-        fb.skyHorizFogEnd   = Vec4(0.68f, 0.74f, 0.84f, 245.f);
-        fb.groundAmbMode    = Vec4(0.14f, 0.15f, 0.14f, 0.f);
+        fb.sunColorExposure = Vec4(5.25f, 3.10f, 1.62f, 1.16f);
+        fb.skyTopFogStart   = Vec4(0.10f, 0.17f, 0.38f, 75.f);
+        fb.skyHorizFogEnd   = Vec4(0.92f, 0.46f, 0.21f, 255.f);
+        fb.groundAmbMode    = Vec4(0.17f, 0.15f, 0.13f, 0.f);
 
         int vIdx = showcaseVehIndices[showcasePos];
         float turSweep = std::sin((float)appTime * 0.42f) * 0.22f;
@@ -513,32 +518,32 @@ public:
         ui.fillGradV(0, fH - 165.f, fW, 165.f, Color4::rgba(6, 10, 16, 0.0f), Color4::rgba(6, 9, 14, 0.96f));
 
         // =====================================================================
-        // 1. ВЕРХНЯЯ ШАПКА ЛАУНЧЕРА (DRAGGABLE HEADER BAR)
+        // 1. ВЕРХНЯЯ ШАПКА ЛАУНЧЕРА GAIJIN daRg (CHARCOAL + AMBER)
         // =====================================================================
-        ui.drawPanel(0, 0, fW, 52.f, Color4::rgba(10, 14, 21, 0.94f), Color4::rgba(7, 10, 16, 0.96f), Color4::rgba(62, 78, 102, 0.55f));
-        ui.fillRect(0, 0, fW, 2.f, Color4::rgba(228, 174, 58, 0.95f));
+        ui.drawPanel(0, 0, fW, 52.f, Color4::rgba(16, 17, 19, 0.95f), Color4::rgba(10, 11, 13, 0.98f), Color4::rgba(228, 166, 46, 0.72f));
+        ui.fillRect(0, 0, fW, 2.f, Color4::rgba(236, 174, 48, 0.98f));
 
-        // Золотой шеврон-эмблема + заголовок
-        ui.fillRect(20.f, 11.f, 5.f, 30.f, Color4::rgba(232, 62, 46));
-        ui.drawText("STEEL FRONT: ONLINE", 34.f, 8.f, 20.f, Color4::rgba(244, 248, 255));
-        ui.drawText("ЛАУНЧЕР DAGOR ENGINE 6.5  •  VROMFS + .BLK + daSkies", 34.f, 30.f, 11.2f, Color4::rgba(226, 182, 78));
+        // Оранжево-золотой шеврон-эмблема Gaijin Dagor + заголовок
+        ui.fillRect(20.f, 11.f, 5.f, 30.f, Color4::rgba(238, 86, 32));
+        ui.drawText("STEEL FRONT // GAIJIN DAGOR 6.5", 34.f, 8.f, 19.5f, Color4::rgba(250, 246, 236));
+        ui.drawText("QUIRREL VM (.NUT)  •  daSkies2  •  PERLIN LANDMESH  •  VROMFS", 34.f, 30.f, 10.8f, Color4::rgba(238, 182, 62));
 
         // Полоска флагов всех 7 наций в шапке
         for (int n = 0; n < 7; ++n) {
-            ui.drawNationFlag(n, 408.f + n * 30.f, 17.f, 24.f, 16.f);
+            ui.drawNationFlag(n, 418.f + n * 30.f, 17.f, 24.f, 16.f);
         }
 
         // Кнопки утилит в верхней панели
         auto topBtn = [&](float bx, float bw, const char* txt, int actId) {
             bool hov = isHover(bx, 11.f, bw, 30.f);
             ui.drawPanel(bx, 11.f, bw, 30.f,
-                         hov ? Color4::rgba(36, 52, 74, 0.96f) : Color4::rgba(20, 27, 38, 0.92f),
-                         Color4::rgba(13, 18, 26, 0.96f),
-                         hov ? Color4::rgba(128, 188, 250) : Color4::rgba(68, 84, 108));
-            ui.drawTextCentered(txt, bx + bw * 0.5f, 18.f, 11.8f, Color4::rgba(224, 234, 248));
+                         hov ? Color4::rgba(68, 48, 16, 0.96f) : Color4::rgba(26, 27, 30, 0.94f),
+                         Color4::rgba(16, 17, 19, 0.98f),
+                         hov ? Color4::rgba(248, 192, 68) : Color4::rgba(92, 94, 102));
+            ui.drawTextCentered(txt, bx + bw * 0.5f, 18.f, 11.6f, Color4::rgba(244, 238, 224));
             addHit(actId, 0, bx, 11.f, bw, 30.f);
         };
-        topBtn(638.f, 138.f, "ПРОВЕРИТЬ ФАЙЛЫ", LACT_VERIFY_FILES);
+        topBtn(638.f, 138.f, "ОБНОВИТЬ С CDN", LACT_VERIFY_FILES);
         topBtn(784.f, 148.f, "ВЫДЕЛЕННЫЙ СЕРВЕР", LACT_START_SERVER);
         topBtn(940.f, 116.f, "CDK .BLK ТАНКОВ", LACT_OPEN_DAGOR_DIR);
 
@@ -582,39 +587,39 @@ public:
         addHit(LACT_NEXT_SHOWCASE, 0, pillX + pillW - 38.f, pillY + 5.f, 32.f, 28.f);
 
         // =====================================================================
-        // 3. ЛЕВАЯ КОЛОНКА — НОВОСТИ И ПАТЧНОУТ (DARK GLASS CARDS)
+        // 3. ЛЕВАЯ КОЛОНКА — НОВОСТИ И ПАТЧНОУТ GAIJIN DAGOR ENGINE 6.5
         // =====================================================================
         float lx = 22.f, lw = 352.f;
 
-        // Карточка 1: Операция «Балканский Щит»
-        ui.drawPanel(lx, 68.f, lw, 242.f, Color4::rgba(11, 16, 24, 0.86f), Color4::rgba(8, 12, 18, 0.92f), Color4::rgba(82, 104, 134, 0.68f));
-        ui.fillRect(lx, 68.f, lw, 3.f, Color4::rgba(232, 178, 62));
-        ui.fillRect(lx + 16.f, 84.f, 152.f, 20.f, Color4::rgba(196, 44, 36, 0.92f));
-        ui.drawTextCentered("ГЛАВНОЕ ОБНОВЛЕНИЕ 2.4", lx + 92.f, 86.f, 10.8f, Color4(1, 1, 1, 1));
+        // Карточка 1: Переход на движок Gaijin Dagor Engine 6.5 + Балканский Щит
+        ui.drawPanel(lx, 68.f, lw, 242.f, Color4::rgba(16, 17, 19, 0.91f), Color4::rgba(10, 11, 13, 0.96f), Color4::rgba(218, 162, 48, 0.72f));
+        ui.fillRect(lx, 68.f, lw, 3.f, Color4::rgba(238, 176, 48));
+        ui.fillRect(lx + 16.f, 84.f, 168.f, 20.f, Color4::rgba(212, 58, 26, 0.95f));
+        ui.drawTextCentered("ДВИЖОК DAGOR ENGINE 6.5", lx + 100.f, 86.f, 10.6f, Color4(1, 1, 1, 1));
         ui.drawNationFlag(1, lx + lw - 48.f, 84.f, 32.f, 20.f);
 
-        ui.drawText("ОПЕРАЦИЯ «БАЛКАНСКИЙ ЩИТ»", lx + 16.f, 112.f, 16.8f, Color4::rgba(246, 249, 255));
-        ui.drawText("Полная линейка бронетехники Вооружённых сил Сербии:", lx + 16.f, 138.f, 12.0f, Color4::rgba(218, 186, 104));
-        ui.drawText("• BVP M-80AB1 — 30-мм автопушка Застава и ПТУР 9М14М", lx + 16.f, 160.f, 11.8f, Color4::rgba(196, 210, 228));
-        ui.drawText("• M-84AS1 и M-91 Vihor — тепловизор, ДЗ ERO-19 и ДУБМ M-15", lx + 16.f, 180.f, 11.8f, Color4::rgba(196, 210, 228));
-        ui.drawText("• M-84AS2 «Војвода» — флагман нации (БОПС M88 • 540 мм)", lx + 16.f, 200.f, 11.8f, Color4::rgba(196, 210, 228));
-        ui.fillRect(lx + 16.f, 228.f, lw - 32.f, 1.f, Color4(1, 1, 1, 0.10f));
-        ui.drawText("7 держав в строю: Россия, Сербия, Китай, США, НАТО, Франция,", lx + 16.f, 240.f, 11.4f, Color4::rgba(154, 174, 198));
-        ui.drawText("Швеция • 23 детальные 3D-машины с рентгеном модулей!", lx + 16.f, 258.f, 11.4f, Color4::rgba(154, 174, 198));
-        ui.drawText("Нажмите по плашке танка сверху для смены камуфляжа", lx + 16.f, 284.f, 11.0f, Color4::rgba(118, 208, 152));
+        ui.drawText("ПЕРЕХОД НА GAIJIN DAGOR 6.5", lx + 16.f, 112.f, 16.6f, Color4::rgba(250, 246, 236));
+        ui.drawText("Настоящие C++ модули DagorEngine + ветка ВС Сербии:", lx + 16.f, 138.f, 11.8f, Color4::rgba(238, 186, 76));
+        ui.drawText("• ВМ Quirrel (.nut) + daSkies2 (4 погоды + облака и звёзды)", lx + 16.f, 160.f, 11.4f, Color4::rgba(218, 220, 224));
+        ui.drawText("• Рельеф Perlin HeightMapLand + торсионная подвеска vehiclePhys", lx + 16.f, 180.f, 11.4f, Color4::rgba(218, 220, 224));
+        ui.drawText("• M-84AS2 «Војвода», M-91 Vihor, M-84AS1, BVP M-80AB1", lx + 16.f, 200.f, 11.4f, Color4::rgba(218, 220, 224));
+        ui.fillRect(lx + 16.f, 228.f, lw - 32.f, 1.f, Color4(1, 0.85f, 0.45f, 0.16f));
+        ui.drawText("В игре: [~] Консоль Quirrel VM  •  [F3] Сетка  •  [F4] Погода", lx + 16.f, 240.f, 11.2f, Color4::rgba(148, 238, 162));
+        ui.drawText("7 наций • 23 боевые машины • калькулятор брони под мышью!", lx + 16.f, 258.f, 11.2f, Color4::rgba(182, 184, 190));
+        ui.drawText("Нажмите по плашке танка сверху для смены камуфляжа", lx + 16.f, 284.f, 11.0f, Color4::rgba(244, 202, 92));
 
         // Карточка 2: Выбор из 3 вариантов развёртывания Gaijin Dagor Engine 6.5
-        ui.drawPanel(lx, 324.f, lw, 248.f, Color4::rgba(11, 16, 24, 0.89f), Color4::rgba(8, 12, 18, 0.94f), Color4::rgba(74, 176, 245, 0.72f));
-        ui.fillRect(lx, 324.f, lw, 3.f, Color4::rgba(74, 176, 245));
-        ui.drawText("АРХИТЕКТУРА DAGOR ENGINE 6.5 (3 РЕЖИМА)", lx + 14.f, 338.f, 13.6f, Color4::rgba(132, 208, 255));
+        ui.drawPanel(lx, 324.f, lw, 248.f, Color4::rgba(16, 17, 19, 0.92f), Color4::rgba(10, 11, 13, 0.96f), Color4::rgba(218, 162, 48, 0.72f));
+        ui.fillRect(lx, 324.f, lw, 3.f, Color4::rgba(238, 176, 48));
+        ui.drawText("АРХИТЕКТУРА DAGOR ENGINE 6.5 (3 РЕЖИМА)", lx + 14.f, 338.f, 13.4f, Color4::rgba(246, 198, 82));
 
         const char* mTitles[3] = {
-            "1. DAGOR 6.5 RT (.BLK + VROMFS + daSkies)",
+            "1. DAGOR 6.5 RT (Quirrel VM + daSkies2)",
             "2. GAIJIN daNetGame (CDN PREBUILT x64)",
             "3. ПОЛНЫЙ DAGOR SDK (GIT + JAM • 200 ГБ)"
         };
         const char* mDescs[3] = {
-            "Мгновенный старт! Нативный DataBlock .blk, VROMFS и F5-моддинг",
+            "Мгновенный старт! Quirrel .nut, VROMFS, Perlin LandMesh и F5",
             "Скачивает официальный dngSceneViewer.7z с CDN Gaijin + мод",
             "Клонирует GaijinEntertainment/DagorEngine + компиляция jam"
         };
@@ -623,12 +628,12 @@ public:
             bool sel = (dagorEngineMode == m);
             bool hov = isHover(lx + 12.f, my, lw - 24.f, 56.f);
             ui.drawPanel(lx + 12.f, my, lw - 24.f, 56.f,
-                         sel ? Color4::rgba(26, 56, 86, 0.96f) : (hov ? Color4::rgba(22, 34, 52, 0.92f) : Color4::rgba(14, 20, 30, 0.88f)),
-                         sel ? Color4::rgba(16, 36, 58, 0.98f) : Color4::rgba(10, 14, 22, 0.92f),
-                         sel ? Color4::rgba(246, 194, 78) : Color4::rgba(62, 82, 108));
-            if (sel) ui.fillRect(lx + 12.f, my, 4.f, 56.f, Color4::rgba(246, 194, 78));
-            ui.drawText(mTitles[m], lx + 24.f, my + 8.f, 12.2f, sel ? Color4::rgba(255, 232, 152) : Color4::rgba(224, 236, 250));
-            ui.drawText(mDescs[m], lx + 24.f, my + 30.f, 10.6f, sel ? Color4::rgba(182, 226, 255) : Color4::rgba(148, 168, 192));
+                         sel ? Color4::rgba(78, 54, 16, 0.96f) : (hov ? Color4::rgba(38, 34, 26, 0.94f) : Color4::rgba(22, 23, 26, 0.92f)),
+                         sel ? Color4::rgba(46, 30, 10, 0.98f) : Color4::rgba(14, 15, 17, 0.95f),
+                         sel ? Color4::rgba(252, 196, 68) : Color4::rgba(74, 76, 82));
+            if (sel) ui.fillRect(lx + 12.f, my, 4.f, 56.f, Color4::rgba(252, 196, 68));
+            ui.drawText(mTitles[m], lx + 24.f, my + 8.f, 12.0f, sel ? Color4::rgba(255, 232, 152) : Color4::rgba(236, 234, 228));
+            ui.drawText(mDescs[m], lx + 24.f, my + 30.f, 10.6f, sel ? Color4::rgba(248, 212, 128) : Color4::rgba(168, 170, 176));
             addHit(LACT_SELECT_DAGOR_MODE, m, lx + 12.f, my, lw - 24.f, 56.f);
         }
 
@@ -636,9 +641,9 @@ public:
         // 4. ПРАВАЯ КОЛОНКА — НАСТРОЙКИ КОМАНДИРА, СЕТИ И ГРАФИКИ
         // =====================================================================
         float rx = fW - 382.f, rw = 360.f, ry = 68.f;
-        ui.drawPanel(rx, ry, rw, 504.f, Color4::rgba(11, 16, 24, 0.89f), Color4::rgba(8, 11, 17, 0.94f), Color4::rgba(78, 98, 128, 0.72f));
-        ui.fillRect(rx, ry, rw, 3.f, Color4::rgba(232, 178, 62));
-        ui.drawText("ПАРАМЕТРЫ КЛИЕНТА И ГРАФИКИ", rx + 18.f, ry + 14.f, 15.2f, Color4::rgba(244, 248, 255));
+        ui.drawPanel(rx, ry, rw, 504.f, Color4::rgba(16, 17, 19, 0.92f), Color4::rgba(10, 11, 13, 0.96f), Color4::rgba(218, 162, 48, 0.72f));
+        ui.fillRect(rx, ry, rw, 3.f, Color4::rgba(238, 176, 48));
+        ui.drawText("ПАРАМЕТРЫ КЛИЕНТА DAGOR 6.5", rx + 18.f, ry + 14.f, 15.2f, Color4::rgba(250, 246, 236));
 
         bool blink = (std::fmod(appTime, 1.0) < 0.52);
 

@@ -359,31 +359,63 @@ float4 VSShadow(VSIn vin) : SV_Position {
     return mul(wp, uLightViewProj);
 }
 
-// Атмосферное небо Dagor с солнечным ореолом Ми и объёмными кучевыми облаками
+// Атмосферное небо Dagor daSkies2: рэлеевское + Ми рассеяние, объёмные облака clouds2 и звёзды daStars
 float3 evalSkyAtmosphere(float3 dir, float3 L, float timeSec) {
     float3 zenCol = srgbToLinear(uSkyTopFogStart.xyz);
     float3 horCol = srgbToLinear(uSkyHorizFogEnd.xyz);
     float h = saturate(dir.y);
-    float3 sky = lerp(horCol, zenCol, pow(max(0.0001, h), 0.58));
+    float3 sky = lerp(horCol, zenCol, pow(max(0.0001, h), 0.52));
 
-    // Солнечный ореол и диск
-    float sunDot = saturate(dot(dir, L));
-    sky += float3(1.0, 0.72, 0.38) * pow(max(0.0001, sunDot), 10.0) * 0.38;
-    sky += float3(1.4, 1.25, 0.98) * smoothstep(0.9990, 0.9997, sunDot) * 4.5;
+    // Анизотропная фазовая функция Хеньи-Гринштейна (рассеяние Ми вокруг солнца/луны)
+    float sunDot = dot(dir, L);
+    float g = 0.76;
+    float hg = (1.0 - g * g) / (4.0 * 3.14159265 * pow(max(0.02, 1.0 + g * g - 2.0 * g * sunDot), 1.5));
+    float sunsetWarmth = saturate(1.0 - L.y * 1.65);
+    float3 mieTint = lerp(float3(1.0, 0.88, 0.72), float3(1.0, 0.36, 0.12), sunsetWarmth);
+    sky += mieTint * saturate(hg * 0.22) * (0.45 + 0.85 * sunsetWarmth);
 
-    // Слоистые кучевые облака с солнечным подсветом краёв
-    if (dir.y > 0.03) {
-        float2 cuv = dir.xz / (dir.y + 0.16);
-        float3 cp = float3(cuv.x * 0.55 + timeSec * 0.008, 1.7, cuv.y * 0.55 - timeSec * 0.005);
+    // Огненная заря у горизонта на закате (daSkies Golden Hour)
+    float horizGlow = pow(max(0.0001, 1.0 - h), 4.2) * pow(max(0.0001, saturate(sunDot * 0.5 + 0.5)), 2.4);
+    sky += float3(1.15, 0.38, 0.10) * horizGlow * sunsetWarmth * 0.85;
+
+    // Солнечный / лунный диск
+    sky += mieTint * pow(max(0.0001, saturate(sunDot)), 18.0) * 0.55;
+    sky += float3(1.6, 1.35, 1.02) * smoothstep(0.9991, 0.9998, sunDot) * 5.2;
+
+    // Звёздный каталог daStars в ночном режиме
+    if (L.y < 0.12 && dir.y > 0.06) {
+        float starCell = hash31(floor(dir * 290.0));
+        if (starCell > 0.9955) {
+            float twinkle = 0.65 + 0.35 * sin(timeSec * 3.1 + starCell * 97.0);
+            sky += float3(0.82, 0.90, 1.05) * (starCell - 0.9955) * 280.0 * twinkle * saturate((0.12 - L.y) * 10.0);
+        }
+    }
+
+    // Двухслойные объёмные облака clouds2 с серебристой окантовкой (silver lining)
+    if (dir.y > 0.02) {
+        float2 cuv = dir.xz / (dir.y + 0.14);
+        float3 cp = float3(cuv.x * 0.48 + timeSec * 0.011, 1.7, cuv.y * 0.48 - timeSec * 0.007);
         float c1 = fbm3(cp);
-        float c2 = fbm3(cp * 2.35 + float3(4.2, 0.5, 1.8));
-        float dens = smoothstep(0.50, 0.76, c1 * 0.72 + c2 * 0.28) * smoothstep(0.03, 0.20, dir.y);
-        float litCloud = smoothstep(0.42, 0.75, fbm3(cp + L * 0.22));
-        float3 cloudShadow = lerp(zenCol * 0.75 + float3(0.06, 0.07, 0.09), float3(0.92, 0.90, 0.88), litCloud);
-        cloudShadow += float3(1.0, 0.78, 0.50) * pow(max(0.0001, sunDot), 5.0) * 0.45;
-        sky = lerp(sky, cloudShadow, dens * 0.86);
+        float c2 = fbm3(cp * 2.45 + float3(4.2, 0.5, 1.8));
+        float c3 = noise3D(cp * 5.6);
+        float baseMacro = c1 * 0.64 + c2 * 0.26 + c3 * 0.10;
+        float dens = smoothstep(0.46, 0.74, baseMacro) * smoothstep(0.02, 0.18, dir.y);
+        float litCloud = smoothstep(0.38, 0.74, fbm3(cp + L * 0.26));
+        float3 darkBase = zenCol * 0.58 + horCol * 0.22;
+        float3 brightTop = lerp(float3(0.96, 0.94, 0.91), float3(1.05, 0.62, 0.34), sunsetWarmth * 0.82);
+        float3 cloudCol = lerp(darkBase, brightTop, litCloud);
+        // Silver-lining просвет сквозь кромку облака
+        float silver = pow(max(0.0001, saturate(sunDot)), 7.0) * (1.0 - dens * 0.55);
+        cloudCol += mieTint * silver * 0.85;
+        sky = lerp(sky, cloudCol, dens * 0.90);
     }
     return sky;
+}
+
+float evalCloudGroundShadow(float3 worldPos, float timeSec) {
+    float3 cp = float3(worldPos.x * 0.0085 + timeSec * 0.011, 1.7, worldPos.z * 0.0085 - timeSec * 0.007);
+    float c = fbm3(cp);
+    return lerp(1.0, 0.68, smoothstep(0.52, 0.72, c));
 }
 
 float sampleShadowPCF(float4 shadowClip, float ndotl) {
@@ -577,7 +609,7 @@ float4 PSMain(PSIn pin) : SV_Target {
     float NdotH = saturate(dot(N, H));
     float VdotH = saturate(dot(V, H));
 
-    float shadow = sampleShadowPCF(pin.shadowPos, NdotL);
+    float shadow = sampleShadowPCF(pin.shadowPos, NdotL) * evalCloudGroundShadow(pin.worldPos, uCamPosTime.w);
 
     float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metal);
     float  a  = max(0.035, rough * rough);
@@ -632,6 +664,7 @@ public:
     int msaaSamples = 4;
     bool vsync = true;
     bool shadowsEnabled = true;
+    bool wireframeMode = false;
 
     ID3D11Device*           device = nullptr;
     ID3D11DeviceContext*    ctx = nullptr;
@@ -653,6 +686,7 @@ public:
     ID3D11Buffer*       cbObject = nullptr;
 
     ID3D11RasterizerState*   rsSolid = nullptr;
+    ID3D11RasterizerState*   rsWireframe = nullptr;
     ID3D11RasterizerState*   rsShadow = nullptr;
     ID3D11DepthStencilState* dssDefault = nullptr;
     ID3D11DepthStencilState* dssAlphaNoWrite = nullptr;
@@ -828,6 +862,10 @@ public:
         rd.DepthClipEnable = TRUE;
         device->CreateRasterizerState(&rd, &rsSolid);
 
+        D3D11_RASTERIZER_DESC wrd = rd;
+        wrd.FillMode = D3D11_FILL_WIREFRAME;
+        device->CreateRasterizerState(&wrd, &rsWireframe);
+
         rd.DepthBias = 900;
         rd.SlopeScaledDepthBias = 1.8f;
         device->CreateRasterizerState(&rd, &rsShadow);
@@ -897,7 +935,7 @@ public:
 
         D3D11_VIEWPORT vp{0.f, 0.f, (float)width, (float)height, 0.f, 1.f};
         ctx->RSSetViewports(1, &vp);
-        ctx->RSSetState(rsSolid);
+        ctx->RSSetState((wireframeMode && rsWireframe) ? rsWireframe : rsSolid);
         ctx->OMSetDepthStencilState(dssDefault, 0);
         float bf[4] = {0,0,0,0};
         ctx->OMSetBlendState(bsOpaque, bf, 0xFFFFFFFF);
@@ -955,7 +993,7 @@ public:
     void shutdown() {
         auto rel = [](auto*& p) { if (p) { p->Release(); p = nullptr; } };
         rel(bsAlpha); rel(bsOpaque); rel(dssAlphaNoWrite); rel(dssDefault);
-        rel(rsShadow); rel(rsSolid); rel(cbObject); rel(cbFrame);
+        rel(rsShadow); rel(rsWireframe); rel(rsSolid); rel(cbObject); rel(cbFrame);
         rel(inputLayout); rel(mainPS); rel(shadowVS); rel(mainVS);
         rel(shadowSamp); rel(shadowSRV); rel(shadowDSV); rel(shadowTex);
         rel(mainDSV); rel(depthTex); rel(mainRTV); rel(swapChain);

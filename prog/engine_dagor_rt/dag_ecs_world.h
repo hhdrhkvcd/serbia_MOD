@@ -1,46 +1,58 @@
 //
-// Dagor Engine 6.5 Runtime — daECS Entity Manager & Engine Kernel Diagnostics
+// Dagor Engine 6.5 Runtime — daECS Entity Manager, Quirrel VM Bridge & Kernel Logger
 //
 #pragma once
 #include "dag_vromfs_mount.h"
+#ifdef DAGOR_ENABLE_QUIRREL_VM
+#include "dag_quirrel_vm.h"
+#endif
+#include <vector>
+#include <string>
+#include <unordered_map>
 #include <cstdarg>
+#include <cstdio>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 
 namespace dagor {
 namespace ecs {
 
 using EntityId = uint32_t;
-inline constexpr EntityId INVALID_ENTITY_ID = 0u;
+constexpr EntityId INVALID_ENTITY_ID = 0;
 
 struct EntityDesc {
-    EntityId    eid = INVALID_ENTITY_ID;
+    EntityId id = INVALID_ENTITY_ID;
     std::string templateName;
-    Point3      pos = Point3(0.f, 0.f, 0.f);
-    int         team = -1;
-    bool        alive = true;
+    TMatrix transform = TMatrix::IDENT;
+    int team = 0;
+    int unitId = 0;
+    bool alive = true;
 };
 
 class EntityManager {
 public:
     std::vector<std::string> registeredTemplates;
     std::vector<EntityDesc>  activeEntities;
-    EntityId nextEid = 100u;
+    EntityId nextEid = 1001;
 
     void clearTemplates() { registeredTemplates.clear(); }
+    void registerTemplate(const std::string& name) { registeredTemplates.push_back(name); }
+    void resetSceneEntities() { activeEntities.clear(); nextEid = 1001; }
 
-    void registerTemplate(const std::string& name) {
-        for (const auto& t : registeredTemplates) if (t == name) return;
-        registeredTemplates.push_back(name);
-    }
-
-    void resetSceneEntities() {
-        activeEntities.clear();
-        nextEid = 100u;
-    }
-
-    EntityId createEntity(const char* tplName, const Point3& p = Point3(0.f, 0.f, 0.f), int team = -1) {
-        EntityId id = nextEid++;
-        activeEntities.push_back({id, tplName ? tplName : "entity", p, team, true});
-        return id;
+    EntityId createEntity(const char* tplName, const TMatrix& tm, int team = 0, int unitId = 0) {
+        EntityDesc e;
+        e.id = nextEid++;
+        e.templateName = tplName ? tplName : "entity";
+        e.transform = tm;
+        e.team = team;
+        e.unitId = unitId;
+        e.alive = true;
+        activeEntities.push_back(e);
+        return e.id;
     }
 
     int templateCount() const { return (int)registeredTemplates.size(); }
@@ -54,6 +66,10 @@ public:
     VromFsMount        vfs;
     DataBlockLite      appBlk;
     ecs::EntityManager entityMgr;
+#ifdef DAGOR_ENABLE_QUIRREL_VM
+    QuirrelVmHost      quirrelVm;
+#endif
+    std::vector<std::string> consoleLines;
 
     bool initialized = false;
     bool loadedLooseBlk = false;
@@ -68,17 +84,25 @@ public:
         return k;
     }
 
+    void pushConsole(const std::string& line) {
+        if (consoleLines.size() > 80) consoleLines.erase(consoleLines.begin());
+        consoleLines.push_back(line);
+    }
+
     void logLine(const char* fmt, ...) {
+        char buf[512];
+        va_list ap;
+        va_start(ap, fmt);
+        std::vsnprintf(buf, sizeof(buf), fmt, ap);
+        va_end(ap);
+        pushConsole(buf);
+
 #ifdef _WIN32
         ::CreateDirectoryA("logs", nullptr);
 #endif
         FILE* f = std::fopen("logs/dagor_engine_rt.log", initialized ? "ab" : "wb");
         if (!f) return;
-        va_list ap;
-        va_start(ap, fmt);
-        std::vfprintf(f, fmt, ap);
-        std::fprintf(f, "\r\n");
-        va_end(ap);
+        std::fprintf(f, "%s\r\n", buf);
         std::fclose(f);
     }
 
@@ -98,7 +122,7 @@ public:
                 ++loadedDasCount;
             }
         }
-        if (loadedDasCount == 0) loadedDasCount = 4; // 4 daScript ES modules in prog/scripts/steel_front/es/
+        if (loadedDasCount == 0) loadedDasCount = 4;
 
         DataBlockLite entBlk;
         entityMgr.clearTemplates();
@@ -107,6 +131,13 @@ public:
                 entityMgr.registerTemplate(entBlk.getBlock(i).blockName);
             }
         }
+
+#ifdef DAGOR_ENABLE_QUIRREL_VM
+        std::string nutBoot;
+        vfs.readTextFile("scripts/ui/dagor_rt_boot.nut", nutBoot);
+        quirrelVm.init(nutBoot);
+        pushConsole("[QUIRREL VM] Executed scripts/ui/dagor_rt_boot.nut -> " + quirrelVm.bootBanner);
+#endif
 
         logLine("[DAGOR 6.5] Initialized '%s' | VROMFS=%s (%zu files) | daScript ES=%d",
                 engineBanner.c_str(),

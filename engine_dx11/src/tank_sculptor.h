@@ -1,6 +1,8 @@
 #pragma once
 #include "d3d11_renderer.h"
 #include "game_data.h"
+#include <math/dag_Point3.h>
+#include <math/dag_noise.h>
 
 namespace sf {
 
@@ -460,19 +462,21 @@ inline void buildEnvironmentAssets(ID3D11Device* dev, EnvironmentGpuAssets& env)
     }
 
     // =========================================================================
-    // 1. ОТКРЫТАЯ ВОЕННАЯ БАЗА АНГАРА (С ГОРНЫМ ХРЕБТОМ, ЛЕСОМ, ВЫШКОЙ И ПЛАЦЕМ)
+    // 1. ОТКРЫТЫЙ ТАНКОВЫЙ ПОЛИГОН DAGOR ENGINE 6.5 (HeightMapLand perlin_noise::fBm3)
     // =========================================================================
+    perlin_noise::init_noise(2026);
     {
         mb.clear();
-        const int G = 64;
-        const float span = 210.f;
-        const Vec4 grassCol(0.20f, 0.28f, 0.14f, 1.f);
+        const int G = 84;
+        const float span = 225.f;
+        const Vec4 grassCol(0.22f, 0.27f, 0.14f, 1.f);
         auto baseH = [](float x, float z) -> float {
             float r = std::hypot(x, z);
             if (r < 27.f) return -0.02f;
-            float t = clampf((r - 27.f) / 72.f, 0.f, 1.f);
-            float ridge = std::max(0.f, (r - 92.f) * 0.22f) * (0.65f + 0.35f * std::sin(std::atan2(z, x) * 5.f));
-            return t * t * (7.5f + 4.8f * std::sin(x * 0.042f) * std::cos(z * 0.039f)) + ridge;
+            float t = clampf((r - 27.f) / 68.f, 0.f, 1.f);
+            float fbm = perlin_noise::fBm3(Point3(x * 0.024f, 0.7f, z * 0.024f), 0.78f, 2.05f, 4.0f);
+            float ridge = std::max(0.f, (r - 86.f) * 0.25f) * (0.72f + 0.42f * fbm);
+            return t * t * (7.2f + 5.6f * fbm) + ridge;
         };
         std::vector<uint32_t> grid((G + 1) * (G + 1));
         for (int gz = 0; gz <= G; ++gz) {
@@ -530,8 +534,16 @@ inline void buildEnvironmentAssets(ID3D11Device* dev, EnvironmentGpuAssets& env)
             mb.addChamferBox({m * 19.5f, 12.0f, -11.7f}, {0.90f, 0.30f, 0.24f}, 0.02f, Vec4(1.0f, 0.94f, 0.80f, 1.f), 0.1f, 0.1f, 6.f);
         }
 
+        // Противотанковые бетонные надолбы («зубы дракона») и цистерны ГСМ на базе Dagor
+        for (int dt = 0; dt < 8; ++dt) {
+            mb.addCylinder({-21.5f + dt * 1.45f, 0.55f, -15.8f}, 0.58f, 0.16f, 1.10f, 4, 1,
+                           Vec4(0.42f, 0.43f, 0.41f, 1.f), 0.85f, 0.05f, 4.f, 0.88f);
+        }
+        Mat4 cistRot = Mat4::rotationZ(PI * 0.5f) * Mat4::translation(16.5f, 1.45f, -14.5f);
+        mb.addCylinder({0, 0, 0}, 1.15f, 1.15f, 5.2f, 18, 1, Vec4(0.32f, 0.36f, 0.28f, 1.f), 0.46f, 0.42f, 3.f, 0.92f, true, &cistRot);
+
         // Густой хвойный лес вокруг базы с многоярусными елями
-        for (int i = 0; i < 56; ++i) {
+        for (int i = 0; i < 64; ++i) {
             float ang = (float(i) / 56.f) * 2.f * PI;
             float rad = 31.f + (i % 6) * 9.0f;
             float tx = std::cos(ang) * rad;

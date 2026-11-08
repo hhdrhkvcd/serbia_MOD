@@ -4,6 +4,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#define DAGOR_ENABLE_QUIRREL_VM 1
 #include <windows.h>
 #include <windowsx.h>
 #include <dwmapi.h>
@@ -118,7 +119,11 @@ enum UiActionId {
     ACT_PAUSE_RESUME,
     ACT_PAUSE_RETURN_HANGAR,
     ACT_OPEN_BLK_CDK,
-    ACT_HOT_RELOAD_BLK
+    ACT_HOT_RELOAD_BLK,
+    ACT_CYCLE_DASKIES,
+    ACT_TOGGLE_CONSOLE,
+    ACT_TOGGLE_WIREFRAME,
+    ACT_TOGGLE_PROFILER
 };
 
 class SteelFrontApp {
@@ -154,6 +159,10 @@ public:
     // Состояние экрана: 0 = Ангар, 1 = Онлайн-бой / Полигон
     int   appState = 0;
     bool  hangarBunkerMode = false;
+    int   daSkiesPreset = 0;       // 0=Закат Golden Hour (default!), 1=Полдень, 2=Гроза, 3=Ночь ПНВ
+    bool  showDagorProfiler = true;// Виджет телеметрии Dagor 6.5 (F2)
+    bool  consoleOpen = false;     // Консоль разработчика Dagor visualConsole (~)
+    std::string consoleDraft;
     int   inspectorMode = 0; // 0=Обычный, 1=Броня, 2=Рентген X-Ray
     bool  showTechTree = false;
     bool  pauseMenuOpen = false;
@@ -161,15 +170,17 @@ public:
     int   selectedShellIdx = 0;
 
     // Камера ангара
-    float hangarYaw = 0.62f;
-    float hangarPitch = 0.24f;
-    float hangarDist = 8.4f;
+    float hangarYaw = 0.68f;
+    float hangarPitch = 0.19f;
+    float hangarDist = 8.2f;
+    Mat4  lastHangarViewProj = Mat4::identity();
+    Vec3  lastHangarCamPos{0, 2, -8};
     bool  hangarDragging = false;
     POINT lastMousePt{0, 0};
     float mouseX = 0.f, mouseY = 0.f;
     std::vector<UiHitBox> hitBoxes;
 
-    // Параметры боя и локального управления танком
+    // Параметры боя и локального управления танком + торсионная подвеска vehiclePhys
     PktWorldSnapshot worldSnap{};
     bool  hasWorldSnap = false;
     Vec3  renderTankPos[MAX_NET_TANKS];
@@ -180,6 +191,10 @@ public:
 
     float myX = 0.f, myY = 0.f, myZ = 0.f;
     float myHullYaw = 0.f, myTurretYaw = 0.f, myGunPitch = 0.f, mySpeed = 0.f;
+    float prevMySpeed = 0.f;
+    float mySuspPitch = 0.f;
+    float mySuspRoll  = 0.f;
+    float frameTimeMs = 16.6f;
     float gunRecoil = 0.f;
     float prevReloadTimer = 0.f;
     float mgCooldown = 0.f;
@@ -223,6 +238,7 @@ public:
 
     bool init(HWND window, int initW, int initH) {
         hwnd = window;
+        initOrReloadDagorGamedata(false);
         const auto& vehs = getVehicles();
         settings.load();
         profile.load(vehs);
@@ -568,7 +584,7 @@ public:
         if (gunRecoil > 0.f) gunRecoil = std::max(0.f, gunRecoil - dt * 1.6f);
         if (mgCooldown > 0.f) mgCooldown = std::max(0.f, mgCooldown - dt);
 
-        if (me.alive && !pauseMenuOpen && !chatInputActive) {
+        if (me.alive && !pauseMenuOpen && !chatInputActive && !consoleOpen) {
             bool canDrive = (me.flags & 2) == 0 && me.modHealth[0] > 0 && me.modHealth[2] > 0;
             float throttle = 0.f, turn = 0.f;
             if ((::GetAsyncKeyState('W') & 0x8000) || (::GetAsyncKeyState(VK_UP) & 0x8000))    throttle += 1.f;
@@ -591,6 +607,14 @@ public:
             } else {
                 mySpeed *= 0.85f;
             }
+
+            // Торсионная подвеска Dagor vehiclePhys: клевок корпуса при торможении/разгоне и откате орудия!
+            float accel = clampf((mySpeed - prevMySpeed) / std::max(0.001f, dt), -18.f, 18.f);
+            prevMySpeed = mySpeed;
+            float targetSuspPitch = clampf(-accel * 0.0042f - gunRecoil * 0.065f, -0.09f, 0.09f);
+            float targetSuspRoll  = clampf(turn * (mySpeed * 0.0028f), -0.06f, 0.06f);
+            mySuspPitch = lerpf(mySuspPitch, targetSuspPitch, std::min(1.f, dt * 7.5f));
+            mySuspRoll  = lerpf(mySuspRoll,  targetSuspRoll,  std::min(1.f, dt * 7.5f));
 
             // Единый вектор прицеливания камеры для вида от 3-го лица и снайперского прицела
             Vec3 camForward(
@@ -841,10 +865,39 @@ public:
         }
     }
 
-    // Отрисовка полной сочленённой 3D-модели танка (корпус + башня + качающееся орудие с откатом)
+    void getDaSkiesPresetParams(int preset, Vec3& outSunDir, Vec4& outSunColExp, Vec4& outSkyTop, Vec4& outSkyHoriz) const {
+        switch (preset & 3) {
+            case 0: // ЗАКАТ daSkies (Golden Hour — кинематографичное освещение по умолчанию!)
+                outSunDir    = Vec3(0.74f, 0.24f, -0.63f).normalized();
+                outSunColExp = Vec4(5.25f, 3.10f, 1.62f, 1.16f);
+                outSkyTop    = Vec4(0.10f, 0.17f, 0.38f, 80.f);
+                outSkyHoriz  = Vec4(0.92f, 0.46f, 0.21f, 265.f);
+                break;
+            case 1: // ПОЛДЕНЬ daSkies (Ясное небо)
+                outSunDir    = Vec3(0.56f, 0.62f, -0.55f).normalized();
+                outSunColExp = Vec4(4.45f, 4.05f, 3.45f, 1.10f);
+                outSkyTop    = Vec4(0.13f, 0.34f, 0.69f, 95.f);
+                outSkyHoriz  = Vec4(0.62f, 0.76f, 0.90f, 290.f);
+                break;
+            case 2: // ГРОЗА daSkies (Штормовой фронт и мокрый асфальт)
+                outSunDir    = Vec3(-0.42f, 0.48f, -0.77f).normalized();
+                outSunColExp = Vec4(2.15f, 2.35f, 2.75f, 1.04f);
+                outSkyTop    = Vec4(0.11f, 0.14f, 0.19f, 55.f);
+                outSkyHoriz  = Vec4(0.28f, 0.33f, 0.39f, 195.f);
+                break;
+            default: // НОЧЬ daSkies (Звёздное небо daStars / Ночной полигон ПНВ)
+                outSunDir    = Vec3(-0.55f, 0.07f, -0.83f).normalized();
+                outSunColExp = Vec4(0.68f, 0.88f, 1.42f, 0.96f);
+                outSkyTop    = Vec4(0.02f, 0.03f, 0.07f, 50.f);
+                outSkyHoriz  = Vec4(0.06f, 0.09f, 0.16f, 180.f);
+                break;
+        }
+    }
+
+    // Отрисовка полной сочленённой 3D-модели танка с торсионной подвеской vehiclePhys и уклоном HeightMapLand
     void drawArticulatedTank(int vehIdx, const Vec3& pos, float hYaw, float tYaw, float gPitch,
                              int camoIdx, float objMode, float burntFactor = 0.f, float recoil = 0.f,
-                             bool drawTurretAndGun = true) {
+                             bool drawTurretAndGun = true, float extraPitch = 0.f, float extraRoll = 0.f, int slopeMapIdx = -1) {
         if (vehIdx < 0 || vehIdx >= (int)vehModels.size()) return;
         const VehicleSpec& vs = getVehicles()[vehIdx];
         const auto& camos = getCamouflages();
@@ -858,14 +911,27 @@ public:
         obj.camoColCObjMode = Vec4(cm.c2.x, cm.c2.y, cm.c2.z, objMode);
         obj.armorParams     = Vec4((float)vs.hullArmor[0], (float)vs.hullArmor[1], (float)vs.hullArmor[2], burntFactor);
 
-        // Наклон корпуса по рельефу карты
-        Mat4 hullWorld = Mat4::rotationY(hYaw) * Mat4::translation(pos.x, pos.y, pos.z);
+        float terrPitch = extraPitch;
+        float terrRoll  = extraRoll;
+        if (slopeMapIdx >= 0) {
+            float fx = -std::sin(hYaw), fz = -std::cos(hYaw);
+            float rx =  std::cos(hYaw), rz = -std::sin(hYaw);
+            float hFront = getTerrainHeight(slopeMapIdx, pos.x + fx * 2.2f, pos.z + fz * 2.2f);
+            float hBack  = getTerrainHeight(slopeMapIdx, pos.x - fx * 2.2f, pos.z - fz * 2.2f);
+            float hRight = getTerrainHeight(slopeMapIdx, pos.x + rx * 1.5f, pos.z + rz * 1.5f);
+            float hLeft  = getTerrainHeight(slopeMapIdx, pos.x - rx * 1.5f, pos.z - rz * 1.5f);
+            terrPitch += std::atan2(hFront - hBack, 4.4f);
+            terrRoll  += std::atan2(hLeft - hRight, 3.0f);
+        }
+
+        Mat4 hullTilt  = Mat4::rotationZ(terrRoll) * Mat4::rotationX(terrPitch);
+        Mat4 hullWorld = hullTilt * Mat4::rotationY(hYaw) * Mat4::translation(pos.x, pos.y, pos.z);
         obj.world = hullWorld;
         gfx.drawMesh(mdl.hull, obj);
 
         if (drawTurretAndGun) {
             obj.armorParams = Vec4((float)vs.turretArmor[0], (float)vs.turretArmor[1], (float)vs.turretArmor[2], burntFactor);
-            Mat4 turWorld = Mat4::rotationY(tYaw) * Mat4::translation(pos.x, pos.y, pos.z);
+            Mat4 turWorld = Mat4::rotationY(tYaw - hYaw) * hullWorld;
             obj.world = turWorld;
             gfx.drawMesh(mdl.turret, obj);
 
@@ -884,7 +950,7 @@ public:
 
         if (appState == 0) {
             // =================================================================
-            // 3D СЦЕНА АНГАРА (ОТКРЫТАЯ ВОЕННАЯ БАЗА ИЛИ БУНКЕР)
+            // 3D СЦЕНА ПОЛИГОНА DAGOR ENGINE 6.5 (daSkies2 + HeightMapLand)
             // =================================================================
             Vec3 target(0.f, 1.28f, 0.f);
             Vec3 camPos(
@@ -893,22 +959,32 @@ public:
                 target.z + std::cos(hangarYaw) * std::cos(hangarPitch) * hangarDist
             );
 
-            Vec3 sunDir = hangarBunkerMode ? Vec3(0.28f, 0.92f, -0.25f).normalized()
-                                           : Vec3(0.62f, 0.50f, -0.60f).normalized();
+            Vec3 sunDir, dummy;
+            Vec4 sunColExp, skyTop, skyHor;
+            getDaSkiesPresetParams(daSkiesPreset, sunDir, sunColExp, skyTop, skyHor);
+            if (hangarBunkerMode) {
+                sunDir    = Vec3(0.28f, 0.92f, -0.25f).normalized();
+                sunColExp = Vec4(2.4f, 2.45f, 2.75f, 1.05f);
+                skyTop    = Vec4(0.08f, 0.10f, 0.14f, 35.f);
+                skyHor    = Vec4(0.14f, 0.16f, 0.20f, 98.f);
+            }
+
             Mat4 lightVP = Mat4::lookAtLH(sunDir * 42.f, Vec3(0, 0.8f, 0), Vec3(0, 1, 0)) *
                            Mat4::orthoLH(28.f, 28.f, 4.f, 88.f);
             Mat4 viewProj = Mat4::lookAtLH(camPos, target, Vec3(0, 1, 0)) *
                             Mat4::perspectiveFovLH(deg2rad(45.f), aspect, 0.25f, 760.f);
+            lastHangarViewProj = viewProj;
+            lastHangarCamPos   = camPos;
 
             CBFrame fb{};
-            fb.viewProj      = viewProj;
-            fb.lightViewProj = lightVP;
-            fb.camPosTime    = Vec4(camPos.x, camPos.y, camPos.z, (float)appTimeSec);
-            fb.sunDirQuality = Vec4(sunDir.x, sunDir.y, sunDir.z, gfx.shadowsEnabled ? 1.f : 0.f);
-            fb.sunColorExposure = hangarBunkerMode ? Vec4(2.4f, 2.45f, 2.75f, 1.05f) : Vec4(4.45f, 3.85f, 3.05f, 1.12f);
-            fb.skyTopFogStart   = hangarBunkerMode ? Vec4(0.08f, 0.10f, 0.14f, 35.f) : Vec4(0.14f, 0.34f, 0.68f, 75.f);
-            fb.skyHorizFogEnd   = hangarBunkerMode ? Vec4(0.14f, 0.16f, 0.20f, 98.f) : Vec4(0.64f, 0.75f, 0.88f, 255.f);
-            fb.groundAmbMode    = Vec4(0.15f, 0.16f, 0.14f, 0.f);
+            fb.viewProj         = viewProj;
+            fb.lightViewProj    = lightVP;
+            fb.camPosTime       = Vec4(camPos.x, camPos.y, camPos.z, (float)appTimeSec);
+            fb.sunDirQuality    = Vec4(sunDir.x, sunDir.y, sunDir.z, gfx.shadowsEnabled ? 1.f : 0.f);
+            fb.sunColorExposure = sunColExp;
+            fb.skyTopFogStart   = skyTop;
+            fb.skyHorizFogEnd   = skyHor;
+            fb.groundAmbMode    = Vec4(0.17f, 0.15f, 0.13f, 0.f);
 
             int vIdx = currentVehIdx();
             int camoIdx = profile.vehicleCamo[vIdx];
@@ -983,9 +1059,12 @@ public:
             camTarget = camPos + camForward * 60.f;
         }
 
-        Vec3 sunDir = (mapIdx == 1) ? Vec3(-0.54f, 0.50f, -0.68f).normalized()
-                                    : Vec3(0.58f, 0.52f, -0.62f).normalized();
-        Vec3 sunCol = (mapIdx == 1) ? Vec3(1.06f, 0.90f, 0.74f) : Vec3(1.08f, 0.96f, 0.82f);
+        Vec3 sunDir;
+        Vec4 sunColExp, skyTop, skyHor;
+        getDaSkiesPresetParams(daSkiesPreset, sunDir, sunColExp, skyTop, skyHor);
+        skyTop.w = 165.f;
+        skyHor.w = 520.f;
+
         Vec3 shadowFocus(myX, myY, myZ);
         Mat4 lightVP = Mat4::lookAtLH(shadowFocus + sunDir * 120.f, shadowFocus, Vec3(0, 1, 0)) *
                        Mat4::orthoLH(115.f, 115.f, 10.f, 280.f);
@@ -994,13 +1073,13 @@ public:
         Mat4 mainVP  = viewMat * projMat;
 
         CBFrame fb{};
-        fb.viewProj      = mainVP;
-        fb.lightViewProj = lightVP;
-        fb.camPosTime    = Vec4(camPos.x, camPos.y, camPos.z, (float)appTimeSec);
-        fb.sunDirQuality = Vec4(sunDir.x, sunDir.y, sunDir.z, gfx.shadowsEnabled ? 1.f : 0.f);
-        fb.sunColorExposure = Vec4(sunCol.x * 4.1f, sunCol.y * 4.1f, sunCol.z * 4.1f, 1.10f);
-        fb.skyTopFogStart   = Vec4(map.skyTop.x, map.skyTop.y, map.skyTop.z, 165.f);
-        fb.skyHorizFogEnd   = Vec4(map.skyHorizon.x, map.skyHorizon.y, map.skyHorizon.z, 520.f);
+        fb.viewProj         = mainVP;
+        fb.lightViewProj    = lightVP;
+        fb.camPosTime       = Vec4(camPos.x, camPos.y, camPos.z, (float)appTimeSec);
+        fb.sunDirQuality    = Vec4(sunDir.x, sunDir.y, sunDir.z, gfx.shadowsEnabled ? 1.f : 0.f);
+        fb.sunColorExposure = sunColExp;
+        fb.skyTopFogStart   = skyTop;
+        fb.skyHorizFogEnd   = skyHor;
         fb.groundAmbMode    = Vec4(map.groundColor.x * 0.55f, map.groundColor.y * 0.55f, map.groundColor.z * 0.55f,
                                    (sniperMode && thermalMode) ? 1.f : 0.f);
 
@@ -1028,9 +1107,11 @@ public:
                     int cIdx = (i == mySlot) ? profile.vehicleCamo[ts.vehicleIdx] : (ts.team == 0 ? 1 : 3);
                     float burnt = ts.alive ? 0.f : 0.88f;
                     float rec = (i == mySlot) ? gunRecoil : 0.f;
+                    float spPitch = (i == mySlot) ? mySuspPitch : 0.f;
+                    float spRoll  = (i == mySlot) ? mySuspRoll  : 0.f;
                     float hotFlag = ts.alive ? 1.0f : 0.0f;
                     drawArticulatedTank(ts.vehicleIdx, renderTankPos[i], renderHullYaw[i], renderTurYaw[i],
-                                        renderGunPitch[i], cIdx, hotFlag, burnt, rec, true);
+                                        renderGunPitch[i], cIdx, hotFlag, burnt, rec, true, spPitch, spRoll, mapIdx);
                 }
             }
 
@@ -1172,6 +1253,93 @@ public:
         hitBoxes.push_back({id, param, x, y, w, h});
     }
 
+    void renderDagorOverlays(float W, float H) {
+        const auto& dk = dagor::RuntimeKernel::instance();
+        char buf[220];
+        const char* skiesNames[4] = {"ЗАКАТ Golden Hour", "ПОЛДЕНЬ Clear", "ГРОЗА Storm", "НОЧЬ daStars"};
+
+        // 1. ТЕЛЕМЕТРИЯ ДВИЖКА DAGOR ENGINE 6.5 В ПРАВОМ ВЕРХНЕМ УГЛУ (F2)
+        if (showDagorProfiler && appState == 0) {
+            float pw = 336.f, ph = 132.f;
+            float px = W - pw - 18.f, py = 68.f;
+            ui.drawPanel(px, py, pw, ph, Color4::rgba(15, 16, 18, 0.90f), Color4::rgba(10, 11, 13, 0.95f), Color4::rgba(228, 164, 44, 0.78f));
+            ui.fillRect(px, py, pw, 2.f, Color4::rgba(236, 174, 48));
+            ui.drawText("ТЕЛЕМЕТРИЯ ЯДРА GAIJIN DAGOR 6.5 [F2]", px + 12.f, py + 8.f, 11.8f, Color4::rgba(246, 196, 78));
+
+            std::snprintf(buf, sizeof(buf), "FPS: %.0f  (%.2f мс)  •  drv3d_DX11 SM5.0%s",
+                          fpsSmoothed, 1000.f / std::max(1.f, fpsSmoothed), gfx.wireframeMode ? " [WIRE]" : "");
+            ui.drawText(buf, px + 12.f, py + 30.f, 11.4f, Color4::rgba(138, 242, 158));
+
+            std::snprintf(buf, sizeof(buf), "VROMFS: %zu файлов  •  .BLK машин: %d  •  daECS: %d",
+                          dk.vfs.packedFileCount(), dk.loadedVehiclesBlk, dk.entityMgr.templateCount());
+            ui.drawText(buf, px + 12.f, py + 49.f, 11.2f, Color4::rgba(218, 222, 228));
+
+            std::snprintf(buf, sizeof(buf), "Quirrel VM (.nut): %s", dk.quirrelVm.active ? "ACTIVE (HSQUIRRELVM)" : "OFF");
+            ui.drawText(buf, px + 12.f, py + 68.f, 11.2f, Color4::rgba(244, 210, 118));
+
+            std::snprintf(buf, sizeof(buf), "daSkies2: %s  •  Perlin LandMesh", skiesNames[daSkiesPreset & 3]);
+            ui.drawText(buf, px + 12.f, py + 87.f, 11.2f, Color4::rgba(182, 214, 245));
+
+            ui.drawText("[~] Консоль Dagor  •  [F3] Сетка  •  [F4] Погода  •  [F5] .BLK", px + 12.f, py + 108.f, 10.4f, Color4::rgba(156, 162, 170));
+        }
+
+        // 2. ЖИВОЙ КАЛЬКУЛЯТОР ПРИВЕДЁННОЙ БРОНИ ПОД КУРСОРОМ МЫШИ (В РЕЖИМЕ «АНАЛИЗ БРОНИ»)
+        if (appState == 0 && inspectorMode == 1 && !showTechTree && !consoleOpen) {
+            Vec2 tankCenterScr;
+            if (projectWorldToScreen(Vec3(0.f, 1.15f, 0.f), lastHangarViewProj, W, H, tankCenterScr)) {
+                float dx = mouseX - tankCenterScr.x;
+                float dy = mouseY - tankCenterScr.y;
+                if (std::fabs(dx) < 210.f && std::fabs(dy) < 135.f) {
+                    const VehicleSpec& v = getVehicles()[currentVehIdx()];
+                    const ShellSpec& sh = v.shells[selectedShellIdx];
+                    bool hitTurret = (dy < -12.f);
+                    float sideRatio = clampf(std::fabs(dx) / 185.f, 0.f, 1.f);
+                    int baseNom = hitTurret
+                        ? int(lerpf((float)v.turretArmor[0], (float)v.turretArmor[1], sideRatio))
+                        : int(lerpf((float)v.hullArmor[0],   (float)v.hullArmor[1],   sideRatio));
+                    float angleDeg = clampf(58.f - sideRatio * 26.f + std::fabs(std::sin(hangarYaw)) * 18.f, 18.f, 76.f);
+                    int effRha = int(float(baseNom) / std::max(0.24f, std::cos(deg2rad(angleDeg))));
+                    bool pen = (sh.basePenMM >= effRha);
+
+                    float tx = std::min(W - 295.f, mouseX + 20.f);
+                    float ty = std::max(70.f, mouseY - 45.f);
+                    ui.drawPanel(tx, ty, 278.f, 92.f, Color4::rgba(14, 15, 17, 0.95f), Color4::rgba(9, 10, 12, 0.98f),
+                                 pen ? Color4::rgba(242, 74, 58) : Color4::rgba(96, 228, 126));
+                    ui.drawText(hitTurret ? "ЗОНА: БРОНЯ БАШНИ + МАСКА" : "ЗОНА: ДЕТАЛЬ КОРПУСА + ДЗ",
+                                tx + 10.f, ty + 8.f, 11.6f, Color4::rgba(246, 202, 88));
+                    std::snprintf(buf, sizeof(buf), "Номинал: %d мм  |  Угол встречи: %.0f°", baseNom, angleDeg);
+                    ui.drawText(buf, tx + 10.f, ty + 28.f, 11.2f, Color4::rgba(214, 220, 228));
+                    std::snprintf(buf, sizeof(buf), "Приведённая броня: ~%d мм RHA", effRha);
+                    ui.drawText(buf, tx + 10.f, ty + 47.f, 11.6f, Color4(1, 1, 1, 1));
+                    std::snprintf(buf, sizeof(buf), "%s (%d мм): %s", sh.code, sh.basePenMM,
+                                  pen ? "ВОЗМОЖНО ПРОБИТИЕ" : "ЗАЩИТА НАДЁЖНА");
+                    ui.drawText(buf, tx + 10.f, ty + 68.f, 11.6f,
+                                pen ? Color4::rgba(255, 104, 88) : Color4::rgba(116, 242, 146));
+                }
+            }
+        }
+
+        // 3. ИНТЕРАКТИВНАЯ КОНСОЛЬ РАЗРАБОТЧИКА DAGOR visualConsole (КЛАВИША ~ / Ё)
+        if (consoleOpen) {
+            float ch = 268.f;
+            ui.drawPanel(0, 0, W, ch, Color4::rgba(10, 12, 11, 0.95f), Color4::rgba(6, 8, 7, 0.98f), Color4::rgba(106, 218, 118, 0.85f));
+            ui.fillRect(0, ch - 2.f, W, 2.f, Color4::rgba(106, 218, 118));
+            ui.drawText("GAIJIN DAGOR ENGINE 6.5 — VISUAL CONSOLE (введите help, ecs.info, vfs.ls, blk.reload, wireframe, skies 0..3, sq <код .nut>)",
+                        16.f, 8.f, 12.0f, Color4::rgba(136, 246, 152));
+
+            int total = (int)dk.consoleLines.size();
+            int start = std::max(0, total - 10);
+            float ly = 32.f;
+            for (int i = start; i < total; ++i) {
+                ui.drawText(dk.consoleLines[i].c_str(), 18.f, ly, 11.6f, Color4::rgba(206, 228, 210));
+                ly += 19.f;
+            }
+            ui.drawPanel(14.f, ch - 38.f, W - 28.f, 28.f, Color4::rgba(18, 24, 20), Color4::rgba(12, 16, 14), Color4::rgba(118, 232, 134));
+            std::snprintf(buf, sizeof(buf), "dagor> %s_", consoleDraft.c_str());
+            ui.drawText(buf, 22.f, ch - 32.f, 12.8f, Color4::rgba(255, 242, 156));
+        }
+    }
+
     void renderUi2D() {
         hitBoxes.clear();
         ui.begin();
@@ -1183,6 +1351,7 @@ public:
         } else {
             renderBattleHud(W, H);
         }
+        renderDagorOverlays(W, H);
 
         ui.flush(gfx.width, gfx.height);
     }
@@ -1195,87 +1364,98 @@ public:
         int vIdx = currentVehIdx();
         const VehicleSpec& v = vehs[vIdx];
 
-        // 1. ВЕРХНЯЯ ШАПКА АНГАРА (ЯДРО DAGOR ENGINE 6.5 • VROMFS + .BLK + daECS)
+        // 1. ВЕРХНЯЯ ПАНЕЛЬ GAIJIN daRg (ГРАФИТОВО-ЯНТАРНЫЙ СТИЛЬ WAR THUNDER / DAGOR 6.5)
         const auto& dagKernel = dagor::RuntimeKernel::instance();
-        ui.drawPanel(0, 0, W, 56, Color4::rgba(14, 18, 24, 0.94f), Color4::rgba(9, 12, 17, 0.96f), Color4::rgba(58, 70, 88, 0.65f));
-        ui.drawText("STEEL FRONT", 20, 8, 20.5f, Color4::rgba(238, 242, 248));
-        ui.drawText("DAGOR ENGINE 6.5 • VROMFS + .BLK", 20, 31, 11.2f, Color4::rgba(226, 178, 68));
+        ui.drawPanel(0, 0, W, 56, Color4::rgba(17, 18, 20, 0.95f), Color4::rgba(11, 12, 14, 0.98f), Color4::rgba(218, 158, 42, 0.72f));
+        ui.fillRect(0, 54.f, W, 2.f, Color4::rgba(218, 158, 42, 0.55f));
+        ui.fillRect(16.f, 10.f, 4.f, 36.f, Color4::rgba(232, 82, 34));
+        ui.drawText("STEEL FRONT // DAGOR 6.5", 28, 8, 19.2f, Color4::rgba(248, 244, 234));
+        ui.drawText("daRg UI • Quirrel VM • daSkies2 • VROMFS", 28, 31, 11.0f, Color4::rgba(236, 178, 58));
 
-        char srvBadge[180];
-        std::snprintf(srvBadge, sizeof(srvBadge), "DAGOR (%d .BLK / %d daECS%s) • %s:%d (%.0f МС)",
-                      dagKernel.loadedVehiclesBlk, dagKernel.entityMgr.templateCount(),
-                      dagKernel.hotReloadCount > 0 ? " • ОБНОВЛЕНО!" : "",
-                      settings.serverIp, settings.serverPort, netPingMs);
-        ui.drawText(srvBadge, 232, 20, 12.2f, Color4::rgba(116, 216, 148));
-
-        // Центральная красная кнопка «В БОЙ!» + выбор карты/режима под ней
-        float bBtnW = 216.f, bBtnH = 44.f;
+        // Центральная фирменная кнопка Gaijin «В БОЙ!» + выбор операции под ней
+        float bBtnW = 228.f, bBtnH = 44.f;
         float bBtnX = W * 0.5f - bBtnW * 0.5f, bBtnY = 6.f;
         bool hovBattle = (mouseX >= bBtnX && mouseX <= bBtnX + bBtnW && mouseY >= bBtnY && mouseY <= bBtnY + bBtnH);
         ui.drawPanel(bBtnX, bBtnY, bBtnW, bBtnH,
-                     hovBattle ? Color4::rgba(232, 58, 44) : Color4::rgba(198, 38, 30),
-                     hovBattle ? Color4::rgba(176, 26, 20) : Color4::rgba(138, 18, 15),
-                     Color4::rgba(255, 148, 120, 0.9f));
-        ui.drawTextCentered(selectedMapChoice == 3 ? "НА ПОЛИГОН!" : "В БОЙ!", W * 0.5f, 14, 24, Color4(1, 1, 1, 1));
+                     hovBattle ? Color4::rgba(244, 84, 36) : Color4::rgba(212, 54, 24),
+                     hovBattle ? Color4::rgba(182, 36, 16) : Color4::rgba(146, 22, 12),
+                     Color4::rgba(255, 196, 108, 0.95f));
+        ui.drawTextCentered(selectedMapChoice == 3 ? "НА ПОЛИГОН!" : "В БОЙ!", W * 0.5f, 13, 24, Color4(1, 1, 1, 1));
         addHit(ACT_ENTER_BATTLE, selectedMapChoice, bBtnX, bBtnY, bBtnW, bBtnH);
 
         // Плашка выбора режима/карты под кнопкой «В БОЙ!»
-        float mBarW = 360.f, mBarX = W * 0.5f - mBarW * 0.5f, mBarY = 60.f;
+        float mBarW = 384.f, mBarX = W * 0.5f - mBarW * 0.5f, mBarY = 60.f;
         bool hovMap = (mouseX >= mBarX && mouseX <= mBarX + mBarW && mouseY >= mBarY && mouseY <= mBarY + 28.f);
         ui.drawPanel(mBarX, mBarY, mBarW, 28.f,
-                     hovMap ? Color4::rgba(28, 36, 48, 0.92f) : Color4::rgba(16, 22, 30, 0.88f),
-                     Color4::rgba(12, 16, 22, 0.92f), Color4::rgba(92, 112, 138, 0.7f));
-        char mapLabel[140];
-        std::snprintf(mapLabel, sizeof(mapLabel), "▼  %s: %s", maps[selectedMapChoice].subtitle, maps[selectedMapChoice].name);
-        ui.drawTextCentered(mapLabel, W * 0.5f, mBarY + 5.f, 13.5f, Color4::rgba(232, 238, 248));
+                     hovMap ? Color4::rgba(38, 34, 26, 0.94f) : Color4::rgba(19, 20, 22, 0.91f),
+                     Color4::rgba(12, 13, 15, 0.95f), Color4::rgba(214, 162, 54, 0.72f));
+        char mapLabel[150];
+        std::snprintf(mapLabel, sizeof(mapLabel), "▼  РЕЖИМ DAGOR: %s — %s", maps[selectedMapChoice].subtitle, maps[selectedMapChoice].name);
+        ui.drawTextCentered(mapLabel, W * 0.5f, mBarY + 5.f, 13.0f, Color4::rgba(248, 232, 188));
         addHit(ACT_SELECT_MAP, (selectedMapChoice + 1) % 4, mBarX, mBarY, mBarW, 28.f);
 
-        // Кнопка быстрого выезда на Полигон + кнопка живого моддинга Dagor .BLK (CDK)
+        // Кнопки слева от «В БОЙ!»: ИССЛЕДОВАНИЯ и ПОГОДА daSkies2
+        float ttX = bBtnX - 146.f;
+        ui.drawPanel(ttX, 10.f, 136.f, 36.f,
+                     showTechTree ? Color4::rgba(204, 144, 32) : Color4::rgba(32, 31, 28, 0.96f),
+                     showTechTree ? Color4::rgba(148, 98, 16)  : Color4::rgba(20, 20, 18, 0.96f),
+                     Color4::rgba(228, 176, 66, 0.85f));
+        ui.drawTextCentered("ИССЛЕДОВАНИЯ", ttX + 68.f, 19.f, 12.4f, Color4::rgba(255, 240, 204));
+        addHit(ACT_TOGGLE_TECH_TREE, 0, ttX, 10.f, 136.f, 36.f);
+
+        const char* skShort[4] = {"daSkies: ЗАКАТ", "daSkies: ДЕНЬ", "daSkies: ГРОЗА", "daSkies: НОЧЬ"};
+        float skX = ttX - 142.f;
+        if (skX > 275.f) {
+            ui.drawPanel(skX, 10.f, 134.f, 36.f, Color4::rgba(38, 30, 20, 0.96f), Color4::rgba(22, 18, 12, 0.96f), Color4::rgba(238, 166, 56, 0.85f));
+            ui.drawTextCentered(skShort[daSkiesPreset & 3], skX + 67.f, 19.f, 11.8f, Color4::rgba(255, 212, 118));
+            addHit(ACT_CYCLE_DASKIES, 0, skX, 10.f, 134.f, 36.f);
+        }
+
+        // Кнопки справа от «В БОЙ!»: ПОЛИГОН, CDK .BLK и КОНСОЛЬ (~)
         float polX = bBtnX + bBtnW + 10.f;
-        ui.drawPanel(polX, 10.f, 124.f, 36.f, Color4::rgba(32, 44, 58, 0.95f), Color4::rgba(20, 28, 38, 0.95f), Color4::rgba(92, 136, 182, 0.8f));
-        ui.drawTextCentered("ПРОБНЫЙ ВЫЕЗД", polX + 62.f, 19.f, 12.2f, Color4::rgba(210, 230, 252));
-        addHit(ACT_ENTER_POLIGON, 3, polX, 10.f, 124.f, 36.f);
+        ui.drawPanel(polX, 10.f, 116.f, 36.f, Color4::rgba(32, 33, 35, 0.96f), Color4::rgba(19, 20, 22, 0.96f), Color4::rgba(168, 174, 182, 0.7f));
+        ui.drawTextCentered("ПРОБНЫЙ ВЫЕЗД", polX + 58.f, 19.f, 11.6f, Color4::rgba(236, 240, 245));
+        addHit(ACT_ENTER_POLIGON, 3, polX, 10.f, 116.f, 36.f);
 
-        float cdkX = polX + 132.f;
-        ui.drawPanel(cdkX, 10.f, 118.f, 36.f, Color4::rgba(46, 38, 20, 0.95f), Color4::rgba(28, 22, 12, 0.95f), Color4::rgba(228, 182, 74, 0.85f));
-        ui.drawTextCentered("CDK .BLK (F5)", cdkX + 59.f, 19.f, 12.0f, Color4::rgba(250, 218, 126));
-        addHit(ACT_OPEN_BLK_CDK, 0, cdkX, 10.f, 118.f, 36.f);
+        float cdkX = polX + 122.f;
+        ui.drawPanel(cdkX, 10.f, 106.f, 36.f, Color4::rgba(46, 36, 18, 0.96f), Color4::rgba(28, 22, 10, 0.96f), Color4::rgba(234, 182, 68, 0.88f));
+        ui.drawTextCentered("CDK .BLK (F5)", cdkX + 53.f, 19.f, 11.6f, Color4::rgba(252, 218, 122));
+        addHit(ACT_OPEN_BLK_CDK, 0, cdkX, 10.f, 106.f, 36.f);
 
-        // Кнопка дерева исследований слева от «В БОЙ!»
-        float ttX = bBtnX - 150.f;
-        ui.drawPanel(ttX, 10.f, 138.f, 36.f,
-                     showTechTree ? Color4::rgba(196, 142, 34) : Color4::rgba(32, 42, 54, 0.95f),
-                     showTechTree ? Color4::rgba(142, 98, 18) : Color4::rgba(20, 26, 36, 0.95f),
-                     Color4::rgba(228, 184, 78, 0.8f));
-        ui.drawTextCentered("ИССЛЕДОВАНИЯ", ttX + 69.f, 19.f, 13, Color4(1, 1, 1, 1));
-        addHit(ACT_TOGGLE_TECH_TREE, 0, ttX, 10.f, 138.f, 36.f);
+        float conX = cdkX + 112.f;
+        if (conX + 98.f < W - 260.f) {
+            ui.drawPanel(conX, 10.f, 96.f, 36.f, Color4::rgba(20, 34, 22, 0.96f), Color4::rgba(12, 22, 14, 0.96f), Color4::rgba(112, 224, 128, 0.85f));
+            ui.drawTextCentered("~ КОНСОЛЬ", conX + 48.f, 19.f, 11.6f, Color4::rgba(148, 248, 162));
+            addHit(ACT_TOGGLE_CONSOLE, 0, conX, 10.f, 96.f, 36.f);
+        }
 
         // Валюта аккаунта и кнопки звука/выхода справа
         char econStr[128];
-        std::snprintf(econStr, sizeof(econStr), "%d СЛ     %d ОИ     %d ЗО", profile.silver, profile.rp, profile.gold);
-        ui.drawTextRight(econStr, W - 122.f, 18.f, 15, Color4::rgba(244, 214, 118));
+        std::snprintf(econStr, sizeof(econStr), "%d СЛ   %d ОИ   %d ЗО", profile.silver, profile.rp, profile.gold);
+        ui.drawTextRight(econStr, W - 118.f, 19.f, 14.0f, Color4::rgba(248, 212, 104));
 
-        ui.drawPanel(W - 108.f, 12.f, 44.f, 32.f, Color4::rgba(28, 34, 44), Color4::rgba(18, 22, 30), Color4::rgba(80, 95, 115));
-        ui.drawTextCentered(sound.enabled ? "ЗВУК" : "ТИХО", W - 86.f, 20.f, 12, sound.enabled ? Color4::rgba(130, 230, 160) : Color4::rgba(180, 180, 190));
+        ui.drawPanel(W - 108.f, 12.f, 44.f, 32.f, Color4::rgba(28, 29, 32), Color4::rgba(18, 19, 21), Color4::rgba(110, 112, 118));
+        ui.drawTextCentered(sound.enabled ? "ЗВУК" : "ТИХО", W - 86.f, 20.f, 11.8f, sound.enabled ? Color4::rgba(138, 236, 158) : Color4::rgba(180, 180, 185));
         addHit(ACT_TOGGLE_SOUND, 0, W - 108.f, 12.f, 44.f, 32.f);
 
-        ui.drawPanel(W - 56.f, 12.f, 44.f, 32.f, Color4::rgba(92, 26, 26), Color4::rgba(58, 16, 16), Color4::rgba(190, 72, 72));
-        ui.drawTextCentered("ВЫХ", W - 34.f, 20.f, 12, Color4(1, 1, 1, 1));
+        ui.drawPanel(W - 56.f, 12.f, 44.f, 32.f, Color4::rgba(112, 30, 24), Color4::rgba(68, 16, 14), Color4::rgba(224, 92, 76));
+        ui.drawTextCentered("ВЫХ", W - 34.f, 20.f, 11.8f, Color4(1, 1, 1, 1));
         addHit(ACT_EXIT_GAME, 0, W - 56.f, 12.f, 44.f, 32.f);
 
-        // 2. ЛЕВАЯ КАРТОЧКА ТТХ, БРОНЕПРОБИТИЯ И КАМУФЛЯЖЕЙ (В СТИЛЕ WAR THUNDER)
-        float cardX = 18.f, cardY = 72.f, cardW = 428.f, cardH = std::min(498.f, H - 220.f);
-        ui.drawPanel(cardX, cardY, cardW, cardH, Color4::rgba(11, 16, 23, 0.90f), Color4::rgba(8, 11, 17, 0.94f), Color4::rgba(74, 92, 118, 0.78f));
+        // 2. ЛЕВАЯ КАРТОЧКА ТТХ И ИНСПЕКТОРА ЗАЩИЩЁННОСТИ GAIJIN daRg (CHARCOAL + AMBER)
+        float cardX = 18.f, cardY = 70.f, cardW = 432.f, cardH = std::min(502.f, H - 216.f);
+        ui.drawPanel(cardX, cardY, cardW, cardH, Color4::rgba(16, 17, 19, 0.92f), Color4::rgba(10, 11, 13, 0.96f), Color4::rgba(198, 148, 48, 0.72f));
+        ui.fillRect(cardX, cardY, cardW, 3.f, Color4::rgba(234, 172, 48));
 
         ui.drawNationFlag(v.nationIdx, cardX + 16.f, cardY + 14.f, 36.f, 22.f);
-        ui.drawText(v.name, cardX + 60.f, cardY + 10.f, 18.0f, Color4::rgba(244, 248, 255));
+        ui.drawText(v.name, cardX + 60.f, cardY + 10.f, 18.0f, Color4::rgba(250, 246, 236));
         char subLine[128];
-        std::snprintf(subLine, sizeof(subLine), "БР %s  •  Ранг %s  •  %s", v.br, v.rank, v.roleClass);
-        ui.drawText(subLine, cardX + 60.f, cardY + 32.f, 12.2f, Color4::rgba(182, 198, 218));
+        std::snprintf(subLine, sizeof(subLine), "БР %s  •  Ранг %s  •  %s  •  DataBlock .BLK", v.br, v.rank, v.roleClass);
+        ui.drawText(subLine, cardX + 60.f, cardY + 32.f, 11.8f, Color4::rgba(232, 184, 82));
 
         auto statRow = [&](float ry, const char* k, const char* val) {
-            ui.drawText(k, cardX + 16.f, ry, 12.5f, Color4::rgba(158, 176, 198));
-            ui.drawTextRight(val, cardX + cardW - 16.f, ry, 12.8f, Color4::rgba(238, 243, 250));
+            ui.drawText(k, cardX + 16.f, ry, 12.4f, Color4::rgba(176, 178, 184));
+            ui.drawTextRight(val, cardX + cardW - 16.f, ry, 12.8f, Color4::rgba(246, 242, 232));
         };
         char buf[128];
         std::snprintf(buf, sizeof(buf), "%d / %d / %d мм", v.turretArmor[0], v.turretArmor[1], v.turretArmor[2]);
@@ -1283,29 +1463,29 @@ public:
         std::snprintf(buf, sizeof(buf), "%d / %d / %d мм", v.hullArmor[0], v.hullArmor[1], v.hullArmor[2]);
         statRow(cardY + 83.f, "Броня корпуса (ВЛД / борт / корма):", buf);
         std::snprintf(buf, sizeof(buf), "%s (%.1f с)", v.gunName, v.reloadSec);
-        statRow(cardY + 104.f, "Вооружение / Перезарядка:", buf);
+        statRow(cardY + 104.f, "Орудие / Цикл заряжания:", buf);
         std::snprintf(buf, sizeof(buf), "+%.0f / -%.0f км/ч  (%d л.с.)", v.fwdKmh, v.revKmh, v.engineHp);
-        statRow(cardY + 125.f, "Макс. скорость / Двигатель:", buf);
+        statRow(cardY + 125.f, "Подвижность (vehiclePhys):", buf);
         std::snprintf(buf, sizeof(buf), "%.0f°/с  •  ДЗ: %s", v.turretDegSec, v.eraName);
         statRow(cardY + 146.f, "Привод башни / Защита:", buf);
 
-        // Выбор боеприпасов (1, 2, 3) и таблица бронепробития по дистанциям
-        ui.fillRect(cardX + 14.f, cardY + 172.f, cardW - 28.f, 1.f, Color4(1, 1, 1, 0.12f));
-        ui.drawText("БОЕКОМПЛЕКТ И БРОНЕПРОБИТИЕ (0°):", cardX + 16.f, cardY + 180.f, 12.5f, Color4::rgba(224, 184, 86));
+        // Выбор боеприпасов (1, 2, 3) и таблица бронепробития
+        ui.fillRect(cardX + 14.f, cardY + 172.f, cardW - 28.f, 1.f, Color4(1, 0.85f, 0.45f, 0.18f));
+        ui.drawText("УКЛАДКА БК И БРОНЕПРОБИТИЕ (0° / 10М):", cardX + 16.f, cardY + 180.f, 12.2f, Color4::rgba(238, 184, 68));
 
         for (int s = 0; s < 3; ++s) {
             float sx = cardX + 16.f + s * 136.f;
             float sy = cardY + 202.f;
             bool sel = (selectedShellIdx == s);
-            ui.drawPanel(sx, sy, 124.f, 38.f,
-                         sel ? Color4::rgba(46, 78, 116, 0.96f) : Color4::rgba(22, 28, 38, 0.92f),
-                         sel ? Color4::rgba(28, 48, 76, 0.96f)  : Color4::rgba(16, 20, 28, 0.92f),
-                         sel ? Color4::rgba(116, 188, 255) : Color4::rgba(62, 76, 94));
-            ui.drawTextCentered(v.shells[s].code, sx + 62.f, sy + 4.f, 12.4f, Color4(1, 1, 1, 1));
+            ui.drawPanel(sx, sy, 126.f, 38.f,
+                         sel ? Color4::rgba(82, 58, 18, 0.96f) : Color4::rgba(25, 26, 28, 0.94f),
+                         sel ? Color4::rgba(52, 36, 10, 0.98f) : Color4::rgba(17, 18, 20, 0.94f),
+                         sel ? Color4::rgba(248, 192, 68) : Color4::rgba(74, 76, 82));
+            ui.drawTextCentered(v.shells[s].code, sx + 63.f, sy + 4.f, 12.4f, Color4(1, 1, 1, 1));
             char pStr[32];
             std::snprintf(pStr, sizeof(pStr), "%d мм", v.shells[s].basePenMM);
-            ui.drawTextCentered(pStr, sx + 62.f, sy + 20.f, 12.0f, Color4::rgba(250, 208, 102));
-            addHit(ACT_SELECT_SHELL, s, sx, sy, 124.f, 38.f);
+            ui.drawTextCentered(pStr, sx + 63.f, sy + 20.f, 12.0f, Color4::rgba(252, 208, 96));
+            addHit(ACT_SELECT_SHELL, s, sx, sy, 126.f, 38.f);
         }
 
         const ShellSpec& curSh = v.shells[selectedShellIdx];
@@ -1313,15 +1493,15 @@ public:
         curSh.getPenTable(m0, m200, m500);
         std::snprintf(buf, sizeof(buf), "%s  •  %d м/с  •  10м: %d  |  200м: %d  |  500м: %d мм",
                       curSh.label, (int)curSh.speedMs, m0[0], m200[0], m500[0]);
-        ui.drawText(buf, cardX + 16.f, cardY + 247.f, 11.8f, Color4::rgba(196, 212, 232));
+        ui.drawText(buf, cardX + 16.f, cardY + 247.f, 11.6f, Color4::rgba(218, 216, 210));
 
-        // Свотчи камуфляжа (6 штук)
-        ui.fillRect(cardX + 14.f, cardY + 272.f, cardW - 28.f, 1.f, Color4(1, 1, 1, 0.12f));
-        std::snprintf(buf, sizeof(buf), "КАМУФЛЯЖ: %s", camos[profile.vehicleCamo[vIdx]].name);
-        ui.drawText(buf, cardX + 16.f, cardY + 280.f, 12.2f, Color4::rgba(224, 184, 86));
+        // Свотчи камуфляжа
+        ui.fillRect(cardX + 14.f, cardY + 272.f, cardW - 28.f, 1.f, Color4(1, 0.85f, 0.45f, 0.18f));
+        std::snprintf(buf, sizeof(buf), "КАМУФЛЯЖ ТАНКА: %s", camos[profile.vehicleCamo[vIdx]].name);
+        ui.drawText(buf, cardX + 16.f, cardY + 280.f, 12.0f, Color4::rgba(238, 184, 68));
 
         for (int c = 0; c < (int)camos.size(); ++c) {
-            float cx = cardX + 16.f + c * 67.6f;
+            float cx = cardX + 16.f + c * 68.f;
             float cy = cardY + 303.f;
             Vec3 sw = camos[c].useVehicleBase ? v.baseColor : camos[c].c0;
             ui.fillRect(cx, cy, 58.f, 26.f, Color4(sw.x, sw.y, sw.z, 1.f));
@@ -1330,51 +1510,52 @@ public:
                 ui.fillRect(cx + 29.f, cy + 13.f, 29.f, 13.f, Color4(camos[c].c2.x, camos[c].c2.y, camos[c].c2.z, 1.f));
             }
             bool selC = (profile.vehicleCamo[vIdx] == c);
-            ui.drawRectOutline(cx, cy, 58.f, 26.f, selC ? 2.f : 1.f, selC ? Color4::rgba(255, 214, 92) : Color4(1,1,1,0.3f));
+            ui.drawRectOutline(cx, cy, 58.f, 26.f, selC ? 2.f : 1.f, selC ? Color4::rgba(255, 208, 72) : Color4(1,1,1,0.28f));
             addHit(ACT_SELECT_CAMO, c, cx, cy, 58.f, 26.f);
         }
 
-        // Режимы анализа брони / рентгена / смены сцены ангара
-        ui.fillRect(cardX + 14.f, cardY + 340.f, cardW - 28.f, 1.f, Color4(1, 1, 1, 0.12f));
-        const char* inspNames[3] = {"ОБЫЧНЫЙ ВИД", "АНАЛИЗ БРОНИ", "РЕНТГЕН X-RAY"};
+        // Инспектор Dagor: ПБР ВИД / АНАЛИЗ БРОНИ (с живым курсором!) / РЕНТГЕН МОДУЛЕЙ
+        ui.fillRect(cardX + 14.f, cardY + 340.f, cardW - 28.f, 1.f, Color4(1, 0.85f, 0.45f, 0.18f));
+        const char* inspNames[3] = {"ОБЫЧНЫЙ ВИД", "АНАЛИЗ БРОНИ", "РЕНТГЕН МОДУЛЕЙ"};
         for (int m = 0; m < 3; ++m) {
             float mx = cardX + 16.f + m * 136.f;
             float my = cardY + 350.f;
             bool act = (inspectorMode == m);
-            ui.drawPanel(mx, my, 124.f, 30.f,
-                         act ? Color4::rgba(52, 92, 132) : Color4::rgba(22, 28, 38),
-                         act ? Color4::rgba(32, 58, 86)  : Color4::rgba(15, 19, 26),
-                         act ? Color4::rgba(120, 200, 255) : Color4::rgba(64, 78, 96));
-            ui.drawTextCentered(inspNames[m], mx + 62.f, my + 7.f, 11.8f, Color4(1, 1, 1, 1));
-            addHit(ACT_SET_INSPECTOR, m, mx, my, 124.f, 30.f);
+            ui.drawPanel(mx, my, 126.f, 30.f,
+                         act ? Color4::rgba(186, 118, 22) : Color4::rgba(26, 27, 30),
+                         act ? Color4::rgba(128, 76, 12)  : Color4::rgba(17, 18, 20),
+                         act ? Color4::rgba(255, 214, 98) : Color4::rgba(78, 80, 86));
+            ui.drawTextCentered(inspNames[m], mx + 63.f, my + 7.f, 11.4f, Color4(1, 1, 1, 1));
+            addHit(ACT_SET_INSPECTOR, m, mx, my, 126.f, 30.f);
         }
 
-        ui.drawPanel(cardX + 16.f, cardY + 390.f, cardW - 32.f, 30.f, Color4::rgba(26, 34, 46), Color4::rgba(18, 24, 34), Color4::rgba(76, 96, 122));
-        ui.drawTextCentered(hangarBunkerMode ? "ЛОКАЦИЯ АНГАРА: ЗАЩИЩЁННЫЙ БУНКЕР (СМЕНИТЬ)" : "ЛОКАЦИЯ АНГАРА: ПОЛЕВАЯ ВОЕННАЯ БАЗА (СМЕНИТЬ)",
-                            cardX + cardW * 0.5f, cardY + 397.f, 11.8f, Color4::rgba(210, 226, 245));
+        ui.drawPanel(cardX + 16.f, cardY + 390.f, cardW - 32.f, 30.f, Color4::rgba(28, 27, 24), Color4::rgba(18, 18, 16), Color4::rgba(148, 122, 68));
+        ui.drawTextCentered(hangarBunkerMode ? "СЦЕНА DAGOR: ЗАКРЫТЫЙ БУНКЕР (СМЕНИТЬ НА ПОЛИГОН)"
+                                             : "СЦЕНА DAGOR: ОТКРЫТЫЙ ПОЛИГОН НИКИНЦИ (БУНКЕР)",
+                            cardX + cardW * 0.5f, cardY + 397.f, 11.4f, Color4::rgba(244, 224, 178));
         addHit(ACT_TOGGLE_HANGAR_SCENE, 0, cardX + 16.f, cardY + 390.f, cardW - 32.f, 30.f);
 
-        // Кнопка исследования и покупки, если машина ещё закрыта
         if (!profile.isUnlocked(vIdx)) {
             bool canBuy = (profile.rp >= v.costRp && profile.silver >= v.costSilver);
             ui.drawPanel(cardX + 16.f, cardY + 432.f, cardW - 32.f, 44.f,
-                         canBuy ? Color4::rgba(42, 138, 68) : Color4::rgba(82, 42, 42),
-                         canBuy ? Color4::rgba(24, 92, 44)  : Color4::rgba(54, 26, 26),
-                         Color4::rgba(150, 235, 168));
-            std::snprintf(buf, sizeof(buf), "ИССЛЕДОВАТЬ И КУПИТЬ (%d ОИ + %d СЛ)", v.costRp, v.costSilver);
-            ui.drawTextCentered(buf, cardX + cardW * 0.5f, cardY + 445.f, 12.5f, Color4(1, 1, 1, 1));
+                         canBuy ? Color4::rgba(48, 142, 64) : Color4::rgba(92, 42, 36),
+                         canBuy ? Color4::rgba(28, 96, 40)  : Color4::rgba(58, 24, 20),
+                         Color4::rgba(164, 238, 168));
+            std::snprintf(buf, sizeof(buf), "ИССЛЕДОВАТЬ И ЗАКАЗАТЬ (%d ОИ + %d СЛ)", v.costRp, v.costSilver);
+            ui.drawTextCentered(buf, cardX + cardW * 0.5f, cardY + 445.f, 12.4f, Color4(1, 1, 1, 1));
             addHit(ACT_UNLOCK_VEHICLE, vIdx, cardX + 16.f, cardY + 432.f, cardW - 32.f, 44.f);
         } else {
-            ui.drawTextCentered("✓ МАШИНА В СТРОЮ • ЛКМ/ПКМ — КАМЕРА, КОЛЕСО — ЗУМ",
-                                cardX + cardW * 0.5f, cardY + 446.f, 12.0f, Color4::rgba(128, 224, 154));
+            ui.drawTextCentered(inspectorMode == 1 ? "НАВЕДИТЕ МЫШЬ НА ТАНК ДЛЯ РАСЧЁТА ПРИВЕДЁННОЙ БРОНИ!"
+                                                   : "✓ ЭКИПАЖ ГОТОВ К БОЮ  •  F4 — СМЕНА ВРЕМЕНИ СУТОК daSkies2",
+                                cardX + cardW * 0.5f, cardY + 446.f, 11.5f, Color4::rgba(246, 204, 92));
         }
 
-        // 3. НИЖНЯЯ ПАНЕЛЬ НАЦИЙ (7 СТРАН С ФЛАГАМИ) И СЛОТЫ ЭКИПАЖЕЙ (КАК В WAR THUNDER)
+        // 3. НИЖНЯЯ ЛЕНТА НАЦИЙ И СЛОТОВ ЭКИПАЖА В СТИЛЕ GAIJIN WAR THUNDER (daRg)
         float botH = 128.f;
         float botY = H - botH;
-        ui.drawPanel(0, botY, W, botH, Color4::rgba(12, 16, 22, 0.94f), Color4::rgba(8, 11, 16, 0.98f), Color4::rgba(58, 72, 92, 0.7f));
+        ui.drawPanel(0, botY, W, botH, Color4::rgba(16, 17, 19, 0.95f), Color4::rgba(10, 11, 13, 0.99f), Color4::rgba(218, 158, 42, 0.72f));
+        ui.fillRect(0, botY, W, 2.f, Color4::rgba(228, 166, 44, 0.75f));
 
-        // Полоска 7 наций
         float natW = 136.f, natGap = 8.f;
         float totalNatW = nations.size() * natW + (nations.size() - 1) * natGap;
         float natStartX = W * 0.5f - totalNatW * 0.5f;
@@ -1383,20 +1564,19 @@ public:
             float ny = botY + 8.f;
             bool sel = (profile.selectedNation == n);
             ui.drawPanel(nx, ny, natW, 32.f,
-                         sel ? Color4::rgba(52, 74, 104, 0.98f) : Color4::rgba(20, 26, 36, 0.92f),
-                         sel ? Color4::rgba(30, 44, 66, 0.98f)  : Color4::rgba(14, 18, 25, 0.92f),
-                         sel ? Color4::rgba(238, 192, 82) : Color4::rgba(62, 76, 96));
+                         sel ? Color4::rgba(88, 62, 18, 0.98f) : Color4::rgba(24, 25, 28, 0.94f),
+                         sel ? Color4::rgba(54, 36, 10, 0.98f) : Color4::rgba(16, 17, 19, 0.94f),
+                         sel ? Color4::rgba(248, 194, 68) : Color4::rgba(68, 70, 76));
             ui.drawNationFlag(n, nx + 8.f, ny + 7.f, 26.f, 18.f);
-            ui.drawText(nations[n].name, nx + 40.f, ny + 8.f, 13, sel ? Color4::rgba(255, 232, 162) : Color4::rgba(214, 222, 235));
+            ui.drawText(nations[n].name, nx + 40.f, ny + 8.f, 13, sel ? Color4::rgba(255, 228, 146) : Color4::rgba(214, 216, 222));
             addHit(ACT_SELECT_NATION, n, nx, ny, natW, 32.f);
         }
 
-        // Слоты боевых машин выбранной нации
         std::vector<int> natVehs;
         for (int i = 0; i < (int)vehs.size(); ++i)
             if (vehs[i].nationIdx == profile.selectedNation) natVehs.push_back(i);
 
-        float slotW = 196.f, slotH = 70.f, slotGap = 12.f;
+        float slotW = 198.f, slotH = 70.f, slotGap = 12.f;
         float totalSlotW = natVehs.size() * slotW + (natVehs.size() - 1) * slotGap;
         float slotStartX = W * 0.5f - totalSlotW * 0.5f;
         for (size_t k = 0; k < natVehs.size(); ++k) {
@@ -1408,21 +1588,22 @@ public:
             bool unl = profile.isUnlocked(idx);
 
             ui.drawPanel(sx, sy, slotW, slotH,
-                         sel ? Color4::rgba(44, 68, 98, 0.96f) : (unl ? Color4::rgba(22, 30, 42, 0.94f) : Color4::rgba(22, 20, 24, 0.90f)),
-                         sel ? Color4::rgba(24, 38, 58, 0.98f) : Color4::rgba(14, 18, 26, 0.96f),
-                         sel ? Color4::rgba(248, 198, 78) : (unl ? Color4::rgba(78, 98, 124) : Color4::rgba(112, 62, 62)));
+                         sel ? Color4::rgba(76, 54, 18, 0.97f) : (unl ? Color4::rgba(25, 26, 29, 0.95f) : Color4::rgba(24, 19, 20, 0.92f)),
+                         sel ? Color4::rgba(44, 30, 10, 0.99f) : Color4::rgba(16, 17, 19, 0.97f),
+                         sel ? Color4::rgba(252, 196, 68) : (unl ? Color4::rgba(92, 94, 102) : Color4::rgba(122, 62, 58)));
+            if (sel) ui.fillRect(sx, sy, slotW, 3.f, Color4::rgba(252, 196, 68));
 
-            // Мини-силуэт танка на карточке экипажа
             Vec3 pCol = sv.baseColor;
             ui.fillRect(sx + 12.f, sy + 36.f, 48.f, 14.f, Color4(pCol.x, pCol.y, pCol.z, 0.95f));
             ui.fillRect(sx + 22.f, sy + 25.f, 26.f, 12.f, Color4(pCol.x * 1.1f, pCol.y * 1.1f, pCol.z * 1.1f, 0.95f));
-            ui.fillRect(sx + 46.f, sy + 29.f, 24.f, 3.5f, Color4::rgba(180, 190, 200));
+            ui.fillRect(sx + 46.f, sy + 29.f, 24.f, 3.5f, Color4::rgba(195, 198, 204));
 
-            ui.drawText(sv.shortName, sx + 12.f, sy + 6.f, 14.5f, Color4::rgba(244, 248, 255));
+            ui.drawText(sv.shortName, sx + 12.f, sy + 7.f, 14.5f, Color4::rgba(250, 246, 236));
             std::snprintf(buf, sizeof(buf), "БР %s", sv.br);
-            ui.drawTextRight(buf, sx + slotW - 10.f, sy + 7.f, 13, Color4::rgba(244, 202, 92));
-            ui.drawTextRight(unl ? "В СТРОЮ" : "ЗАКРЫТО", sx + slotW - 10.f, sy + 46.f, 11.5f,
-                             unl ? Color4::rgba(118, 224, 148) : Color4::rgba(228, 116, 108));
+            ui.drawTextRight(buf, sx + slotW - 10.f, sy + 8.f, 13, Color4::rgba(248, 202, 86));
+            std::snprintf(buf, sizeof(buf), unl ? "СЛОТ ЭКИПАЖА #%zu" : "ИССЛЕДОВАТЬ", k + 1);
+            ui.drawTextRight(buf, sx + slotW - 10.f, sy + 47.f, 11.0f,
+                             unl ? Color4::rgba(232, 196, 112) : Color4::rgba(234, 116, 104));
             addHit(ACT_SELECT_VEHICLE, idx, sx, sy, slotW, slotH);
         }
 
@@ -1877,8 +2058,57 @@ public:
                 case ACT_HOT_RELOAD_BLK:
                     hotReloadDagorBlk();
                     break;
+                case ACT_CYCLE_DASKIES:
+                    daSkiesPreset = (daSkiesPreset + 1) & 3;
+                    break;
+                case ACT_TOGGLE_CONSOLE:
+                    consoleOpen = !consoleOpen;
+                    break;
+                case ACT_TOGGLE_WIREFRAME:
+                    gfx.wireframeMode = !gfx.wireframeMode;
+                    break;
+                case ACT_TOGGLE_PROFILER:
+                    showDagorProfiler = !showDagorProfiler;
+                    break;
             }
             return;
+        }
+    }
+
+    void executeDagorConsoleCmd(const std::string& rawCmd) {
+        auto& dk = dagor::RuntimeKernel::instance();
+        dk.pushConsole("dagor> " + rawCmd);
+        if (rawCmd == "help" || rawCmd == "?") {
+            dk.pushConsole("Commands: ecs.info | vfs.ls | blk.reload | wireframe | skies 0..3 | sq <quirrel code>");
+        } else if (rawCmd == "ecs.info") {
+            char b[160];
+            std::snprintf(b, sizeof(b), "[daECS] Templates registered: %d | Vehicles from .blk: %d",
+                          dk.entityMgr.templateCount(), dk.loadedVehiclesBlk);
+            dk.pushConsole(b);
+        } else if (rawCmd == "vfs.ls") {
+            for (const auto& kv : dk.vfs.entries) {
+                char b[180];
+                std::snprintf(b, sizeof(b), "  [VROMFS] %-44s (%zu B, CRC=%08X)",
+                              kv.first.c_str(), kv.second.content.size(), kv.second.crc32);
+                dk.pushConsole(b);
+            }
+        } else if (rawCmd == "blk.reload") {
+            hotReloadDagorBlk();
+            dk.pushConsole("[DataBlock] All .blk vehicle/camo/level configs hot-reloaded!");
+        } else if (rawCmd == "wireframe") {
+            gfx.wireframeMode = !gfx.wireframeMode;
+            dk.pushConsole(std::string("[drv3d_DX11] Wireframe rasterizer = ") + (gfx.wireframeMode ? "ON" : "OFF"));
+        } else if (rawCmd.rfind("skies", 0) == 0) {
+            int p = (rawCmd.size() > 6) ? std::atoi(rawCmd.c_str() + 6) : ((daSkiesPreset + 1) & 3);
+            daSkiesPreset = p & 3;
+            dk.pushConsole("[daSkies2] Switched atmospheric scattering preset -> " + std::to_string(daSkiesPreset));
+        } else if (rawCmd.rfind("sq ", 0) == 0) {
+            std::string code = rawCmd.substr(3);
+            if (code.find("return") == std::string::npos) code = "return (" + code + ")";
+            std::string res = dk.quirrelVm.evalNut(code.c_str());
+            dk.pushConsole("[Quirrel VM] => " + res);
+        } else {
+            dk.pushConsole("Unknown command. Type 'help' or 'sq 2 + 2'.");
         }
     }
 
@@ -1909,10 +2139,24 @@ public:
     }
 
     void onKeyDown(WPARAM key) {
-        if (key == VK_F11) {
-            toggleBorderless();
+        if (key == VK_OEM_3) { // Клавиша ~ / Ё — консоль Dagor Engine 6.5
+            consoleOpen = !consoleOpen;
             return;
         }
+        if (consoleOpen) {
+            if (key == VK_ESCAPE) consoleOpen = false;
+            else if (key == VK_BACK && !consoleDraft.empty()) consoleDraft.pop_back();
+            else if (key == VK_RETURN) {
+                if (!consoleDraft.empty()) executeDagorConsoleCmd(consoleDraft);
+                consoleDraft.clear();
+            }
+            return;
+        }
+        if (key == VK_F11) { toggleBorderless(); return; }
+        if (key == VK_F2)  { showDagorProfiler = !showDagorProfiler; return; }
+        if (key == VK_F3)  { gfx.wireframeMode = !gfx.wireframeMode; return; }
+        if (key == VK_F4)  { daSkiesPreset = (daSkiesPreset + 1) & 3; return; }
+
         if (appState == 0) {
             if (key == VK_F5) hotReloadDagorBlk();
             else if (key == 'T') showTechTree = !showTechTree;
@@ -2048,6 +2292,15 @@ static LRESULT CALLBACK GameWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM l
             gApp.onKeyDown(wParam);
             return 0;
         case WM_CHAR:
+            if (gApp.consoleOpen) {
+                wchar_t wc = (wchar_t)wParam;
+                if (wc >= 32 && wc != L'`' && wc != L'~' && wc != L'ё' && wc != L'Ё' && gApp.consoleDraft.size() < 96) {
+                    char utf8[8] = {};
+                    int n = ::WideCharToMultiByte(CP_UTF8, 0, &wc, 1, utf8, sizeof(utf8), nullptr, nullptr);
+                    if (n > 0) gApp.consoleDraft.append(utf8, n);
+                }
+                return 0;
+            }
             if (gApp.chatInputActive && wParam >= 32 && gApp.chatDraft.size() < 70) {
                 wchar_t wc = (wchar_t)wParam;
                 char utf8[8] = {};
