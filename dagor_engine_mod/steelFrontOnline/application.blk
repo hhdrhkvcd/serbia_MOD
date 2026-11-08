@@ -1,0 +1,38 @@
+// Конфигурация приложения Gaijin Dagor Engine (daNetGame) — Steel Front: Online
+projectName:t="steel_front_online"
+windowTitle:t="STEEL FRONT: ONLINE (Dagor Engine)"
+
+video{
+  driver:t="auto" // DX12 на Windows 10/11, Vulkan (SPIR-V) на Linux
+  mode:t="fullscreenwindowed"
+  resolution:t="1920 x 1080"
+  vsync:b=yes
+  dlssQuality:i=2
+  taa:b=yes
+}
+
+mountPoints{
+  "%gameBase":t="prog/gameBase"
+  "%scripts":t="prog/scripts"
+  "%danetlibs":t="../../prog/daNetGameLibs"
+}
+
+game{
+  main_scene:t="gamedata/scenes/balkan_pass_conquest.blk"
+  hangar_scene:t="gamedata/scenes/military_base_hangar.blk"
+  entities_blk:t="gamedata/templates/steel_front.entities.blk"
+  playerTemplateName:t="steel_front_player"
+  defaultNation:t="rs"
+  defaultVehicle:t="m84as2"
+}
+
+sessionLaunchParams{
+  sessionMaxTimeLimit:r=15.0
+  maxPlayersPerTeam:i=8
+  ticketsStart:i=2500
+  enableBotBackfill:b=yes
+}
+
+shaders{
+  path:t="compiledShaders/game"
+}

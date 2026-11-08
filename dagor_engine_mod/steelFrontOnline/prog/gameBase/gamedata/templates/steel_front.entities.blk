@@ -1,0 +1,46 @@
+// Главный реестр ECS-сущностей daNetGame для Steel Front: Online
+import:t="%danetlibs/renderer/templates/dng_camera_nodes.template.blk"
+import:t="%danetlibs/renderer/templates/render_settings.template.blk"
+import:t="%danetlibs/renderer/templates/dynamic_lighting.template.blk"
+import:t="%danetlibs/renderer/templates/ui_nodes.template.blk"
+import:t="%danetlibs/frame_graph_renderer/templates/frame_graph_nodes.template.blk"
+import:t="%danetlibs/phys_kind_jolt_vehicle/templates/phys_kind_jolt_vehicle.template.blk"
+import:t="../units/tanks_serbia_ru_nato.blk"
+import:t="../weapons/cannons_120_125mm.blk"
+
+replicating{
+  replication{_tags:t="net";}
+}
+
+steel_front_player{
+  _use:t="replicating"
+  connid:i=-1
+  name:t="Танкист"
+  userid:u64=0
+  team:i=1
+  selectedNation:t="rs"
+  selectedVehicleTemplate:t="tank_rs_m84as2"
+  silverCredits:i=2021086
+  researchPoints:i=178136
+  "possessed:eid"{}
+  "player:tag"{}
+}
+
+conquest_capture_zone{
+  _use:t="replicating"
+  transform:m=[[1, 0, 0] [0, 1, 0] [0, 0, 1] [0, 0, 0]]
+  zone__id:t="A"
+  zone__title:t="Точка A"
+  zone__radius:r=18.0
+  zone__ownerTeam:i=0
+  zone__captureProgress:r=0.0
+}
+
+conquest_match_state{
+  _use:t="replicating"
+  _singleton:b=yes
+  match__ticketsTeam1:r=2500.0
+  match__ticketsTeam2:r=2500.0
+  match__timeLeftSec:r=900.0
+  match__winnerTeam:i=0
+}

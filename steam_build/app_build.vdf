@@ -1,0 +1,14 @@
+"AppBuild"
+{
+    "AppID" "480" // Замените 480 на ваш собственный AppID из Steamworks Partner при публикации в магазин Steam
+    "Desc" "Steel Front: Online — DirectX 11 x64 Tank Action (Serbia Mod + 7 Nations)"
+    "BuildOutput" "..\steam_output\"
+    "ContentRoot" "..\"
+    "SetLive" "default"
+    "Preview" "0"
+
+    "Depots"
+    {
+        "481" "depot_build_win64.vdf"
+    }
+}

@@ -1,0 +1,11 @@
+base_config{
+  mountPoints{
+    "%scripts":t="scripts"
+  }
+  files{
+    script:t="%scripts/steel_front/es/player_session.das"
+    script:t="%scripts/steel_front/es/tank_chassis_phys.das"
+    script:t="%scripts/steel_front/es/armor_ballistics_dm.das"
+    script:t="%scripts/steel_front/es/conquest_zones.das"
+  }
+}

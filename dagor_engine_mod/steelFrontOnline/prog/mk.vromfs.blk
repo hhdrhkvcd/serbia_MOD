@@ -1,0 +1,12 @@
+output:t="../game/steel_front_online.vromfs.bin"
+platform:t="PC"
+stripComments:b=yes
+
+folder{
+  path:t="gameBase"
+  dest:t=""
+}
+folder{
+  path:t="scripts"
+  dest:t="scripts"
+}

@@ -1,0 +1,57 @@
+Root    ?= ../.. ;
+Location = steelFrontOnline/prog ;
+Game = steel_front_online ;
+GameMainVromFilePath = steel_front_online.vromfs.bin ;
+
+include $(Root)/prog/daNetGame/target_name_rules.jam ;
+
+TargetType ?= exe ;
+SupportsUsingHostedInternalServer = yes ;
+if $(Dedicated) != yes { TargetType = exe ; }
+Target     ?= [ CorrectTargetName ] ;
+TargetCodeName = $(Game) ;
+UseSystemOpenSSL = no ;
+
+NOCARE $(Root)/$(Location)/def.jam ;
+include $(Root)/$(Location)/def.jam ;
+
+PlatformArch_windows ?= host_arch ;
+include $(Root)/prog/_jBuild/defPlatform.jam ;
+
+UseModulesAI = yes ;
+UseModulesDM = yes ;
+UseModulesWeapon = yes ;
+NetPeerAuth = yes ;
+
+AotJamfile = $(Root)/prog/daNetGame-das-aot/jamfile ;
+AotCompilerBaseName = $(Root)/$(Location)/../tools/das-aot/steel_front-aot ;
+
+include $(Root)/prog/daNetGame/setup.jam ;
+DAS_AOT_COMPILER_OPT = -- --config steel_front_aot_config.blk -sConfig $(Config) ;
+
+if ! $(Platform) in macOS android { UseHostedInternalServer = yes ; }
+
+UseEpic = no ;
+ContentUpdater = no ;
+
+SetupOutputDir ;
+
+GameDir = $(Root)/steelFrontOnline/game ;
+OutDir = $(GameDir)/$(Platform)-$(PlatformArch) ;
+
+AllSrcFolder_CPP =
+  main
+;
+
+AllSrcFolder_DAS =
+  scripts/steel_front/es
+;
+
+AllSrcFolder_ES = ;
+
+GameAuthKey_linux = 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ;
+
+AutoscanBuildLists $(AllSrcFolder_CPP) : *.cpp : Sources ;
+if $(DAS_AOT_COMPILER) { AutoscanBuildLists $(AllSrcFolder_DAS) : *.das : Sources : ; }
+
+include $(Root)/prog/_jBuild/build.jam ;
