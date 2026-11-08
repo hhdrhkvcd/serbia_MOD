@@ -1,4 +1,32 @@
 #pragma once
+#ifndef _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
+#endif
+#ifdef _WIN32
+#ifndef _TARGET_PC_WIN
+#define _TARGET_PC_WIN 1
+#endif
+#else
+#ifndef _TARGET_PC_LINUX
+#define _TARGET_PC_LINUX 1
+#endif
+#endif
+#ifndef _TARGET_64BIT
+#define _TARGET_64BIT 1
+#endif
+#ifndef _TARGET_SIMD_SSE
+#define _TARGET_SIMD_SSE 4
+#endif
+
+#include <supp/dag_define_KRNLIMP.h>
+#include <math/dag_Point3.h>
+#include <math/dag_Point4.h>
+#include <math/dag_TMatrix.h>
+
+#ifdef PI
+#undef PI
+#endif
+
 #include <cmath>
 #include <algorithm>
 
@@ -40,6 +68,8 @@ struct Vec3 {
     float x = 0.0f, y = 0.0f, z = 0.0f;
     Vec3() = default;
     Vec3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
+    Vec3(const Point3& p) : x(p.x), y(p.y), z(p.z) {}
+    Point3 toDagor() const { return Point3(x, y, z); }
 
     Vec3 operator+(const Vec3& o) const { return {x + o.x, y + o.y, z + o.z}; }
     Vec3 operator-(const Vec3& o) const { return {x - o.x, y - o.y, z - o.z}; }

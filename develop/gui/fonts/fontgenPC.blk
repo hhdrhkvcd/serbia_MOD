@@ -1,0 +1,8 @@
+// Dagor Engine 6.5 Dynamic Font Generator Config (Cyrillic + Serbian + Latin)
+outDir:t="../pc.out.ui"
+dynamicFont:b=yes
+charsets{
+  ascii:b=yes
+  cyrillic:b=yes
+  serbianCyrillic:b=yes
+}

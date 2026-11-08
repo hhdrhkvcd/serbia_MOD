@@ -1,0 +1,52 @@
+// Баллистические таблицы танковых орудий и снарядов ОБПС / КС / ПТУР для Dagor Engine
+tank_shell_projectile{
+  _use:t="replicating"
+  proj__shooterEid:eid=0
+  proj__pos:p3=0, 0, 0
+  proj__vel:p3=0, 0, 0
+  proj__shellCode:t="3BM60"
+  proj__shellType:t="apfsds"
+  proj__penMM:r=580.0
+  proj__damage:r=650.0
+  proj__guided:b=no
+  proj__ttl:r=3.5
+}
+
+gun_125mm_2a46m_as2{
+  caliberMM:r=125.0
+  stabilizerTwoPlane:b=yes
+  shells{
+    m20_apfsds{ code:t="M20 ОБПС"; type:t="apfsds"; speed:r=1750.0; pen0:r=605.0; damage:r=665.0 }
+    m19_heatfs{ code:t="M19 Тандем"; type:t="heatfs"; speed:r=930.0; pen0:r=660.0; damage:r=570.0 }
+    refleks_m{ code:t="Рефлекс-М"; type:t="atgm"; guided:b=yes; speed:r=355.0; pen0:r=860.0; damage:r=800.0 }
+  }
+}
+
+gun_125mm_2a46m{
+  caliberMM:r=125.0
+  stabilizerTwoPlane:b=yes
+  shells{
+    s_3bm60{ code:t="3БМ60"; type:t="apfsds"; speed:r=1680.0; pen0:r=580.0; damage:r=650.0 }
+    s_3bk18m{ code:t="3БК18М"; type:t="heatfs"; speed:r=905.0; pen0:r=550.0; damage:r=540.0 }
+    s_9m119m1{ code:t="9М119М1"; type:t="atgm"; guided:b=yes; speed:r=350.0; pen0:r=850.0; damage:r=780.0 }
+  }
+}
+
+gun_30mm_maljutka2t5{
+  caliberMM:r=30.0
+  stabilizerTwoPlane:b=yes
+  shells{
+    apds30{ code:t="30мм ОБПС"; type:t="apfsds"; speed:r=1380.0; pen0:r=310.0; damage:r=420.0 }
+    maljutka2t5{ code:t="Маљутка-2Т5"; type:t="atgm"; guided:b=yes; speed:r=330.0; pen0:r=860.0; damage:r=830.0 }
+  }
+}
+
+gun_120mm_l55a1{
+  caliberMM:r=120.0
+  stabilizerTwoPlane:b=yes
+  shells{
+    dm53{ code:t="DM53"; type:t="apfsds"; speed:r=1750.0; pen0:r=652.0; damage:r=680.0 }
+    dm12a1{ code:t="DM12A1"; type:t="heatfs"; speed:r=1140.0; pen0:r=480.0; damage:r=560.0 }
+    dm11{ code:t="DM11 ОФС"; type:t="he"; speed:r=990.0; pen0:r=80.0; damage:r=810.0 }
+  }
+}

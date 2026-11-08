@@ -1,0 +1,93 @@
+// Dagor Engine 6.5 DataBlock — Боевые локации и атмосфера daSkies
+
+levels{
+  balkan_pass{
+    idx:i=0
+    name:t="Балканский укрепрайон"
+    subtitle:t="Онлайн Превосходство [A / B / C]"
+    size:r=360.0
+    skyTop:p3=0.140, 0.240, 0.360
+    skyHorizon:p3=0.560, 0.660, 0.750
+    groundColor:p3=0.220, 0.280, 0.170
+    isPoligon:b=no
+    zone_A{
+      name:t="Северная застава"
+      pos:p3=-72.0, 0.0, -48.0
+      radius:r=18.0
+    }
+    zone_B{
+      name:t="Центральный перевал"
+      pos:p3=0.0, 0.0, 0.0
+      radius:r=20.0
+    }
+    zone_C{
+      name:t="Южный бункер"
+      pos:p3=72.0, 0.0, 48.0
+      radius:r=18.0
+    }
+  }
+
+  factory_18{
+    idx:i=1
+    name:t="Промзона «Завод-18»"
+    subtitle:t="Онлайн Превосходство [A / B / C]"
+    size:r=340.0
+    skyTop:p3=0.170, 0.200, 0.250
+    skyHorizon:p3=0.580, 0.550, 0.510
+    groundColor:p3=0.250, 0.240, 0.220
+    isPoligon:b=no
+    zone_A{
+      name:t="Ж/Д Депо"
+      pos:p3=0.0, 0.0, -76.0
+      radius:r=18.0
+    }
+    zone_B{
+      name:t="Сборочный цех"
+      pos:p3=0.0, 0.0, 0.0
+      radius:r=20.0
+    }
+    zone_C{
+      name:t="Хранилище ГСМ"
+      pos:p3=0.0, 0.0, 76.0
+      radius:r=18.0
+    }
+  }
+
+  karelia_ridge{
+    idx:i=2
+    name:t="Северный рубеж"
+    subtitle:t="Онлайн Превосходство [A / B / C]"
+    size:r=380.0
+    skyTop:p3=0.110, 0.200, 0.310
+    skyHorizon:p3=0.620, 0.710, 0.780
+    groundColor:p3=0.200, 0.270, 0.200
+    isPoligon:b=no
+    zone_A{
+      name:t="Западное плато"
+      pos:p3=-85.0, 0.0, -20.0
+      radius:r=18.0
+    }
+    zone_B{
+      name:t="Озёрная котловина"
+      pos:p3=0.0, 0.0, 0.0
+      radius:r=22.0
+    }
+    zone_C{
+      name:t="Восточный хребет"
+      pos:p3=85.0, 0.0, 20.0
+      radius:r=18.0
+    }
+  }
+
+  poligon{
+    idx:i=3
+    name:t="Испытательный полигон"
+    subtitle:t="Стрельбище бронецелей + Трасса на время"
+    size:r=360.0
+    skyTop:p3=0.130, 0.240, 0.370
+    skyHorizon:p3=0.610, 0.710, 0.790
+    groundColor:p3=0.230, 0.290, 0.190
+    isPoligon:b=yes
+  }
+
+}

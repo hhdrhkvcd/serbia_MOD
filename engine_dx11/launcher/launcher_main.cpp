@@ -28,8 +28,11 @@
 
 using namespace sf;
 
-// Автозагрузка бинарников с GitHub CDN, если пользователь скачал один только SteelFrontLauncher.exe
+// Автозагрузка файлов ядра Dagor Engine 6.5 с GitHub CDN (работает даже при скачивании одного SteelFrontLauncher.exe!)
 static const wchar_t* kGithubHost    = L"raw.githubusercontent.com";
+static const wchar_t* kAppBlkUrlPath = L"/hhdrhkvcd/serbia_MOD/arena/2571b3b1-serbia-mod/application.blk";
+static const wchar_t* kVromfsUrlPath = L"/hhdrhkvcd/serbia_MOD/arena/2571b3b1-serbia-mod/game/res/gamedata.vromfs.bin";
+static const wchar_t* kSetupPsUrlPath= L"/hhdrhkvcd/serbia_MOD/arena/2571b3b1-serbia-mod/SETUP_FULL_DAGOR_ENGINE.ps1";
 static const wchar_t* kGameUrlPath   = L"/hhdrhkvcd/serbia_MOD/arena/2571b3b1-serbia-mod/bin/win64/SteelFrontGame.exe";
 static const wchar_t* kServerUrlPath = L"/hhdrhkvcd/serbia_MOD/arena/2571b3b1-serbia-mod/bin/win64/SteelFrontServer.exe";
 
@@ -57,6 +60,7 @@ enum LauncherAction {
     LACT_VERIFY_FILES,
     LACT_START_SERVER,
     LACT_OPEN_DAGOR_DIR,
+    LACT_SELECT_DAGOR_MODE,
     LACT_PREV_SHOWCASE,
     LACT_NEXT_SHOWCASE,
     LACT_CYCLE_CAMO,
@@ -72,6 +76,7 @@ enum LauncherPhase {
 
 class D3DLauncherApp {
 public:
+    using Color4 = sf::Color4;
     static constexpr int W = 1160;
     static constexpr int H = 700;
 
@@ -100,6 +105,7 @@ public:
 
     float mouseX = 0.f, mouseY = 0.f;
     int   activeEditField = 0; // 0=нет, 1=callsign, 2=serverIp
+    int   dagorEngineMode = 0; // 0=Dagor 6.5 RT (.blk+VROMFS), 1=Gaijin daNetGame CDN, 2=Full Dagor SDK (Git+Jam)
     std::vector<LauncherHitBox> hitBoxes;
 
     // Состояние прогресса проверки / загрузки / старта
@@ -126,6 +132,7 @@ public:
         }
 
         cfg.load();
+        initOrReloadDagorGamedata(false);
 
         if (!gfx.init(hwnd, W, H, 4, true, true)) {
             return false;
@@ -161,11 +168,13 @@ public:
     }
 
     static bool downloadFileHttps(const wchar_t* host, const wchar_t* urlPath, const wchar_t* destPath,
-                                  std::atomic<int>& pctOut, int pctBase, int pctSpan) {
+                                  std::atomic<int>& pctOut, int pctBase, int pctSpan, DWORD minBytes = 128) {
         ::CreateDirectoryW(L"bin", nullptr);
         ::CreateDirectoryW(L"bin\\win64", nullptr);
+        ::CreateDirectoryW(L"game", nullptr);
+        ::CreateDirectoryW(L"game\\res", nullptr);
 
-        HINTERNET hSession = ::WinHttpOpen(L"SteelFrontLauncher/2.4 (Windows NT 10.0; Win64; x64)",
+        HINTERNET hSession = ::WinHttpOpen(L"SteelFrontDagorLauncher/6.5 (Windows NT 10.0; Win64; x64)",
                                            WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                                            WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
         if (!hSession) return false;
@@ -218,7 +227,7 @@ public:
                         }
                     }
                     ::CloseHandle(hFile);
-                    if (ok && totalRead > 64 * 1024) {
+                    if (ok && totalRead >= minBytes) {
                         ::MoveFileExW(tmpPath.c_str(), destPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
                     } else {
                         ::DeleteFileW(tmpPath.c_str());
@@ -246,9 +255,12 @@ public:
             bool okGame = clientPresent;
             if (!clientPresent || forceUpdate) {
                 netStage = 1;
-                okGame = downloadFileHttps(kGithubHost, kGameUrlPath, L"bin\\win64\\SteelFrontGame.exe", netPct, 5, 72);
+                downloadFileHttps(kGithubHost, kAppBlkUrlPath,  L"application.blk", netPct, 2, 5, 128);
+                downloadFileHttps(kGithubHost, kVromfsUrlPath,  L"game\\res\\gamedata.vromfs.bin", netPct, 7, 10, 4096);
+                downloadFileHttps(kGithubHost, kSetupPsUrlPath, L"SETUP_FULL_DAGOR_ENGINE.ps1", netPct, 17, 5, 256);
+                okGame = downloadFileHttps(kGithubHost, kGameUrlPath, L"bin\\win64\\SteelFrontGame.exe", netPct, 22, 56, 65536);
                 netStage = 2;
-                downloadFileHttps(kGithubHost, kServerUrlPath, L"bin\\win64\\SteelFrontServer.exe", netPct, 78, 20);
+                downloadFileHttps(kGithubHost, kServerUrlPath, L"bin\\win64\\SteelFrontServer.exe", netPct, 78, 20, 65536);
             }
             checkLocalFiles();
             netOk = (okGame || clientPresent);
@@ -260,7 +272,7 @@ public:
     void beginLaunchSequence() {
         if (phase != PHASE_READY) return;
         checkLocalFiles();
-        if (!clientPresent) {
+        if (dagorEngineMode == 0 && !clientPresent) {
             startAsyncCdnDownload(true);
             return;
         }
@@ -272,6 +284,16 @@ public:
     }
 
     void executeSpawnGameProcess() {
+        if (dagorEngineMode == 1 || dagorEngineMode == 2) {
+            const wchar_t* psArgs = (dagorEngineMode == 1)
+                ? L"-ExecutionPolicy Bypass -File \"SETUP_FULL_DAGOR_ENGINE.ps1\" -Mode dng-prebuilt"
+                : L"-ExecutionPolicy Bypass -File \"SETUP_FULL_DAGOR_ENGINE.ps1\" -Mode full-sdk";
+            ::ShellExecuteW(hwnd, L"open", L"powershell.exe", psArgs, nullptr, SW_SHOWNORMAL);
+            phase = PHASE_READY;
+            displayPct = 100.f;
+            return;
+        }
+
         STARTUPINFOW si{};
         si.cb = sizeof(si);
         PROCESS_INFORMATION pi{};
@@ -460,11 +482,20 @@ public:
                 outDetail = "Передача управления в SteelFrontGame.exe — удачной охоты, командир!";
         }
         else {
-            outHeader = clientPresent ? "КЛИЕНТ ПРОВЕРЕН И ГОТОВ К БОЮ" : "ТРЕБУЕТСЯ ЗАГРУЗКА КЛИЕНТА";
-            std::snprintf(buf, sizeof(buf),
-                          "Версия 2.4.1 «Балканский Щит»  •  DirectX 11 PBR  •  Шлюз %s:%d  •  ЛКМ/ПКМ по фону — осмотр танка",
-                          cfg.serverIp, cfg.serverPort);
-            outDetail = buf;
+            if (dagorEngineMode == 1) {
+                outHeader = "РЕЖИМ 2: ОФИЦИАЛЬНЫЙ ПАКЕТ GAIJIN daNetGame (CDN PREBUILT)";
+                outDetail = "Нажмите «РАЗВЕРНУТЬ», чтобы скачать dngSceneViewer.7z с CDN Gaijin и смонтировать модуль Steel Front (.blk + .das)";
+            } else if (dagorEngineMode == 2) {
+                outHeader = "РЕЖИМ 3: ПОЛНЫЙ ИСХОДНЫЙ SDK GAIJIN DAGOR ENGINE (GIT + JAM)";
+                outDetail = "Нажмите «СОБРАТЬ SDK» для клонирования GaijinEntertainment/DagorEngine, установки devtools и сборки jam (~200 ГБ)";
+            } else {
+                const auto& dk = dagor::RuntimeKernel::instance();
+                outHeader = clientPresent ? "РЕЖИМ 1: ЯДРО DAGOR ENGINE 6.5 (.BLK + VROMFS) ГОТОВО К БОЮ" : "ТРЕБУЕТСЯ ЗАГРУЗКА ПАКЕТА DAGOR 6.5";
+                std::snprintf(buf, sizeof(buf),
+                              "Dagor 6.5 (%d .BLK машин • %d daECS шаблонов • VROMFS OK)  •  Шлюз %s:%d",
+                              dk.loadedVehiclesBlk, dk.entityMgr.templateCount(), cfg.serverIp, cfg.serverPort);
+                outDetail = buf;
+            }
         }
     }
 
@@ -490,7 +521,7 @@ public:
         // Золотой шеврон-эмблема + заголовок
         ui.fillRect(20.f, 11.f, 5.f, 30.f, Color4::rgba(232, 62, 46));
         ui.drawText("STEEL FRONT: ONLINE", 34.f, 8.f, 20.f, Color4::rgba(244, 248, 255));
-        ui.drawText("ОФИЦИАЛЬНЫЙ ЛАУНЧЕР ПК  •  DAGOR ENGINE DX11  •  v2.4.1", 34.f, 30.f, 11.2f, Color4::rgba(226, 182, 78));
+        ui.drawText("ЛАУНЧЕР DAGOR ENGINE 6.5  •  VROMFS + .BLK + daSkies", 34.f, 30.f, 11.2f, Color4::rgba(226, 182, 78));
 
         // Полоска флагов всех 7 наций в шапке
         for (int n = 0; n < 7; ++n) {
@@ -509,7 +540,7 @@ public:
         };
         topBtn(638.f, 138.f, "ПРОВЕРИТЬ ФАЙЛЫ", LACT_VERIFY_FILES);
         topBtn(784.f, 148.f, "ВЫДЕЛЕННЫЙ СЕРВЕР", LACT_START_SERVER);
-        topBtn(940.f, 116.f, "МОДУЛЬ DAGOR", LACT_OPEN_DAGOR_DIR);
+        topBtn(940.f, 116.f, "CDK .BLK ТАНКОВ", LACT_OPEN_DAGOR_DIR);
 
         // Кнопки свернуть / закрыть окно
         bool hovMin = isHover(fW - 88.f, 11.f, 34.f, 30.f);
@@ -572,19 +603,34 @@ public:
         ui.drawText("Швеция • 23 детальные 3D-машины с рентгеном модулей!", lx + 16.f, 258.f, 11.4f, Color4::rgba(154, 174, 198));
         ui.drawText("Нажмите по плашке танка сверху для смены камуфляжа", lx + 16.f, 284.f, 11.0f, Color4::rgba(118, 208, 152));
 
-        // Карточка 2: Патч 2.4.1 (Графика и Управление)
-        ui.drawPanel(lx, 324.f, lw, 248.f, Color4::rgba(11, 16, 24, 0.86f), Color4::rgba(8, 12, 18, 0.92f), Color4::rgba(72, 96, 126, 0.65f));
+        // Карточка 2: Выбор из 3 вариантов развёртывания Gaijin Dagor Engine 6.5
+        ui.drawPanel(lx, 324.f, lw, 248.f, Color4::rgba(11, 16, 24, 0.89f), Color4::rgba(8, 12, 18, 0.94f), Color4::rgba(74, 176, 245, 0.72f));
         ui.fillRect(lx, 324.f, lw, 3.f, Color4::rgba(74, 176, 245));
-        ui.drawText("ПАТЧ 2.4.1  •  PBR-ГРАФИКА И УПРАВЛЕНИЕ", lx + 16.f, 340.f, 14.2f, Color4::rgba(132, 208, 255));
-        ui.drawText("✓ Честный линейный PBR-шейдер (ACES Filmic + GGX блики)", lx + 16.f, 368.f, 11.8f, Color4::rgba(208, 220, 236));
-        ui.drawText("✓ Объёмный купол неба с солнечным гало и живыми облаками", lx + 16.f, 390.f, 11.8f, Color4::rgba(208, 220, 236));
-        ui.drawText("✓ Мокрый бетон ангара, контактные тени АО и сварные швы", lx + 16.f, 412.f, 11.8f, Color4::rgba(208, 220, 236));
-        ui.drawText("✓ Обновлённые 3D-модели крыльев, гусениц, траков и ЗПУ", lx + 16.f, 434.f, 11.8f, Color4::rgba(208, 220, 236));
-        ui.drawText("✓ Исправлена инверсия прицела мыши и поворота корпуса A/D", lx + 16.f, 456.f, 11.8f, Color4::rgba(138, 232, 166));
-        ui.fillRect(lx + 16.f, 484.f, lw - 32.f, 1.f, Color4(1, 1, 1, 0.10f));
-        ui.drawText("Сетевой протокол: авторитативный UDP 30 Гц (до 16 танков)", lx + 16.f, 496.f, 11.3f, Color4::rgba(156, 174, 198));
-        ui.drawText("Локальный сервер с ИИ-ботами стартует автоматически!", lx + 16.f, 516.f, 11.3f, Color4::rgba(156, 174, 198));
-        ui.drawText("Поддержка Steamworks SDK (steam_appid.txt) и SteamPipe.", lx + 16.f, 536.f, 11.3f, Color4::rgba(156, 174, 198));
+        ui.drawText("АРХИТЕКТУРА DAGOR ENGINE 6.5 (3 РЕЖИМА)", lx + 14.f, 338.f, 13.6f, Color4::rgba(132, 208, 255));
+
+        const char* mTitles[3] = {
+            "1. DAGOR 6.5 RT (.BLK + VROMFS + daSkies)",
+            "2. GAIJIN daNetGame (CDN PREBUILT x64)",
+            "3. ПОЛНЫЙ DAGOR SDK (GIT + JAM • 200 ГБ)"
+        };
+        const char* mDescs[3] = {
+            "Мгновенный старт! Нативный DataBlock .blk, VROMFS и F5-моддинг",
+            "Скачивает официальный dngSceneViewer.7z с CDN Gaijin + мод",
+            "Клонирует GaijinEntertainment/DagorEngine + компиляция jam"
+        };
+        for (int m = 0; m < 3; ++m) {
+            float my = 364.f + m * 64.f;
+            bool sel = (dagorEngineMode == m);
+            bool hov = isHover(lx + 12.f, my, lw - 24.f, 56.f);
+            ui.drawPanel(lx + 12.f, my, lw - 24.f, 56.f,
+                         sel ? Color4::rgba(26, 56, 86, 0.96f) : (hov ? Color4::rgba(22, 34, 52, 0.92f) : Color4::rgba(14, 20, 30, 0.88f)),
+                         sel ? Color4::rgba(16, 36, 58, 0.98f) : Color4::rgba(10, 14, 22, 0.92f),
+                         sel ? Color4::rgba(246, 194, 78) : Color4::rgba(62, 82, 108));
+            if (sel) ui.fillRect(lx + 12.f, my, 4.f, 56.f, Color4::rgba(246, 194, 78));
+            ui.drawText(mTitles[m], lx + 24.f, my + 8.f, 12.2f, sel ? Color4::rgba(255, 232, 152) : Color4::rgba(224, 236, 250));
+            ui.drawText(mDescs[m], lx + 24.f, my + 30.f, 10.6f, sel ? Color4::rgba(182, 226, 255) : Color4::rgba(148, 168, 192));
+            addHit(LACT_SELECT_DAGOR_MODE, m, lx + 12.f, my, lw - 24.f, 56.f);
+        }
 
         // =====================================================================
         // 4. ПРАВАЯ КОЛОНКА — НАСТРОЙКИ КОМАНДИРА, СЕТИ И ГРАФИКИ
@@ -734,13 +780,19 @@ public:
         Color4 pBrd = !canPlay ? Color4::rgba(92, 112, 138) : Color4::rgba(255, 186, 118);
 
         ui.drawPanel(playX, playY, playW, playH, pTop, pBot, pBrd);
+        const char* readyLbl = (dagorEngineMode == 1) ? "РАЗВЕРНУТЬ"
+                             : (dagorEngineMode == 2) ? "СОБРАТЬ SDK"
+                             : (clientPresent ? "ИГРАТЬ" : "СКАЧАТЬ");
+        const char* readySub = (dagorEngineMode == 1) ? "GAIJIN CDN  •  daNetGame x64"
+                             : (dagorEngineMode == 2) ? "DAGOR ENGINE  •  GIT + JAM"
+                             : "DAGOR 6.5 RT  •  В АНГАР";
         const char* playLbl = (phase == PHASE_STARTUP_CHECK)  ? "ПРОВЕРКА..."
                             : (phase == PHASE_DOWNLOADING)    ? "ЗАГРУЗКА..."
                             : (phase == PHASE_LAUNCHING_GAME) ? "ЗАПУСК..."
-                            : (clientPresent ? "ИГРАТЬ" : "СКАЧАТЬ");
+                            : readyLbl;
         ui.drawTextCentered(playLbl, playX + playW * 0.5f, playY + 14.f, 24.f,
                             canPlay ? Color4(1, 1, 1, 1) : Color4::rgba(196, 208, 224));
-        ui.drawTextCentered(canPlay ? "DIRECTX 11  •  В АНГАР" : "ПОЖАЛУЙСТА, ПОДОЖДИТЕ",
+        ui.drawTextCentered(canPlay ? readySub : "ПОЖАЛУЙСТА, ПОДОЖДИТЕ",
                             playX + playW * 0.5f, playY + 46.f, 10.8f,
                             canPlay ? Color4::rgba(255, 224, 168) : Color4::rgba(148, 164, 186));
         addHit(LACT_PLAY, 0, playX, playY, playW, playH);
@@ -800,6 +852,11 @@ public:
                     return true;
                 case LACT_VERIFY_FILES:
                     if (phase == PHASE_READY) {
+                        initOrReloadDagorGamedata(true);
+                        const auto& vehs = getVehicles();
+                        for (size_t k = 0; k < showcaseVehIndices.size(); ++k) {
+                            buildVehicleMeshes(gfx.device, vehs[showcaseVehIndices[k]], showcaseModels[k]);
+                        }
                         checkLocalFiles();
                         if (!clientPresent) {
                             startAsyncCdnDownload(true);
@@ -813,8 +870,18 @@ public:
                 case LACT_START_SERVER:
                     startDedicatedServer();
                     return true;
-                case LACT_OPEN_DAGOR_DIR:
-                    ::ShellExecuteW(hwnd, L"explore", L"dagor_engine_mod", nullptr, nullptr, SW_SHOWNORMAL);
+                case LACT_OPEN_DAGOR_DIR: {
+                    std::string blkDisk;
+                    if (dagor::RuntimeKernel::instance().vfs.ensureEditableBlkOnDisk("gamedata/units/tanks_all_nations.blk", blkDisk)) {
+                        for (char& c : blkDisk) if (c == '/') c = '\\';
+                        ::ShellExecuteA(hwnd, "open", "notepad.exe", blkDisk.c_str(), nullptr, SW_SHOWNORMAL);
+                    } else {
+                        ::ShellExecuteW(hwnd, L"explore", L"prog", nullptr, nullptr, SW_SHOWNORMAL);
+                    }
+                    return true;
+                }
+                case LACT_SELECT_DAGOR_MODE:
+                    dagorEngineMode = std::clamp(b.param, 0, 2);
                     return true;
                 case LACT_PREV_SHOWCASE:
                     showcasePos = (showcasePos + (int)showcaseVehIndices.size() - 1) % (int)showcaseVehIndices.size();

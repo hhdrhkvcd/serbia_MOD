@@ -34,7 +34,18 @@ static void printLocalIps(uint16_t port) {
 int main(int argc, char** argv) {
     ::SetConsoleOutputCP(CP_UTF8);
     ::SetConsoleCP(CP_UTF8);
-    ::SetConsoleTitleW(L"Steel Front: Online — Выделенный сервер (UDP 27015)");
+    ::SetConsoleTitleW(L"Steel Front: Online — Dagor Engine 6.5 Dedicated Server (UDP)");
+
+    char exePath[MAX_PATH] = {};
+    ::GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+    if (char* sl = std::strrchr(exePath, '\\')) *sl = 0;
+    ::SetCurrentDirectoryA(exePath);
+    if (::GetFileAttributesA("..\\..\\application.blk") != INVALID_FILE_ATTRIBUTES) {
+        ::SetCurrentDirectoryA("..\\..");
+    }
+
+    initOrReloadDagorGamedata(false);
+    const auto& dk = dagor::RuntimeKernel::instance();
 
     WSADATA wsa{};
     ::WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -43,8 +54,11 @@ int main(int argc, char** argv) {
     cfg.load();
     uint16_t port = (uint16_t)cfg.serverPort;
     int startMap = 0;
-    if (argc >= 2) port = (uint16_t)std::atoi(argv[1]);
-    if (argc >= 3) startMap = std::atoi(argv[2]);
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--port") == 0 && i + 1 < argc) port = (uint16_t)std::atoi(argv[++i]);
+        else if (std::strcmp(argv[i], "--map") == 0 && i + 1 < argc) startMap = std::atoi(argv[++i]);
+        else if (i == 1 && argv[i][0] != '-') port = (uint16_t)std::atoi(argv[i]);
+    }
 
     SimServer server;
     if (!server.start(port, startMap)) {
@@ -55,7 +69,9 @@ int main(int argc, char** argv) {
     }
 
     std::printf("====================================================================\n");
-    std::printf("  STEEL FRONT: ONLINE — DEDICATED SERVER (x64 Native Authoritative)\n");
+    std::printf("  STEEL FRONT: ONLINE — DAGOR ENGINE 6.5 DEDICATED SERVER (Win64)\n");
+    std::printf("  Ядро Dagor: %d .BLK машин | %d daECS шаблонов | VROMFS файлов: %zu\n",
+                dk.loadedVehiclesBlk, dk.entityMgr.templateCount(), dk.vfs.packedFileCount());
     std::printf("  Порт UDP: %u   |   Тикрейт симуляции: 60 Гц (снапшоты 25 Гц)\n", port);
     std::printf("  Текущая карта: %s (%s)\n", getMaps()[server.mapIdx].name, getMaps()[server.mapIdx].subtitle);
     printLocalIps(port);

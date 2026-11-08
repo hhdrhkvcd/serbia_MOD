@@ -1,11 +1,19 @@
 cmake_minimum_required(VERSION 3.20)
-project(SteelFrontOnlineDX11 LANGUAGES CXX)
+project(SteelFrontOnlineDagor65 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+include_directories(
+    "${CMAKE_SOURCE_DIR}/../prog/dagorInclude"
+    "${CMAKE_SOURCE_DIR}/../prog/engine_dagor_rt"
+    "${CMAKE_SOURCE_DIR}/../prog"
+)
+
 if(MSVC)
-    add_compile_options(/utf-8 /W3 /O2)
+    add_compile_options(/utf-8 /W3 /O2 /D_USE_MATH_DEFINES)
+else()
+    add_compile_options(-O2 -D_USE_MATH_DEFINES)
 endif()
 
 add_executable(SteelFrontGame WIN32 src/game_main.cpp)

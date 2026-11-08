@@ -1,0 +1,205 @@
+// ECS-шаблоны бронетехники 7 наций (Россия, Сербия, Китай, США, НАТО/ЕС, Франция, Швеция)
+base_combat_tank{
+  _use:t="replicating"
+  transform:m=[[1, 0, 0] [0, 1, 0] [0, 0, 1] [0, 0, 0]]
+  tank__nation:t="ru"
+  tank__title:t="Т-80У"
+  tank__battleRating:r=11.3
+  tank__team:i=1
+  tank__hp:r=2400.0
+  tank__maxHp:r=2400.0
+  tank__crewCount:i=3
+  tank__maxCrewCount:i=3
+  tank__massKg:r=46000.0
+  tank__enginePowerHp:r=1250.0
+  tank__maxFwdKmh:r=70.0
+  tank__maxRevKmh:r=11.0
+  tank__hullTurnDeg:r=38.0
+  tank__turretTurnDeg:r=35.0
+  tank__turretYaw:r=0.0
+  tank__gunPitch:r=0.0
+  tank__aimWorldPos:p3=0, 1.5, -100
+  tank__reloadSec:r=6.5
+  tank__reloadTimer:r=0.0
+  tank__hullArmorMM:p3=550, 80, 50
+  tank__turretArmorMM:p3=630, 145, 65
+  tank__eraType:t="Kontakt-5"
+  tank__primaryGunBlk:t="gun_125mm_2a46m"
+  tank__onFire:b=no
+  tank__fpeCharges:i=2
+  tank__smokeCharges:i=8
+  tank__modEngine:r=1.0
+  tank__modBreech:r=1.0
+  tank__modTracks:r=1.0
+  tank__modAmmoRack:r=1.0
+}
+
+// ==================== СЕРБИЯ (SERBIA MOD) ====================
+tank_rs_m84as2{
+  _use:t="base_combat_tank"
+  tank__nation:t="rs"
+  tank__title:t="M-84AS2 Војвода"
+  tank__battleRating:r=12.0
+  tank__hp:r=2540.0
+  tank__maxHp:r=2540.0
+  tank__massKg:r=46500.0
+  tank__enginePowerHp:r=1200.0
+  tank__maxFwdKmh:r=70.0
+  tank__maxRevKmh:r=11.0
+  tank__turretTurnDeg:r=42.0
+  tank__reloadSec:r=6.3
+  tank__hullArmorMM:p3=615, 135, 55
+  tank__turretArmorMM:p3=695, 195, 75
+  tank__eraType:t="ERO-19M"
+  tank__primaryGunBlk:t="gun_125mm_2a46m_as2"
+}
+
+tank_rs_m84as1{
+  _use:t="base_combat_tank"
+  tank__nation:t="rs"
+  tank__title:t="M-84AS1"
+  tank__battleRating:r=11.0
+  tank__enginePowerHp:r=1000.0
+  tank__maxFwdKmh:r=68.0
+  tank__reloadSec:r=6.8
+  tank__hullArmorMM:p3=555, 110, 48
+  tank__turretArmorMM:p3=625, 165, 65
+  tank__eraType:t="ERO-19"
+}
+
+tank_rs_vihor{
+  _use:t="base_combat_tank"
+  tank__nation:t="rs"
+  tank__title:t="M-91 Вихор"
+  tank__battleRating:r=11.3
+  tank__massKg:r=44000.0
+  tank__enginePowerHp:r=1200.0
+  tank__maxFwdKmh:r=72.0
+  tank__maxRevKmh:r=12.0
+  tank__reloadSec:r=6.4
+}
+
+tank_rs_bvp_m80ab1{
+  _use:t="base_combat_tank"
+  tank__nation:t="rs"
+  tank__title:t="BVP M-80AB1 (Маљутка-2Т5)"
+  tank__battleRating:r=9.7
+  tank__hp:r=1850.0
+  tank__maxHp:r=1850.0
+  tank__massKg:r=15800.0
+  tank__enginePowerHp:r=360.0
+  tank__maxFwdKmh:r=68.0
+  tank__maxRevKmh:r=14.0
+  tank__turretTurnDeg:r=48.0
+  tank__reloadSec:r=3.4
+  tank__hullArmorMM:p3=110, 45, 30
+  tank__turretArmorMM:p3=130, 50, 35
+  tank__primaryGunBlk:t="gun_30mm_maljutka2t5"
+}
+
+// ==================== РОССИЯ ====================
+tank_ru_t80u{
+  _use:t="base_combat_tank"
+  tank__nation:t="ru"
+  tank__title:t="Т-80У"
+}
+
+tank_ru_t80bvm{
+  _use:t="base_combat_tank"
+  tank__nation:t="ru"
+  tank__title:t="Т-80БВМ"
+  tank__battleRating:r=11.7
+  tank__hullArmorMM:p3=590, 120, 50
+  tank__turretArmorMM:p3=660, 180, 65
+  tank__eraType:t="Relikt"
+}
+
+tank_ru_t90m{
+  _use:t="base_combat_tank"
+  tank__nation:t="ru"
+  tank__title:t="Т-90М Прорыв"
+  tank__battleRating:r=12.0
+  tank__hp:r=2550.0
+  tank__maxHp:r=2550.0
+  tank__hullArmorMM:p3=620, 130, 50
+  tank__turretArmorMM:p3=710, 190, 75
+  tank__eraType:t="Relikt"
+}
+
+// ==================== КИТАЙ, США, НАТО/ЕС, ФРАНЦИЯ, ШВЕЦИЯ ====================
+tank_cn_ztz99a{
+  _use:t="base_combat_tank"
+  tank__nation:t="cn"
+  tank__title:t="ZTZ-99A"
+  tank__battleRating:r=12.0
+  tank__enginePowerHp:r=1500.0
+  tank__maxFwdKmh:r=75.0
+  tank__maxRevKmh:r=34.0
+  tank__hullArmorMM:p3=630, 125, 55
+  tank__turretArmorMM:p3=720, 190, 75
+  tank__eraType:t="FY-5"
+}
+
+tank_us_m1a2sep3{
+  _use:t="base_combat_tank"
+  tank__nation:t="us"
+  tank__title:t="M1A2 SEP v3"
+  tank__battleRating:r=12.0
+  tank__crewCount:i=4
+  tank__maxCrewCount:i=4
+  tank__enginePowerHp:r=1500.0
+  tank__maxFwdKmh:r=68.0
+  tank__maxRevKmh:r=36.0
+  tank__reloadSec:r=6.0
+  tank__hullArmorMM:p3=540, 125, 50
+  tank__turretArmorMM:p3=730, 185, 60
+  tank__eraType:t="NGAP"
+  tank__primaryGunBlk:t="gun_120mm_m256"
+}
+
+tank_eu_leopard2a7v{
+  _use:t="base_combat_tank"
+  tank__nation:t="eu"
+  tank__title:t="Leopard 2A7V"
+  tank__battleRating:r=12.0
+  tank__crewCount:i=4
+  tank__maxCrewCount:i=4
+  tank__enginePowerHp:r=1500.0
+  tank__maxFwdKmh:r=68.0
+  tank__maxRevKmh:r=31.0
+  tank__reloadSec:r=6.0
+  tank__hullArmorMM:p3=625, 115, 50
+  tank__turretArmorMM:p3=750, 190, 65
+  tank__eraType:t="NERA_Gen3"
+  tank__primaryGunBlk:t="gun_120mm_l55a1"
+}
+
+tank_fr_leclerc_xlr{
+  _use:t="base_combat_tank"
+  tank__nation:t="fr"
+  tank__title:t="Leclerc SXXI XLR"
+  tank__battleRating:r=12.0
+  tank__enginePowerHp:r=1500.0
+  tank__maxFwdKmh:r=72.0
+  tank__maxRevKmh:r=38.0
+  tank__reloadSec:r=5.0
+  tank__hullArmorMM:p3=570, 145, 50
+  tank__turretArmorMM:p3=685, 185, 65
+  tank__eraType:t="AZUR_Titanium"
+  tank__primaryGunBlk:t="gun_120mm_cn120_26"
+}
+
+tank_se_strv122b{
+  _use:t="base_combat_tank"
+  tank__nation:t="se"
+  tank__title:t="Strv 122B+ Evolution"
+  tank__battleRating:r=12.0
+  tank__crewCount:i=4
+  tank__maxCrewCount:i=4
+  tank__enginePowerHp:r=1500.0
+  tank__reloadSec:r=6.0
+  tank__hullArmorMM:p3=670, 155, 55
+  tank__turretArmorMM:p3=765, 215, 70
+  tank__eraType:t="Akers_NERA"
+  tank__primaryGunBlk:t="gun_120mm_l44_se"
+}

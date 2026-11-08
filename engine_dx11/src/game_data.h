@@ -1,10 +1,21 @@
 #pragma once
 #include "math3d.h"
+#include <dag_ecs_world.h>
 #include <vector>
+#include <list>
 #include <string>
 #include <cstring>
 
 namespace sf {
+
+inline const char* internDagorStr(const std::string& s, const char* fallback) {
+    if (s.empty()) return fallback;
+    static std::list<std::string> pool;
+    pool.push_back(s);
+    return pool.back().c_str();
+}
+
+void initOrReloadDagorGamedata(bool isHotReload = false);
 
 enum ShellType : int {
     SHELL_APFSDS = 0, // ОБПС
@@ -107,8 +118,8 @@ struct CamoSpec {
     bool        useVehicleBase;
 };
 
-inline const std::vector<NationSpec>& getNations() {
-    static const std::vector<NationSpec> nations = {
+inline std::vector<NationSpec>& mutableNations() {
+    static std::vector<NationSpec> nations = {
         {0, "ru", "РОССИЯ",    "СУХОПУТНЫЕ ВОЙСКА РФ",           {0.85f, 0.22f, 0.16f}},
         {1, "rs", "СЕРБИЯ",    "ВОЈСКА СРБИЈЕ • SERBIA MOD",     {0.78f, 0.20f, 0.24f}},
         {2, "cn", "КИТАЙ",     "СУХОПУТНЫЕ ВОЙСКА НОАК",         {0.87f, 0.23f, 0.14f}},
@@ -120,8 +131,8 @@ inline const std::vector<NationSpec>& getNations() {
     return nations;
 }
 
-inline const std::vector<CamoSpec>& getCamouflages() {
-    static const std::vector<CamoSpec> camos = {
+inline std::vector<CamoSpec>& mutableCamouflages() {
+    static std::vector<CamoSpec> camos = {
         {0, "Армейский защитный (Базовый)", {0.26f,0.31f,0.22f}, {0.26f,0.31f,0.22f}, {0.26f,0.31f,0.22f}, true},
         {1, "Трёхцветный лесной НАТО",      {0.23f,0.28f,0.20f}, {0.15f,0.16f,0.15f}, {0.36f,0.27f,0.19f}, false},
         {2, "Балканский камуфляж М-84",     {0.24f,0.30f,0.21f}, {0.13f,0.16f,0.13f}, {0.42f,0.35f,0.23f}, false},
@@ -132,8 +143,8 @@ inline const std::vector<CamoSpec>& getCamouflages() {
     return camos;
 }
 
-inline const std::vector<VehicleSpec>& getVehicles() {
-    static const std::vector<VehicleSpec> v = {
+inline std::vector<VehicleSpec>& mutableVehicles() {
+    static std::vector<VehicleSpec> v = {
         // 0..3 РОССИЯ
         {0, "t72b3", 0, "Т-72Б3 УБХ", "Т-72Б3", "10.7", "VII", "ОСНОВНОЙ ТАНК",
          "125мм 2А46М-5", "7.62мм ПКТМ • 12.7мм Корд", "Контакт-5 + Реликт",
@@ -392,8 +403,8 @@ struct MapSpec {
     std::vector<Vec2> checkpoints;
 };
 
-inline const std::vector<MapSpec>& getMaps() {
-    static const std::vector<MapSpec> maps = {
+inline std::vector<MapSpec>& mutableMaps() {
+    static std::vector<MapSpec> maps = {
         {
             0, "balkan_pass", "Балканский укрепрайон", "Онлайн Превосходство [A / B / C]", 360.f,
             {0.14f, 0.24f, 0.36f}, {0.56f, 0.66f, 0.75f}, {0.22f, 0.28f, 0.17f}, false,
@@ -454,6 +465,177 @@ inline const std::vector<MapSpec>& getMaps() {
         }
     };
     return maps;
+}
+
+inline ShellType parseBlkShellType(const std::string& s, ShellType def) {
+    if (s == "apfsds") return SHELL_APFSDS;
+    if (s == "heatfs") return SHELL_HEATFS;
+    if (s == "atgm")   return SHELL_ATGM;
+    if (s == "he")     return SHELL_HE;
+    return def;
+}
+
+inline TankArch parseBlkArch(const std::string& s, TankArch def) {
+    if (s == "tseries") return ARCH_TSERIES;
+    if (s == "chinese") return ARCH_CHINESE;
+    if (s == "western") return ARCH_WESTERN;
+    if (s == "ifv")     return ARCH_IFV;
+    return def;
+}
+
+inline void initOrReloadDagorGamedata(bool isHotReload) {
+    static bool sLoadedOnce = false;
+    if (sLoadedOnce && !isHotReload) return;
+    sLoadedOnce = true;
+
+    auto& kernel = dagor::RuntimeKernel::instance();
+    kernel.mountAll();
+    if (isHotReload) ++kernel.hotReloadCount;
+
+    auto& nations = mutableNations();
+    auto& camos   = mutableCamouflages();
+    auto& vehs    = mutableVehicles();
+    auto& maps    = mutableMaps();
+
+    // 1. Загрузка бронетехники из gamedata/units/tanks_all_nations.blk (живой диск или VROMFS)
+    dagor::DataBlockLite unitsRoot;
+    bool fromLoose = false;
+    if (kernel.vfs.loadBlk("gamedata/units/tanks_all_nations.blk", unitsRoot, &fromLoose)) {
+        kernel.loadedLooseBlk = fromLoose;
+        if (const auto* nb = unitsRoot.getBlockByName("nations")) {
+            for (auto& n : nations) {
+                if (const auto* b = nb->getBlockByName(n.id)) {
+                    n.name = internDagorStr(b->getStr("name", n.name), n.name);
+                    n.subtitle = internDagorStr(b->getStr("subtitle", n.subtitle), n.subtitle);
+                    n.accentColor = Vec3(b->getPoint3("accentColor", n.accentColor.toDagor()));
+                }
+            }
+        }
+        if (const auto* vb = unitsRoot.getBlockByName("vehicles")) {
+            int count = 0;
+            for (auto& v : vehs) {
+                kernel.entityMgr.registerTemplate(v.id);
+                const auto* b = vb->getBlockByName(v.id);
+                if (!b) continue;
+                ++count;
+                v.nationIdx       = b->getInt("nationIdx", v.nationIdx);
+                v.name            = internDagorStr(b->getStr("name", v.name), v.name);
+                v.shortName       = internDagorStr(b->getStr("shortName", v.shortName), v.shortName);
+                v.br              = internDagorStr(b->getStr("br", v.br), v.br);
+                v.rank            = internDagorStr(b->getStr("rank", v.rank), v.rank);
+                v.roleClass       = internDagorStr(b->getStr("roleClass", v.roleClass), v.roleClass);
+                v.gunName         = internDagorStr(b->getStr("gunName", v.gunName), v.gunName);
+                v.coaxName        = internDagorStr(b->getStr("coaxName", v.coaxName), v.coaxName);
+                v.eraName         = internDagorStr(b->getStr("eraName", v.eraName), v.eraName);
+                v.history         = internDagorStr(b->getStr("history", v.history), v.history);
+                v.reloadSec       = b->getReal("reloadSec", v.reloadSec);
+                v.crew            = b->getInt("crew", v.crew);
+                v.hp              = b->getInt("hp", v.hp);
+
+                auto ha = b->getIPoint3("hullArmor", {v.hullArmor[0], v.hullArmor[1], v.hullArmor[2]});
+                v.hullArmor[0] = ha.x; v.hullArmor[1] = ha.y; v.hullArmor[2] = ha.z;
+                auto ta = b->getIPoint3("turretArmor", {v.turretArmor[0], v.turretArmor[1], v.turretArmor[2]});
+                v.turretArmor[0] = ta.x; v.turretArmor[1] = ta.y; v.turretArmor[2] = ta.z;
+
+                v.fwdKmh          = b->getReal("fwdKmh", v.fwdKmh);
+                v.revKmh          = b->getReal("revKmh", v.revKmh);
+                v.engineHp        = b->getInt("engineHp", v.engineHp);
+                v.weightTons      = b->getReal("weightTons", v.weightTons);
+                v.turretDegSec    = b->getReal("turretDegSec", v.turretDegSec);
+                v.hullDegSec      = b->getReal("hullDegSec", v.hullDegSec);
+                v.unlockedDefault = b->getBool("unlockedDefault", v.unlockedDefault);
+                v.costRp          = b->getInt("costRp", v.costRp);
+                v.costSilver      = b->getInt("costSilver", v.costSilver);
+                v.arch            = parseBlkArch(b->getStr("arch", ""), v.arch);
+                v.baseColor       = Vec3(b->getPoint3("baseColor", v.baseColor.toDagor()));
+                v.wedgeTurret     = b->getBool("wedgeTurret", v.wedgeTurret);
+                v.hasLog          = b->getBool("hasLog", v.hasLog);
+                v.hasFuelDrums    = b->getBool("hasFuelDrums", v.hasFuelDrums);
+                v.hasAtgmRails    = b->getBool("hasAtgmRails", v.hasAtgmRails);
+                v.hasSearchlight  = b->getBool("hasSearchlight", v.hasSearchlight);
+                v.hasRcws         = b->getBool("hasRcws", v.hasRcws);
+                v.hasBustle       = b->getBool("hasBustle", v.hasBustle);
+                v.isTurbine       = b->getBool("isTurbine", v.isTurbine);
+
+                for (int s = 0; s < 3; ++s) {
+                    char sKey[16];
+                    std::snprintf(sKey, sizeof(sKey), "shell%d", s);
+                    if (const auto* sb = b->getBlockByName(sKey)) {
+                        v.shells[s].code      = internDagorStr(sb->getStr("code", v.shells[s].code), v.shells[s].code);
+                        v.shells[s].type      = parseBlkShellType(sb->getStr("type", ""), v.shells[s].type);
+                        v.shells[s].label     = internDagorStr(sb->getStr("label", v.shells[s].label), v.shells[s].label);
+                        v.shells[s].speedMs   = sb->getReal("speedMs", v.shells[s].speedMs);
+                        v.shells[s].damage    = sb->getReal("damage", v.shells[s].damage);
+                        v.shells[s].basePenMM = sb->getInt("basePenMM", v.shells[s].basePenMM);
+                        v.shells[s].guided    = sb->getBool("guided", v.shells[s].guided);
+                    }
+                }
+            }
+            kernel.loadedVehiclesBlk = count;
+        }
+    }
+
+    // 2. Загрузка камуфляжей из gamedata/camouflages.blk
+    dagor::DataBlockLite camosRoot;
+    if (kernel.vfs.loadBlk("gamedata/camouflages.blk", camosRoot)) {
+        if (const auto* cb = camosRoot.getBlockByName("camouflages")) {
+            for (size_t i = 0; i < camos.size(); ++i) {
+                char cKey[16];
+                std::snprintf(cKey, sizeof(cKey), "camo%zu", i);
+                if (const auto* b = cb->getBlockByName(cKey)) {
+                    camos[i].name = internDagorStr(b->getStr("name", camos[i].name), camos[i].name);
+                    camos[i].c0   = Vec3(b->getPoint3("c0", camos[i].c0.toDagor()));
+                    camos[i].c1   = Vec3(b->getPoint3("c1", camos[i].c1.toDagor()));
+                    camos[i].c2   = Vec3(b->getPoint3("c2", camos[i].c2.toDagor()));
+                    camos[i].useVehicleBase = b->getBool("useVehicleBase", camos[i].useVehicleBase);
+                }
+            }
+        }
+    }
+
+    // 3. Загрузка локаций и атмосферы daSkies из gamedata/levels/levels_steel_front.blk
+    dagor::DataBlockLite levelsRoot;
+    if (kernel.vfs.loadBlk("gamedata/levels/levels_steel_front.blk", levelsRoot)) {
+        if (const auto* lb = levelsRoot.getBlockByName("levels")) {
+            int lCount = 0;
+            for (auto& m : maps) {
+                if (const auto* b = lb->getBlockByName(m.id)) {
+                    ++lCount;
+                    m.name        = internDagorStr(b->getStr("name", m.name), m.name);
+                    m.subtitle    = internDagorStr(b->getStr("subtitle", m.subtitle), m.subtitle);
+                    m.size        = b->getReal("size", m.size);
+                    m.skyTop      = Vec3(b->getPoint3("skyTop", m.skyTop.toDagor()));
+                    m.skyHorizon  = Vec3(b->getPoint3("skyHorizon", m.skyHorizon.toDagor()));
+                    m.groundColor = Vec3(b->getPoint3("groundColor", m.groundColor.toDagor()));
+                }
+            }
+            kernel.loadedLevelsBlk = lCount;
+        }
+    }
+
+    kernel.logLine("[DAGOR 6.5] Loaded DataBlocks: vehicles=%d, levels=%d, daECS_templates=%d, source=%s",
+                   kernel.loadedVehiclesBlk, kernel.loadedLevelsBlk, kernel.entityMgr.templateCount(),
+                   kernel.loadedLooseBlk ? "LOOSE_.BLK (prog/gameBase)" : "VROMFS (gamedata.vromfs.bin)");
+}
+
+inline const std::vector<NationSpec>& getNations() {
+    initOrReloadDagorGamedata(false);
+    return mutableNations();
+}
+
+inline const std::vector<CamoSpec>& getCamouflages() {
+    initOrReloadDagorGamedata(false);
+    return mutableCamouflages();
+}
+
+inline const std::vector<VehicleSpec>& getVehicles() {
+    initOrReloadDagorGamedata(false);
+    return mutableVehicles();
+}
+
+inline const std::vector<MapSpec>& getMaps() {
+    initOrReloadDagorGamedata(false);
+    return mutableMaps();
 }
 
 inline float getTerrainHeight(int mapIdx, float x, float z) {

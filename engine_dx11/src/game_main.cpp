@@ -7,6 +7,7 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <dwmapi.h>
+#include <shellapi.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -37,11 +38,12 @@ static void ensureGameRootWorkingDir() {
     if (slash) *slash = 0;
     ::SetCurrentDirectoryA(exePath);
 
-    // Если запущены из подпапки bin\win64, поднимаемся на 2 уровня вверх к корню с config/ и dagor_engine_mod/
-    DWORD attr = ::GetFileAttributesA("..\\..\\SteelFrontLauncher.exe");
-    DWORD attr2 = ::GetFileAttributesA("..\\..\\config");
-    if (attr != INVALID_FILE_ATTRIBUTES || attr2 != INVALID_FILE_ATTRIBUTES) {
+    // Если запущены из подпапки bin\win64 или game\, поднимаемся к корню с application.blk / SteelFrontLauncher.exe
+    if (::GetFileAttributesA("..\\..\\application.blk") != INVALID_FILE_ATTRIBUTES ||
+        ::GetFileAttributesA("..\\..\\SteelFrontLauncher.exe") != INVALID_FILE_ATTRIBUTES) {
         ::SetCurrentDirectoryA("..\\..");
+    } else if (::GetFileAttributesA("..\\application.blk") != INVALID_FILE_ATTRIBUTES) {
+        ::SetCurrentDirectoryA("..");
     }
 }
 
@@ -114,11 +116,14 @@ enum UiActionId {
     ACT_TOGGLE_SOUND,
     ACT_EXIT_GAME,
     ACT_PAUSE_RESUME,
-    ACT_PAUSE_RETURN_HANGAR
+    ACT_PAUSE_RETURN_HANGAR,
+    ACT_OPEN_BLK_CDK,
+    ACT_HOT_RELOAD_BLK
 };
 
 class SteelFrontApp {
 public:
+    using Color4 = sf::Color4;
     HWND hwnd = nullptr;
     bool running = true;
     bool isBorderless = true;
@@ -1190,16 +1195,18 @@ public:
         int vIdx = currentVehIdx();
         const VehicleSpec& v = vehs[vIdx];
 
-        // 1. ВЕРХНЯЯ ШАПКА АНГАРА (В СТИЛЕ WAR THUNDER)
+        // 1. ВЕРХНЯЯ ШАПКА АНГАРА (ЯДРО DAGOR ENGINE 6.5 • VROMFS + .BLK + daECS)
+        const auto& dagKernel = dagor::RuntimeKernel::instance();
         ui.drawPanel(0, 0, W, 56, Color4::rgba(14, 18, 24, 0.94f), Color4::rgba(9, 12, 17, 0.96f), Color4::rgba(58, 70, 88, 0.65f));
-        ui.drawText("STEEL FRONT", 20, 9, 21, Color4::rgba(238, 242, 248));
-        ui.drawText("ONLINE • DAGOR DX11", 20, 32, 12, Color4::rgba(218, 172, 68));
+        ui.drawText("STEEL FRONT", 20, 8, 20.5f, Color4::rgba(238, 242, 248));
+        ui.drawText("DAGOR ENGINE 6.5 • VROMFS + .BLK", 20, 31, 11.2f, Color4::rgba(226, 178, 68));
 
-        char srvBadge[128];
-        std::snprintf(srvBadge, sizeof(srvBadge), "СЕРВЕР %s:%d • ПИНГ %.0f МС • %s",
-                      settings.serverIp, settings.serverPort, netPingMs,
-                      steam.initialized ? "STEAM АКТИВЕН" : "ЛАУНЧЕР ПК");
-        ui.drawText(srvBadge, 195, 20, 13, Color4::rgba(116, 216, 148));
+        char srvBadge[180];
+        std::snprintf(srvBadge, sizeof(srvBadge), "DAGOR (%d .BLK / %d daECS%s) • %s:%d (%.0f МС)",
+                      dagKernel.loadedVehiclesBlk, dagKernel.entityMgr.templateCount(),
+                      dagKernel.hotReloadCount > 0 ? " • ОБНОВЛЕНО!" : "",
+                      settings.serverIp, settings.serverPort, netPingMs);
+        ui.drawText(srvBadge, 232, 20, 12.2f, Color4::rgba(116, 216, 148));
 
         // Центральная красная кнопка «В БОЙ!» + выбор карты/режима под ней
         float bBtnW = 216.f, bBtnH = 44.f;
@@ -1223,11 +1230,16 @@ public:
         ui.drawTextCentered(mapLabel, W * 0.5f, mBarY + 5.f, 13.5f, Color4::rgba(232, 238, 248));
         addHit(ACT_SELECT_MAP, (selectedMapChoice + 1) % 4, mBarX, mBarY, mBarW, 28.f);
 
-        // Кнопка быстрого выезда на Полигон справа от «В БОЙ!»
-        float polX = bBtnX + bBtnW + 12.f;
-        ui.drawPanel(polX, 10.f, 132.f, 36.f, Color4::rgba(32, 44, 58, 0.95f), Color4::rgba(20, 28, 38, 0.95f), Color4::rgba(92, 136, 182, 0.8f));
-        ui.drawTextCentered("ПРОБНЫЙ ВЫЕЗД", polX + 66.f, 19.f, 13, Color4::rgba(210, 230, 252));
-        addHit(ACT_ENTER_POLIGON, 3, polX, 10.f, 132.f, 36.f);
+        // Кнопка быстрого выезда на Полигон + кнопка живого моддинга Dagor .BLK (CDK)
+        float polX = bBtnX + bBtnW + 10.f;
+        ui.drawPanel(polX, 10.f, 124.f, 36.f, Color4::rgba(32, 44, 58, 0.95f), Color4::rgba(20, 28, 38, 0.95f), Color4::rgba(92, 136, 182, 0.8f));
+        ui.drawTextCentered("ПРОБНЫЙ ВЫЕЗД", polX + 62.f, 19.f, 12.2f, Color4::rgba(210, 230, 252));
+        addHit(ACT_ENTER_POLIGON, 3, polX, 10.f, 124.f, 36.f);
+
+        float cdkX = polX + 132.f;
+        ui.drawPanel(cdkX, 10.f, 118.f, 36.f, Color4::rgba(46, 38, 20, 0.95f), Color4::rgba(28, 22, 12, 0.95f), Color4::rgba(228, 182, 74, 0.85f));
+        ui.drawTextCentered("CDK .BLK (F5)", cdkX + 59.f, 19.f, 12.0f, Color4::rgba(250, 218, 126));
+        addHit(ACT_OPEN_BLK_CDK, 0, cdkX, 10.f, 118.f, 36.f);
 
         // Кнопка дерева исследований слева от «В БОЙ!»
         float ttX = bBtnX - 150.f;
@@ -1854,9 +1866,30 @@ public:
                 case ACT_PAUSE_RETURN_HANGAR:
                     returnToHangar();
                     break;
+                case ACT_OPEN_BLK_CDK: {
+                    std::string blkDisk;
+                    if (dagor::RuntimeKernel::instance().vfs.ensureEditableBlkOnDisk("gamedata/units/tanks_all_nations.blk", blkDisk)) {
+                        for (char& c : blkDisk) if (c == '/') c = '\\';
+                        ::ShellExecuteA(hwnd, "open", "notepad.exe", blkDisk.c_str(), nullptr, SW_SHOWNORMAL);
+                    }
+                    break;
+                }
+                case ACT_HOT_RELOAD_BLK:
+                    hotReloadDagorBlk();
+                    break;
             }
             return;
         }
+    }
+
+    void hotReloadDagorBlk() {
+        initOrReloadDagorGamedata(true);
+        const auto& vehs = getVehicles();
+        for (size_t i = 0; i < vehs.size() && i < vehModels.size(); ++i) {
+            buildVehicleMeshes(gfx.device, vehs[i], vehModels[i]);
+        }
+        buildEnvironmentAssets(gfx.device, envAssets);
+        sound.play(SND_RELOAD_READY, 0.8f);
     }
 
     void toggleBorderless() {
@@ -1881,7 +1914,8 @@ public:
             return;
         }
         if (appState == 0) {
-            if (key == 'T') showTechTree = !showTechTree;
+            if (key == VK_F5) hotReloadDagorBlk();
+            else if (key == 'T') showTechTree = !showTechTree;
             else if (key == VK_ESCAPE && showTechTree) showTechTree = false;
             else if (key >= '1' && key <= '3') selectedShellIdx = int(key - '1');
             return;
@@ -2059,7 +2093,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
         winY = std::max(0, (scrH - winH) / 2);
     }
 
-    HWND hwnd = ::CreateWindowExW(0, wc.lpszClassName, L"Steel Front: Online (DirectX 11 • Dagor Client)",
+    HWND hwnd = ::CreateWindowExW(0, wc.lpszClassName, L"Steel Front: Online — Dagor Engine 6.5 (VROMFS + .BLK + daSkies)",
                                   style, winX, winY, winW, winH, nullptr, nullptr, hInst, nullptr);
     if (!hwnd) return 1;
 
