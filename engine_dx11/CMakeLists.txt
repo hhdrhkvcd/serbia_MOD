@@ -17,5 +17,5 @@ target_link_libraries(SteelFrontServer PRIVATE ws2_32)
 set_target_properties(SteelFrontServer PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../bin/win64")
 
 add_executable(SteelFrontLauncher WIN32 launcher/launcher_main.cpp)
-target_link_libraries(SteelFrontLauncher PRIVATE winhttp dwmapi msimg32 gdi32 user32 shell32 ole32)
+target_link_libraries(SteelFrontLauncher PRIVATE d3d11 dxgi d3dcompiler winhttp dwmapi msimg32 gdi32 user32 shell32 ole32)
 set_target_properties(SteelFrontLauncher PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/..")

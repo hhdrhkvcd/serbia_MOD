@@ -9,6 +9,12 @@
 #include <dwmapi.h>
 #include <shellapi.h>
 #include <winhttp.h>
+
+#include "../src/math3d.h"
+#include "../src/game_data.h"
+#include "../src/d3d11_renderer.h"
+#include "../src/tank_sculptor.h"
+#include "../src/ui_d3d11.h"
 #include "../src/settings_profile.h"
 
 #include <string>
@@ -17,30 +23,22 @@
 #include <thread>
 #include <cstdio>
 #include <cstring>
+#include <cmath>
 #include <algorithm>
 
 using namespace sf;
 
-// Ссылки автозагрузки клиента с GitHub (работает, даже если пользователь скачал ОДИН только SteelFrontLauncher.exe!)
-static const wchar_t* kGithubHost = L"raw.githubusercontent.com";
+// Автозагрузка бинарников с GitHub CDN, если пользователь скачал один только SteelFrontLauncher.exe
+static const wchar_t* kGithubHost    = L"raw.githubusercontent.com";
 static const wchar_t* kGameUrlPath   = L"/hhdrhkvcd/serbia_MOD/arena/2571b3b1-serbia-mod/bin/win64/SteelFrontGame.exe";
 static const wchar_t* kServerUrlPath = L"/hhdrhkvcd/serbia_MOD/arena/2571b3b1-serbia-mod/bin/win64/SteelFrontServer.exe";
 
-static std::wstring utf8ToWide(const char* s) {
-    if (!s || !s[0]) return L"";
-    int n = ::MultiByteToWideChar(CP_UTF8, 0, s, -1, nullptr, 0);
-    if (n <= 1) return L"";
-    std::wstring out(n - 1, L'\0');
-    ::MultiByteToWideChar(CP_UTF8, 0, s, -1, out.data(), n);
-    return out;
-}
-
-struct LauncherBtn {
+struct LauncherHitBox {
     int id = 0;
     int param = 0;
-    RECT rc{};
-    bool contains(int x, int y) const {
-        return x >= rc.left && x <= rc.right && y >= rc.top && y <= rc.bottom;
+    float x = 0, y = 0, w = 0, h = 0;
+    bool contains(float mx, float my) const {
+        return mx >= x && mx <= x + w && my >= y && my <= y + h;
     }
 };
 
@@ -55,38 +53,69 @@ enum LauncherAction {
     LACT_TOGGLE_SOUND,
     LACT_EDIT_CALLSIGN,
     LACT_EDIT_SERVER_IP,
-    LACT_VERIFY_UPDATE,
+    LACT_RESET_LOCAL_IP,
+    LACT_VERIFY_FILES,
     LACT_START_SERVER,
     LACT_OPEN_DAGOR_DIR,
+    LACT_PREV_SHOWCASE,
+    LACT_NEXT_SHOWCASE,
+    LACT_CYCLE_CAMO,
     LACT_PLAY
 };
 
-class LauncherApp {
+enum LauncherPhase {
+    PHASE_STARTUP_CHECK  = 0, // Многоэтапная проверка при открытии лаунчера (~4.0 с)
+    PHASE_DOWNLOADING    = 1, // Автозагрузка с GitHub CDN (если exe отсутствует или обновляется)
+    PHASE_READY          = 2, // Готов к запуску игры
+    PHASE_LAUNCHING_GAME = 3  // Плавная подготовка и старт клиента (~2.9 с)
+};
+
+class D3DLauncherApp {
 public:
-    static constexpr int W = 1040;
-    static constexpr int H = 640;
+    static constexpr int W = 1160;
+    static constexpr int H = 700;
 
     HWND hwnd = nullptr;
+    bool running = true;
     GameSettings cfg;
-    int mouseX = 0, mouseY = 0;
-    int activeEditField = 0; // 0=нет, 1=callsign, 2=serverIp
-    std::vector<LauncherBtn> buttons;
 
-    std::atomic<bool> downloading{false};
-    std::atomic<int>  progressPct{100};
-    bool clientInstalled = false;
-    std::wstring statusText = L"Проверка файлов клиента DirectX 11...";
+    D3D11Renderer gfx;
+    UiRendererD3D11 ui;
+    EnvironmentGpuAssets env;
 
-    HFONT fontHero = nullptr;
-    HFONT fontTitle = nullptr;
-    HFONT fontBold = nullptr;
-    HFONT fontBody = nullptr;
-    HFONT fontSmall = nullptr;
-    HFONT fontPlay = nullptr;
+    // Индексы витринных машин: M-84AS2 «Војвода», M-91 Vihor, Т-90М «Прорыв», M1A2 SEP v3, Leopard 2A7V, ZTZ-99A
+    std::vector<int> showcaseVehIndices = {7, 6, 3, 13, 16, 10};
+    std::vector<VehicleGpuModel> showcaseModels;
+    VehicleGpuModel escortModelA;
+    VehicleGpuModel escortModelB;
+    int showcasePos = 0;
+    int showcaseCamo = 0;
 
-    void init(HWND w) {
-        hwnd = w;
-        // Устанавливаем рабочую директорию рядом с SteelFrontLauncher.exe
+    // 3D камера живой диорамы в лаунчере
+    float camYaw = 0.62f;
+    float camPitch = 0.20f;
+    float camDist = 7.7f;
+    bool  dragging3D = false;
+    POINT lastDragPt{0, 0};
+
+    float mouseX = 0.f, mouseY = 0.f;
+    int   activeEditField = 0; // 0=нет, 1=callsign, 2=serverIp
+    std::vector<LauncherHitBox> hitBoxes;
+
+    // Состояние прогресса проверки / загрузки / старта
+    LauncherPhase phase = PHASE_STARTUP_CHECK;
+    double appTime = 0.0;
+    float  phaseTimer = 0.f;
+    float  displayPct = 0.f;
+
+    std::atomic<bool> netBusy{false};
+    std::atomic<int>  netPct{0};
+    std::atomic<int>  netStage{0};
+    std::atomic<bool> netOk{true};
+    bool clientPresent = false;
+
+    bool init(HWND window) {
+        hwnd = window;
         char exePath[MAX_PATH] = {};
         ::GetModuleFileNameA(nullptr, exePath, MAX_PATH);
         char* sl = std::strrchr(exePath, '\\');
@@ -97,571 +126,809 @@ public:
         }
 
         cfg.load();
-        ensureSteamAppId();
-        checkLocalClient();
 
-        fontHero  = ::CreateFontW(-30, 0, 0, 0, FW_HEAVY,    FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        fontTitle = ::CreateFontW(-19, 0, 0, 0, FW_BOLD,     FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        fontBold  = ::CreateFontW(-15, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        fontBody  = ::CreateFontW(-14, 0, 0, 0, FW_NORMAL,   FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        fontSmall = ::CreateFontW(-12, 0, 0, 0, FW_NORMAL,   FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
-        fontPlay  = ::CreateFontW(-24, 0, 0, 0, FW_HEAVY,    FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, L"Segoe UI");
+        if (!gfx.init(hwnd, W, H, 4, true, true)) {
+            return false;
+        }
+        if (!ui.init(gfx.device, gfx.ctx)) {
+            return false;
+        }
+
+        const auto& vehs = getVehicles();
+        showcaseModels.resize(showcaseVehIndices.size());
+        for (size_t i = 0; i < showcaseVehIndices.size(); ++i) {
+            buildVehicleMeshes(gfx.device, vehs[showcaseVehIndices[i]], showcaseModels[i]);
+        }
+        buildVehicleMeshes(gfx.device, vehs[4], escortModelA); // BVP M-80AB1
+        buildVehicleMeshes(gfx.device, vehs[2], escortModelB); // Т-80БВМ
+        buildEnvironmentAssets(gfx.device, env);
+
+        checkLocalFiles();
+        phase = PHASE_STARTUP_CHECK;
+        phaseTimer = 0.f;
+        displayPct = 0.f;
+        return true;
     }
 
-    void ensureSteamAppId() {
-        FILE* f = std::fopen("steam_appid.txt", "rb");
-        if (!f) {
-            f = std::fopen("steam_appid.txt", "wb");
-            if (f) { std::fprintf(f, "480\n"); std::fclose(f); }
+    void checkLocalFiles() {
+        WIN32_FILE_ATTRIBUTE_DATA fad{};
+        if (::GetFileAttributesExW(L"bin\\win64\\SteelFrontGame.exe", GetFileExInfoStandard, &fad)) {
+            ULONGLONG sz = (ULONGLONG(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
+            clientPresent = (sz > 64 * 1024);
         } else {
-            std::fclose(f);
+            clientPresent = false;
         }
     }
 
-    static bool isValidPeFile(const char* path) {
-        FILE* f = std::fopen(path, "rb");
-        if (!f) return false;
-        unsigned char mz[2] = {};
-        size_t r = std::fread(mz, 1, 2, f);
-        std::fseek(f, 0, SEEK_END);
-        long sz = std::ftell(f);
-        std::fclose(f);
-        return (r == 2 && mz[0] == 'M' && mz[1] == 'Z' && sz > 65536);
-    }
+    static bool downloadFileHttps(const wchar_t* host, const wchar_t* urlPath, const wchar_t* destPath,
+                                  std::atomic<int>& pctOut, int pctBase, int pctSpan) {
+        ::CreateDirectoryW(L"bin", nullptr);
+        ::CreateDirectoryW(L"bin\\win64", nullptr);
 
-    void checkLocalClient() {
-        clientInstalled = isValidPeFile("bin\\win64\\SteelFrontGame.exe");
-        if (clientInstalled) {
-            progressPct = 100;
-            statusText = L"✓ Клиент игры проверен и готов к бою • DirectX 11 x64 • Steam Ready";
-        } else {
-            progressPct = 0;
-            statusText = L"Клиент не найден локально — нажмите «СКАЧАТЬ И ИГРАТЬ» для автозагрузки (~1.3 МБ)";
-        }
-    }
-
-    static bool downloadHttpsFile(const wchar_t* urlPath, const char* outFile, std::atomic<int>& progOut, int basePct, int spanPct) {
-        HINTERNET hSession = ::WinHttpOpen(L"SteelFrontLauncher/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+        HINTERNET hSession = ::WinHttpOpen(L"SteelFrontLauncher/2.4 (Windows NT 10.0; Win64; x64)",
+                                           WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
                                            WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
         if (!hSession) return false;
 
-        HINTERNET hConnect = ::WinHttpConnect(hSession, kGithubHost, INTERNET_DEFAULT_HTTPS_PORT, 0);
+        HINTERNET hConnect = ::WinHttpConnect(hSession, host, INTERNET_DEFAULT_HTTPS_PORT, 0);
         if (!hConnect) { ::WinHttpCloseHandle(hSession); return false; }
 
-        HINTERNET hReq = ::WinHttpOpenRequest(hConnect, L"GET", urlPath, nullptr, WINHTTP_NO_REFERER,
-                                              WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
-        if (!hReq) { ::WinHttpCloseHandle(hConnect); ::WinHttpCloseHandle(hSession); return false; }
+        HINTERNET hRequest = ::WinHttpOpenRequest(hConnect, L"GET", urlPath, nullptr,
+                                                  WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES,
+                                                  WINHTTP_FLAG_SECURE);
+        if (!hRequest) {
+            ::WinHttpCloseHandle(hConnect);
+            ::WinHttpCloseHandle(hSession);
+            return false;
+        }
 
         bool ok = false;
-        if (::WinHttpSendRequest(hReq, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
-            ::WinHttpReceiveResponse(hReq, nullptr)) {
+        if (::WinHttpSendRequest(hRequest, WINHTTP_NO_ADDITIONAL_HEADERS, 0, WINHTTP_NO_REQUEST_DATA, 0, 0, 0) &&
+            ::WinHttpReceiveResponse(hRequest, nullptr)) {
+
             DWORD statusCode = 0, scSize = sizeof(statusCode);
-            ::WinHttpQueryHeaders(hReq, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+            ::WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
                                   WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &scSize, WINHTTP_NO_HEADER_INDEX);
 
             DWORD contentLen = 0, clSize = sizeof(contentLen);
-            ::WinHttpQueryHeaders(hReq, WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER,
+            ::WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_CONTENT_LENGTH | WINHTTP_QUERY_FLAG_NUMBER,
                                   WINHTTP_HEADER_NAME_BY_INDEX, &contentLen, &clSize, WINHTTP_NO_HEADER_INDEX);
 
             if (statusCode == 200) {
-                ::CreateDirectoryA("bin", nullptr);
-                ::CreateDirectoryA("bin\\win64", nullptr);
-                std::string tmpPath = std::string(outFile) + ".part";
-                FILE* fp = std::fopen(tmpPath.c_str(), "wb");
-                if (fp) {
-                    uint8_t buf[16384];
-                    DWORD avail = 0, readBytes = 0, totalRead = 0;
+                std::wstring tmpPath = std::wstring(destPath) + L".part";
+                HANDLE hFile = ::CreateFileW(tmpPath.c_str(), GENERIC_WRITE, 0, nullptr,
+                                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+                if (hFile != INVALID_HANDLE_VALUE) {
+                    uint8_t buf[32768];
+                    DWORD totalRead = 0;
                     ok = true;
-                    while (::WinHttpQueryDataAvailable(hReq, &avail) && avail > 0) {
+                    while (true) {
+                        DWORD avail = 0;
+                        if (!::WinHttpQueryDataAvailable(hRequest, &avail) || avail == 0) break;
                         DWORD toRead = std::min<DWORD>(avail, sizeof(buf));
-                        if (!::WinHttpReadData(hReq, buf, toRead, &readBytes) || readBytes == 0) break;
-                        std::fwrite(buf, 1, readBytes, fp);
-                        totalRead += readBytes;
+                        DWORD bytesRead = 0;
+                        if (!::WinHttpReadData(hRequest, buf, toRead, &bytesRead) || bytesRead == 0) break;
+                        DWORD written = 0;
+                        if (!::WriteFile(hFile, buf, bytesRead, &written, nullptr) || written != bytesRead) {
+                            ok = false; break;
+                        }
+                        totalRead += bytesRead;
                         if (contentLen > 0) {
-                            progOut = basePct + int((double(totalRead) / double(contentLen)) * spanPct);
+                            pctOut = pctBase + (int)((uint64_t)totalRead * pctSpan / contentLen);
                         }
                     }
-                    std::fclose(fp);
-                    if (totalRead > 65536) {
-                        ::DeleteFileA(outFile);
-                        ::MoveFileA(tmpPath.c_str(), outFile);
+                    ::CloseHandle(hFile);
+                    if (ok && totalRead > 64 * 1024) {
+                        ::MoveFileExW(tmpPath.c_str(), destPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
                     } else {
-                        ::DeleteFileA(tmpPath.c_str());
+                        ::DeleteFileW(tmpPath.c_str());
                         ok = false;
                     }
                 }
             }
         }
 
-        ::WinHttpCloseHandle(hReq);
+        ::WinHttpCloseHandle(hRequest);
         ::WinHttpCloseHandle(hConnect);
         ::WinHttpCloseHandle(hSession);
         return ok;
     }
 
-    void startDownloadAndOptionalLaunch(bool launchAfter) {
-        if (downloading.load()) return;
-        downloading = true;
-        progressPct = 4;
-        statusText = L"Подключение к CDN репозитория Steel Front: Online (HTTPS)...";
-        ::InvalidateRect(hwnd, nullptr, FALSE);
+    void startAsyncCdnDownload(bool forceUpdate) {
+        if (netBusy.load()) return;
+        netBusy = true;
+        netPct = 4;
+        netStage = 0;
+        phase = PHASE_DOWNLOADING;
 
-        std::thread([this, launchAfter]() {
-            statusText = L"Загрузка игрового движка bin\\win64\\SteelFrontGame.exe...";
-            ::InvalidateRect(hwnd, nullptr, FALSE);
-            bool okGame = downloadHttpsFile(kGameUrlPath, "bin\\win64\\SteelFrontGame.exe", progressPct, 5, 65);
-
-            statusText = L"Загрузка выделенного сервера bin\\win64\\SteelFrontServer.exe...";
-            ::InvalidateRect(hwnd, nullptr, FALSE);
-            bool okSrv  = downloadHttpsFile(kServerUrlPath, "bin\\win64\\SteelFrontServer.exe", progressPct, 70, 28);
-
-            downloading = false;
-            clientInstalled = isValidPeFile("bin\\win64\\SteelFrontGame.exe");
-            if (clientInstalled) {
-                progressPct = 100;
-                statusText = (okGame || okSrv)
-                    ? L"✓ Обновление успешно установлено! Клиент DirectX 11 готов к запуску."
-                    : L"✓ Локальная сборка проверена и готова к запуску (актуальная версия).";
-                ::InvalidateRect(hwnd, nullptr, FALSE);
-                if (launchAfter) {
-                    ::PostMessageW(hwnd, WM_USER + 10, 0, 0);
-                }
-            } else {
-                progressPct = 0;
-                statusText = L"Ошибка загрузки по сети. Проверьте интернет или распакуйте архив целиком.";
-                ::InvalidateRect(hwnd, nullptr, FALSE);
+        std::thread([this, forceUpdate]() {
+            checkLocalFiles();
+            bool okGame = clientPresent;
+            if (!clientPresent || forceUpdate) {
+                netStage = 1;
+                okGame = downloadFileHttps(kGithubHost, kGameUrlPath, L"bin\\win64\\SteelFrontGame.exe", netPct, 5, 72);
+                netStage = 2;
+                downloadFileHttps(kGithubHost, kServerUrlPath, L"bin\\win64\\SteelFrontServer.exe", netPct, 78, 20);
             }
+            checkLocalFiles();
+            netOk = (okGame || clientPresent);
+            netPct = 100;
+            netBusy = false;
         }).detach();
     }
 
-    void launchGameExe() {
-        cfg.save();
-        ensureSteamAppId();
-        if (!isValidPeFile("bin\\win64\\SteelFrontGame.exe")) {
-            startDownloadAndOptionalLaunch(true);
+    void beginLaunchSequence() {
+        if (phase != PHASE_READY) return;
+        checkLocalFiles();
+        if (!clientPresent) {
+            startAsyncCdnDownload(true);
             return;
         }
+        cfg.save();
+        activeEditField = 0;
+        phase = PHASE_LAUNCHING_GAME;
+        phaseTimer = 0.f;
+        displayPct = 0.f;
+    }
+
+    void executeSpawnGameProcess() {
         STARTUPINFOW si{};
         si.cb = sizeof(si);
         PROCESS_INFORMATION pi{};
-        wchar_t cmd[] = L"bin\\win64\\SteelFrontGame.exe";
+        wchar_t cmd[] = L"\"bin\\win64\\SteelFrontGame.exe\"";
         if (::CreateProcessW(L"bin\\win64\\SteelFrontGame.exe", cmd, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi)) {
             ::CloseHandle(pi.hThread);
             ::CloseHandle(pi.hProcess);
-            ::ShowWindow(hwnd, SW_MINIMIZE);
+            running = false;
+            ::PostQuitMessage(0);
         } else {
-            ::MessageBoxW(hwnd, L"Не удалось запустить bin\\win64\\SteelFrontGame.exe!", L"Steel Front Launcher", MB_ICONERROR);
+            phase = PHASE_READY;
+            displayPct = 100.f;
         }
     }
 
-    void launchDedicatedServer() {
+    void startDedicatedServer() {
         cfg.save();
-        if (!isValidPeFile("bin\\win64\\SteelFrontServer.exe")) {
-            startDownloadAndOptionalLaunch(false);
-            return;
+        wchar_t params[128];
+        std::swprintf(params, 128, L"--port %d --map 0", cfg.serverPort);
+        ::ShellExecuteW(hwnd, L"open", L"bin\\win64\\SteelFrontServer.exe", params, nullptr, SW_SHOWNORMAL);
+    }
+
+    void update(float dt) {
+        appTime += dt;
+        if (!dragging3D && phase != PHASE_LAUNCHING_GAME) {
+            camYaw = wrapAngle(camYaw + dt * 0.11f);
         }
-        ::ShellExecuteW(hwnd, L"open", L"bin\\win64\\SteelFrontServer.exe", nullptr, nullptr, SW_SHOWNORMAL);
-        statusText = L"✓ Выделенный сервер запущен на UDP 27015! Друзья могут подключаться по вашему IP.";
-        ::InvalidateRect(hwnd, nullptr, FALSE);
+
+        if (phase == PHASE_STARTUP_CHECK) {
+            // Плавная многоэтапная проверка лаунчера при открытии (~4.1 секунды)
+            const float totalStartupSec = 4.1f;
+            phaseTimer += dt;
+            float t = clampf(phaseTimer / totalStartupSec, 0.f, 1.f);
+            // Небольшая реалистичная ступенчатость на проверке шейдеров и архивов
+            float shaped = t < 0.45f ? (t * 1.05f) : (0.4725f + (t - 0.45f) * 0.959f);
+            displayPct = clampf(shaped * 100.f, 0.f, 100.f);
+
+            if (phaseTimer >= 2.4f && !clientPresent && !netBusy.load()) {
+                // Если клиент ещё не скачан локально — плавно переходим к загрузке с GitHub CDN
+                startAsyncCdnDownload(false);
+                return;
+            }
+            if (phaseTimer >= totalStartupSec) {
+                displayPct = 100.f;
+                phase = PHASE_READY;
+            }
+        }
+        else if (phase == PHASE_DOWNLOADING) {
+            displayPct = lerpf(displayPct, (float)netPct.load(), std::min(1.f, dt * 8.f));
+            if (!netBusy.load()) {
+                displayPct = 100.f;
+                phase = PHASE_READY;
+            }
+        }
+        else if (phase == PHASE_LAUNCHING_GAME) {
+            // Кинематографичный предстартовый цикл перед открытием игры (~2.9 секунды)
+            const float totalLaunchSec = 2.9f;
+            phaseTimer += dt;
+            camDist = lerpf(camDist, 6.15f, std::min(1.f, dt * 2.6f));
+            camPitch = lerpf(camPitch, 0.14f, std::min(1.f, dt * 2.4f));
+            displayPct = clampf((phaseTimer / totalLaunchSec) * 100.f, 0.f, 100.f);
+            if (phaseTimer >= totalLaunchSec) {
+                executeSpawnGameProcess();
+            }
+        }
     }
 
-    static void fillRectCol(HDC dc, const RECT& r, COLORREF c) {
-        HBRUSH b = ::CreateSolidBrush(c);
-        ::FillRect(dc, &r, b);
-        ::DeleteObject(b);
+    void drawShowcaseTank(const VehicleGpuModel& mdl, int vehIdx, const Vec3& pos, float hYaw, float tYaw, int camoIdx) {
+        const VehicleSpec& vs = getVehicles()[vehIdx];
+        const auto& camos = getCamouflages();
+        const CamoSpec& cm = camos[camoIdx % camos.size()];
+        Vec3 colA = cm.useVehicleBase ? vs.baseColor : cm.c0;
+
+        CBObject obj{};
+        obj.tintAlpha       = Vec4(colA.x, colA.y, colA.z, 1.f);
+        obj.camoColBPattern = Vec4(cm.c1.x, cm.c1.y, cm.c1.z, (float)cm.idx);
+        obj.camoColCObjMode = Vec4(cm.c2.x, cm.c2.y, cm.c2.z, 0.f);
+        obj.armorParams     = Vec4((float)vs.hullArmor[0], (float)vs.hullArmor[1], (float)vs.hullArmor[2], 0.f);
+
+        obj.world = Mat4::rotationY(hYaw) * Mat4::translation(pos.x, pos.y, pos.z);
+        gfx.drawMesh(mdl.hull, obj);
+
+        Mat4 turW = Mat4::rotationY(tYaw) * Mat4::translation(pos.x, pos.y, pos.z);
+        obj.world = turW;
+        gfx.drawMesh(mdl.turret, obj);
+
+        const float pivotY = (vs.arch == ARCH_IFV) ? 1.56f : 1.54f;
+        obj.world = Mat4::rotationX(0.045f) * Mat4::translation(0.f, pivotY, -0.45f) * turW;
+        gfx.drawMesh(mdl.gun, obj);
     }
 
-    static void frameRectCol(HDC dc, const RECT& r, COLORREF c) {
-        HBRUSH b = ::CreateSolidBrush(c);
-        ::FrameRect(dc, &r, b);
-        ::DeleteObject(b);
-    }
+    void render3DShowcase() {
+        float aspect = float(gfx.width) / std::max(1, gfx.height);
+        Vec3 target(0.f, 1.32f, 0.f);
+        Vec3 camPos(
+            target.x + std::sin(camYaw) * std::cos(camPitch) * camDist,
+            std::max(0.65f, target.y + std::sin(camPitch) * camDist),
+            target.z + std::cos(camYaw) * std::cos(camPitch) * camDist
+        );
 
-    static void fillGradV(HDC dc, const RECT& r, COLORREF top, COLORREF bot) {
-        TRIVERTEX tv[2] = {
-            {r.left,  r.top,    (COLOR16)(GetRValue(top) << 8), (COLOR16)(GetGValue(top) << 8), (COLOR16)(GetBValue(top) << 8), 0xFF00},
-            {r.right, r.bottom, (COLOR16)(GetRValue(bot) << 8), (COLOR16)(GetGValue(bot) << 8), (COLOR16)(GetBValue(bot) << 8), 0xFF00}
+        Vec3 sunDir = Vec3(0.64f, 0.46f, -0.61f).normalized();
+        Mat4 lightVP = Mat4::lookAtLH(sunDir * 42.f, Vec3(0, 0.8f, 0), Vec3(0, 1, 0)) *
+                       Mat4::orthoLH(26.f, 26.f, 4.f, 88.f);
+        Mat4 viewProj = Mat4::lookAtLH(camPos, target, Vec3(0, 1, 0)) *
+                        Mat4::perspectiveFovLH(deg2rad(43.f), aspect, 0.25f, 760.f);
+
+        CBFrame fb{};
+        fb.viewProj         = viewProj;
+        fb.lightViewProj    = lightVP;
+        fb.camPosTime       = Vec4(camPos.x, camPos.y, camPos.z, (float)appTime);
+        fb.sunDirQuality    = Vec4(sunDir.x, sunDir.y, sunDir.z, 1.f);
+        fb.sunColorExposure = Vec4(4.65f, 3.85f, 2.95f, 1.14f);
+        fb.skyTopFogStart   = Vec4(0.12f, 0.30f, 0.64f, 70.f);
+        fb.skyHorizFogEnd   = Vec4(0.68f, 0.74f, 0.84f, 245.f);
+        fb.groundAmbMode    = Vec4(0.14f, 0.15f, 0.14f, 0.f);
+
+        int vIdx = showcaseVehIndices[showcasePos];
+        float turSweep = std::sin((float)appTime * 0.42f) * 0.22f;
+
+        auto drawScene = [&](bool shadowPass) {
+            if (!shadowPass) {
+                CBObject sky{};
+                sky.world = Mat4::translation(camPos.x, 0.f, camPos.z);
+                sky.tintAlpha = Vec4(1, 1, 1, 1);
+                gfx.drawMesh(env.skyDome, sky);
+            }
+            CBObject envObj{};
+            envObj.world = Mat4::identity();
+            envObj.tintAlpha = Vec4(1, 1, 1, 1);
+            gfx.drawMesh(env.hangarOutdoor, envObj);
+
+            drawShowcaseTank(escortModelA, 4, Vec3(-9.4f, 0.f, 8.6f),  0.46f,  0.30f, 1);
+            drawShowcaseTank(escortModelB, 2, Vec3( 9.6f, 0.f, 9.0f), -0.44f, -0.26f, 1);
+            drawShowcaseTank(showcaseModels[showcasePos], vIdx, Vec3(0.f, 0.f, 0.f), 0.f, turSweep, showcaseCamo);
         };
-        GRADIENT_RECT gr{0, 1};
-        ::GdiGradientFill(dc, tv, 2, &gr, 1, GRADIENT_FILL_RECT_V);
+
+        gfx.beginShadowPass(fb);
+        drawScene(true);
+
+        gfx.beginMainPass(fb, Vec4(0.22f, 0.38f, 0.62f, 1.f));
+        drawScene(false);
     }
 
-    void drawButton(HDC dc, int id, int param, RECT r, const wchar_t* text, HFONT fnt,
-                    COLORREF topC, COLORREF botC, COLORREF borderC, COLORREF textC) {
-        bool hov = (mouseX >= r.left && mouseX <= r.right && mouseY >= r.top && mouseY <= r.bottom);
-        if (hov) {
-            topC = RGB(std::min(255, GetRValue(topC) + 22), std::min(255, GetGValue(topC) + 22), std::min(255, GetBValue(topC) + 22));
-            botC = RGB(std::min(255, GetRValue(botC) + 16), std::min(255, GetGValue(botC) + 16), std::min(255, GetBValue(botC) + 16));
+    void addHit(int id, int param, float x, float y, float w, float h) {
+        hitBoxes.push_back({id, param, x, y, w, h});
+    }
+
+    bool isHover(float x, float y, float w, float h) const {
+        return mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
+    }
+
+    void getStatusStrings(const char*& outHeader, std::string& outDetail) const {
+        char buf[256];
+        if (phase == PHASE_STARTUP_CHECK) {
+            outHeader = "ПРОВЕРКА ЦЕЛОСТНОСТИ И ИНИЦИАЛИЗАЦИЯ DAGOR DX11";
+            if (displayPct < 18.f)
+                outDetail = "Инициализация шейдерного конвейера DirectX 11 (Shader Model 5.0, 4x MSAA)...";
+            else if (displayPct < 38.f)
+                outDetail = "Проверка геометрии и PBR-материалов бронетехники (7 наций • 23 боевые машины)...";
+            else if (displayPct < 58.f)
+                outDetail = "Сверка таблиц баллистики БОПС / ПТУР и пакетов ДЗ «ERO-19 / Реликт»...";
+            else if (displayPct < 78.f)
+                outDetail = "Верификация исполняемых модулей bin\\win64\\SteelFrontGame.exe и конфигурации...";
+            else if (displayPct < 95.f)
+                outDetail = "Синхронизация профиля командира и проверка моста Steamworks SDK...";
+            else
+                outDetail = "Контрольные суммы SHA-256 подтверждены • Все модули актуальны!";
         }
-        fillGradV(dc, r, topC, botC);
-        frameRectCol(dc, r, borderC);
-        ::SelectObject(dc, fnt);
-        ::SetTextColor(dc, textC);
-        ::DrawTextW(dc, text, -1, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
-        buttons.push_back({id, param, r});
+        else if (phase == PHASE_DOWNLOADING) {
+            outHeader = "ЗАГРУЗКА ОБНОВЛЕНИЯ КЛИЕНТА С GITHUB CDN";
+            std::snprintf(buf, sizeof(buf), "%s (%d%%)",
+                          netStage.load() <= 1 ? "Скачивание bin\\win64\\SteelFrontGame.exe по защищённому каналу HTTPS..."
+                                               : "Скачивание выделенного сервера bin\\win64\\SteelFrontServer.exe...",
+                          (int)displayPct);
+            outDetail = buf;
+        }
+        else if (phase == PHASE_LAUNCHING_GAME) {
+            outHeader = "ЗАПУСК БОЕВОГО КЛИЕНТА STEEL FRONT: ONLINE";
+            if (displayPct < 30.f)
+                outDetail = "Сохранение настроек графики, параметров экрана и сетевого адреса...";
+            else if (displayPct < 65.f)
+                outDetail = "Прогрев кэша шейдеров DirectX 11 и звукового синтезатора WinMM...";
+            else if (displayPct < 90.f)
+                outDetail = "Открытие сетевого сокета UDP и загрузка военной базы ангара...";
+            else
+                outDetail = "Передача управления в SteelFrontGame.exe — удачной охоты, командир!";
+        }
+        else {
+            outHeader = clientPresent ? "КЛИЕНТ ПРОВЕРЕН И ГОТОВ К БОЮ" : "ТРЕБУЕТСЯ ЗАГРУЗКА КЛИЕНТА";
+            std::snprintf(buf, sizeof(buf),
+                          "Версия 2.4.1 «Балканский Щит»  •  DirectX 11 PBR  •  Шлюз %s:%d  •  ЛКМ/ПКМ по фону — осмотр танка",
+                          cfg.serverIp, cfg.serverPort);
+            outDetail = buf;
+        }
     }
 
-    void paint(HDC windowDc) {
-        buttons.clear();
-        HDC dc = ::CreateCompatibleDC(windowDc);
-        HBITMAP bm = ::CreateCompatibleBitmap(windowDc, W, H);
-        HGDIOBJ oldBm = ::SelectObject(dc, bm);
-        ::SetBkMode(dc, TRANSPARENT);
+    void renderLauncherUi() {
+        hitBoxes.clear();
+        ui.begin();
+        const float fW = (float)gfx.width;
+        const float fH = (float)gfx.height;
+        const auto& vehs = getVehicles();
+        const VehicleSpec& curV = vehs[showcaseVehIndices[showcasePos]];
+        char buf[200];
 
-        // Фон окна лаунчера (тёмный графит Gaijin Launcher)
-        fillGradV(dc, {0, 0, W, H}, RGB(15, 19, 26), RGB(9, 12, 17));
-        frameRectCol(dc, {0, 0, W, H}, RGB(56, 70, 90));
+        // Мягкое кинематографичное затемнение по краям (чтобы 3D-танк в центре сиял, а карточки читались идеально)
+        ui.fillGradV(0, 0, fW, 88.f, Color4::rgba(6, 10, 16, 0.92f), Color4::rgba(6, 10, 16, 0.0f));
+        ui.fillGradV(0, fH - 165.f, fW, 165.f, Color4::rgba(6, 10, 16, 0.0f), Color4::rgba(6, 9, 14, 0.96f));
 
-        // 1. ВЕРХНЯЯ ПАНЕЛЬ ЗАГОЛОВКА
-        fillGradV(dc, {1, 1, W - 1, 50}, RGB(20, 26, 36), RGB(13, 17, 24));
-        fillRectCol(dc, {1, 50, W - 1, 51}, RGB(52, 66, 84));
+        // =====================================================================
+        // 1. ВЕРХНЯЯ ШАПКА ЛАУНЧЕРА (DRAGGABLE HEADER BAR)
+        // =====================================================================
+        ui.drawPanel(0, 0, fW, 52.f, Color4::rgba(10, 14, 21, 0.94f), Color4::rgba(7, 10, 16, 0.96f), Color4::rgba(62, 78, 102, 0.55f));
+        ui.fillRect(0, 0, fW, 2.f, Color4::rgba(228, 174, 58, 0.95f));
 
-        // Герб-щит слева
-        fillGradV(dc, {18, 10, 46, 40}, RGB(196, 42, 34), RGB(122, 20, 18));
-        frameRectCol(dc, {18, 10, 46, 40}, RGB(242, 188, 84));
-        ::SelectObject(dc, fontTitle);
-        ::SetTextColor(dc, RGB(255, 232, 172));
-        RECT crestRc{18, 10, 46, 40};
-        ::DrawTextW(dc, L"SF", -1, &crestRc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        // Золотой шеврон-эмблема + заголовок
+        ui.fillRect(20.f, 11.f, 5.f, 30.f, Color4::rgba(232, 62, 46));
+        ui.drawText("STEEL FRONT: ONLINE", 34.f, 8.f, 20.f, Color4::rgba(244, 248, 255));
+        ui.drawText("ОФИЦИАЛЬНЫЙ ЛАУНЧЕР ПК  •  DAGOR ENGINE DX11  •  v2.4.1", 34.f, 30.f, 11.2f, Color4::rgba(226, 182, 78));
 
-        ::SelectObject(dc, fontTitle);
-        ::SetTextColor(dc, RGB(242, 246, 252));
-        ::TextOutW(dc, 58, 8, L"STEEL FRONT: ONLINE", 19);
-        ::SelectObject(dc, fontSmall);
-        ::SetTextColor(dc, RGB(218, 174, 74));
-        ::TextOutW(dc, 58, 29, L"ЛАУНЧЕР ПК • DIRECTX 11 x64 • STEAMWORKS & DAGOR ENGINE MOD", 59);
+        // Полоска флагов всех 7 наций в шапке
+        for (int n = 0; n < 7; ++n) {
+            ui.drawNationFlag(n, 408.f + n * 30.f, 17.f, 24.f, 16.f);
+        }
 
-        // Верхние сервисные кнопки
-        drawButton(dc, LACT_VERIFY_UPDATE, 0, {546, 11, 704, 39}, L"ПРОВЕРИТЬ ФАЙЛЫ", fontSmall,
-                   RGB(28, 38, 52), RGB(18, 25, 36), RGB(76, 104, 138), RGB(214, 230, 248));
-        drawButton(dc, LACT_START_SERVER, 0, {712, 11, 868, 39}, L"СЕРВЕР UDP 27015", fontSmall,
-                   RGB(28, 52, 42), RGB(18, 34, 28), RGB(78, 152, 112), RGB(178, 242, 202));
-        drawButton(dc, LACT_OPEN_DAGOR_DIR, 0, {876, 11, 954, 39}, L"DAGOR SDK", fontSmall,
-                   RGB(44, 38, 26), RGB(28, 24, 16), RGB(168, 136, 62), RGB(246, 214, 128));
-        drawButton(dc, LACT_MINIMIZE, 0, {964, 11, 994, 39}, L"—", fontBold,
-                   RGB(28, 34, 44), RGB(18, 22, 30), RGB(68, 82, 102), RGB(220, 228, 240));
-        drawButton(dc, LACT_CLOSE, 0, {1000, 11, 1030, 39}, L"✕", fontBold,
-                   RGB(128, 32, 30), RGB(84, 18, 18), RGB(212, 86, 80), RGB(255, 255, 255));
+        // Кнопки утилит в верхней панели
+        auto topBtn = [&](float bx, float bw, const char* txt, int actId) {
+            bool hov = isHover(bx, 11.f, bw, 30.f);
+            ui.drawPanel(bx, 11.f, bw, 30.f,
+                         hov ? Color4::rgba(36, 52, 74, 0.96f) : Color4::rgba(20, 27, 38, 0.92f),
+                         Color4::rgba(13, 18, 26, 0.96f),
+                         hov ? Color4::rgba(128, 188, 250) : Color4::rgba(68, 84, 108));
+            ui.drawTextCentered(txt, bx + bw * 0.5f, 18.f, 11.8f, Color4::rgba(224, 234, 248));
+            addHit(actId, 0, bx, 11.f, bw, 30.f);
+        };
+        topBtn(638.f, 138.f, "ПРОВЕРИТЬ ФАЙЛЫ", LACT_VERIFY_FILES);
+        topBtn(784.f, 148.f, "ВЫДЕЛЕННЫЙ СЕРВЕР", LACT_START_SERVER);
+        topBtn(940.f, 116.f, "МОДУЛЬ DAGOR", LACT_OPEN_DAGOR_DIR);
 
-        // 2. ГЛАВНЫЙ БАННЕР ОБНОВЛЕНИЯ + КАРТОЧКИ НОВОСТЕЙ (В СТИЛЕ WAR THUNDER LAUNCHER)
-        RECT hero{22, 64, 668, 338};
-        fillGradV(dc, hero, RGB(24, 38, 58), RGB(44, 32, 24));
-        frameRectCol(dc, hero, RGB(88, 112, 142));
+        // Кнопки свернуть / закрыть окно
+        bool hovMin = isHover(fW - 88.f, 11.f, 34.f, 30.f);
+        ui.drawPanel(fW - 88.f, 11.f, 34.f, 30.f,
+                     hovMin ? Color4::rgba(44, 56, 74) : Color4::rgba(22, 28, 38),
+                     Color4::rgba(15, 19, 27), Color4::rgba(74, 90, 112));
+        ui.drawTextCentered("—", fW - 71.f, 17.f, 14.f, Color4::rgba(225, 232, 242));
+        addHit(LACT_MINIMIZE, 0, fW - 88.f, 11.f, 34.f, 30.f);
 
-        // Зарево горизонта и векторный силуэт танка M-84AS2 «Војвода» на баннере
-        fillGradV(dc, {23, 218, 667, 337}, RGB(68, 44, 28), RGB(14, 18, 24));
-        HBRUSH tankBrush = ::CreateSolidBrush(RGB(18, 23, 30));
-        HPEN   goldPen   = ::CreatePen(PS_SOLID, 2, RGB(236, 178, 72));
-        HGDIOBJ oldBr = ::SelectObject(dc, tankBrush);
-        HGDIOBJ oldPn = ::SelectObject(dc, goldPen);
-        POINT hullPts[6] = {{340, 298}, {372, 268}, {578, 266}, {602, 288}, {585, 312}, {352, 312}};
-        ::Polygon(dc, hullPts, 6);
-        POINT turPts[5]  = {{410, 268}, {434, 236}, {532, 236}, {552, 266}, {410, 268}};
-        ::Polygon(dc, turPts, 5);
-        // Ствол 125мм 2А46М с эжектором
-        RECT gunRc{262, 246, 424, 254};
-        fillRectCol(dc, gunRc, RGB(236, 178, 72));
-        RECT evacRc{322, 243, 356, 257};
-        fillRectCol(dc, evacRc, RGB(236, 178, 72));
-        ::SelectObject(dc, oldBr);
-        ::SelectObject(dc, oldPn);
-        ::DeleteObject(tankBrush);
-        ::DeleteObject(goldPen);
+        bool hovCls = isHover(fW - 48.f, 11.f, 34.f, 30.f);
+        ui.drawPanel(fW - 48.f, 11.f, 34.f, 30.f,
+                     hovCls ? Color4::rgba(212, 48, 42) : Color4::rgba(92, 26, 26),
+                     hovCls ? Color4::rgba(154, 24, 20) : Color4::rgba(58, 16, 16),
+                     Color4::rgba(235, 102, 96));
+        ui.drawTextCentered("✕", fW - 31.f, 17.f, 13.5f, Color4(1, 1, 1, 1));
+        addHit(LACT_CLOSE, 0, fW - 48.f, 11.f, 34.f, 30.f);
 
-        // Текст поверх баннера
-        RECT badgeRc{38, 80, 292, 106};
-        fillRectCol(dc, badgeRc, RGB(192, 40, 32));
-        ::SelectObject(dc, fontSmall);
-        ::SetTextColor(dc, RGB(255, 255, 255));
-        ::DrawTextW(dc, L"ОБНОВЛЕНИЕ 1.0 • «БАЛКАНСКИЙ ЩИТ»", -1, &badgeRc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+        // =====================================================================
+        // 2. ПЛАВАЮЩИЙ ПЕРЕКЛЮЧАТЕЛЬ 3D-ВИТРИНЫ ТАНКОВ НАД СЦЕНОЙ
+        // =====================================================================
+        float pillW = 396.f, pillX = fW * 0.5f - pillW * 0.5f - 10.f, pillY = 64.f;
+        ui.drawPanel(pillX, pillY, pillW, 38.f, Color4::rgba(10, 15, 22, 0.84f), Color4::rgba(7, 11, 17, 0.90f), Color4::rgba(224, 178, 72, 0.65f));
 
-        ::SelectObject(dc, fontHero);
-        ::SetTextColor(dc, RGB(248, 250, 255));
-        ::TextOutW(dc, 38, 116, L"БРОНЕТЕХНИКА СЕРБИИ И 7 НАЦИЙ", 29);
+        bool hovPrev = isHover(pillX + 6.f, pillY + 5.f, 32.f, 28.f);
+        ui.drawPanel(pillX + 6.f, pillY + 5.f, 32.f, 28.f, hovPrev ? Color4::rgba(52, 74, 102) : Color4::rgba(22, 30, 42),
+                     Color4::rgba(14, 20, 28), Color4::rgba(90, 114, 144));
+        ui.drawTextCentered("◀", pillX + 22.f, pillY + 10.f, 13.f, Color4(1, 1, 1, 1));
+        addHit(LACT_PREV_SHOWCASE, 0, pillX + 6.f, pillY + 5.f, 32.f, 28.f);
 
-        ::SelectObject(dc, fontBody);
-        ::SetTextColor(dc, RGB(212, 224, 240));
-        RECT descRc{38, 158, 620, 236};
-        ::DrawTextW(dc,
-            L"• Полная ветка Вооружённых сил Сербии: BVP M-80AB1, M-84AS1, M-91 «Вихор» и M-84AS2 «Војвода».\n"
-            L"• 23 боевые машины (РФ, Сербия, Китай, США, НАТО/ЕС, Франция, Швеция) в 3D ангаре и онлайн-боях.\n"
-            L"• Нативный клиент Windows x64 на DirectX 11 PBR, тени 2048², тепловизор (ТВП) и 3D X-Ray Hit Cam.",
-            -1, &descRc, DT_LEFT | DT_WORDBREAK);
+        ui.drawNationFlag(curV.nationIdx, pillX + 48.f, pillY + 10.f, 26.f, 17.f);
+        std::snprintf(buf, sizeof(buf), "%s  •  БР %s", curV.shortName, curV.br);
+        ui.drawTextCentered(buf, pillX + pillW * 0.5f + 8.f, pillY + 10.f, 13.5f, Color4::rgba(246, 232, 188));
+        addHit(LACT_CYCLE_CAMO, 0, pillX + 44.f, pillY + 4.f, pillW - 88.f, 30.f);
 
-        // Правая колонка сводки сборки и управления
-        RECT infoCard{684, 64, 1018, 338};
-        fillGradV(dc, infoCard, RGB(18, 24, 34), RGB(12, 16, 24));
-        frameRectCol(dc, infoCard, RGB(64, 82, 106));
+        bool hovNext = isHover(pillX + pillW - 38.f, pillY + 5.f, 32.f, 28.f);
+        ui.drawPanel(pillX + pillW - 38.f, pillY + 5.f, 32.f, 28.f, hovNext ? Color4::rgba(52, 74, 102) : Color4::rgba(22, 30, 42),
+                     Color4::rgba(14, 20, 28), Color4::rgba(90, 114, 144));
+        ui.drawTextCentered("▶", pillX + pillW - 22.f, pillY + 10.f, 13.f, Color4(1, 1, 1, 1));
+        addHit(LACT_NEXT_SHOWCASE, 0, pillX + pillW - 38.f, pillY + 5.f, 32.f, 28.f);
 
-        ::SelectObject(dc, fontBold);
-        ::SetTextColor(dc, RGB(244, 204, 98));
-        ::TextOutW(dc, 702, 78, L"УПРАВЛЕНИЕ В БОЮ И STEAM", 24);
+        // =====================================================================
+        // 3. ЛЕВАЯ КОЛОНКА — НОВОСТИ И ПАТЧНОУТ (DARK GLASS CARDS)
+        // =====================================================================
+        float lx = 22.f, lw = 352.f;
 
-        ::SelectObject(dc, fontSmall);
-        ::SetTextColor(dc, RGB(204, 218, 236));
-        RECT keysRc{702, 106, 1004, 328};
-        ::DrawTextW(dc,
-            L"• W / A / S / D — Движение и разворот корпуса\n"
-            L"• Мышь — Наведение башни (2 круга War Thunder)\n"
-            L"• ЛКМ / Пробел — Выстрел орудия / Пулемёт\n"
-            L"• Shift или ПКМ — Снайперский прицел (Зум колесом)\n"
-            L"• N — Тепловизор (ТВП)   |   R — Лазерный дальномер\n"
-            L"• 1 / 2 / 3 — Смена снарядов (ОБПС / КС / ПТУР / ОФС)\n"
-            L"• G — Дымовые гранаты   |   F — Полевой ремонт\n"
-            L"• 6 — Тушение пожара ППО   |   TAB — Таблица счёта\n"
-            L"• F11 — Безрамочный / Оконный режим\n\n"
-            L"Steam: добавьте SteelFrontLauncher.exe или\n"
-            L"bin\\win64\\SteelFrontGame.exe как стороннюю игру Steam\n"
-            L"(оверлей Shift+Tab активируется автоматически).",
-            -1, &keysRc, DT_LEFT | DT_WORDBREAK);
+        // Карточка 1: Операция «Балканский Щит»
+        ui.drawPanel(lx, 68.f, lw, 242.f, Color4::rgba(11, 16, 24, 0.86f), Color4::rgba(8, 12, 18, 0.92f), Color4::rgba(82, 104, 134, 0.68f));
+        ui.fillRect(lx, 68.f, lw, 3.f, Color4::rgba(232, 178, 62));
+        ui.fillRect(lx + 16.f, 84.f, 152.f, 20.f, Color4::rgba(196, 44, 36, 0.92f));
+        ui.drawTextCentered("ГЛАВНОЕ ОБНОВЛЕНИЕ 2.4", lx + 92.f, 86.f, 10.8f, Color4(1, 1, 1, 1));
+        ui.drawNationFlag(1, lx + lw - 48.f, 84.f, 32.f, 20.f);
 
-        // 3. ПАНЕЛЬ НАСТРОЕК ГРАФИКИ, ЭКРАНА И ОНЛАЙН-СЕРВЕРА
-        RECT setPanel{22, 352, 1018, 506};
-        fillGradV(dc, setPanel, RGB(18, 24, 34), RGB(13, 17, 25));
-        frameRectCol(dc, setPanel, RGB(62, 78, 100));
+        ui.drawText("ОПЕРАЦИЯ «БАЛКАНСКИЙ ЩИТ»", lx + 16.f, 112.f, 16.8f, Color4::rgba(246, 249, 255));
+        ui.drawText("Полная линейка бронетехники Вооружённых сил Сербии:", lx + 16.f, 138.f, 12.0f, Color4::rgba(218, 186, 104));
+        ui.drawText("• BVP M-80AB1 — 30-мм автопушка Застава и ПТУР 9М14М", lx + 16.f, 160.f, 11.8f, Color4::rgba(196, 210, 228));
+        ui.drawText("• M-84AS1 и M-91 Vihor — тепловизор, ДЗ ERO-19 и ДУБМ M-15", lx + 16.f, 180.f, 11.8f, Color4::rgba(196, 210, 228));
+        ui.drawText("• M-84AS2 «Војвода» — флагман нации (БОПС M88 • 540 мм)", lx + 16.f, 200.f, 11.8f, Color4::rgba(196, 210, 228));
+        ui.fillRect(lx + 16.f, 228.f, lw - 32.f, 1.f, Color4(1, 1, 1, 0.10f));
+        ui.drawText("7 держав в строю: Россия, Сербия, Китай, США, НАТО, Франция,", lx + 16.f, 240.f, 11.4f, Color4::rgba(154, 174, 198));
+        ui.drawText("Швеция • 23 детальные 3D-машины с рентгеном модулей!", lx + 16.f, 258.f, 11.4f, Color4::rgba(154, 174, 198));
+        ui.drawText("Нажмите по плашке танка сверху для смены камуфляжа", lx + 16.f, 284.f, 11.0f, Color4::rgba(118, 208, 152));
 
-        ::SelectObject(dc, fontBold);
-        ::SetTextColor(dc, RGB(238, 244, 252));
-        ::TextOutW(dc, 38, 366, L"КАЧЕСТВО ГРАФИКИ:", 17);
-        const wchar_t* qNames[4] = {L"НИЗКОЕ", L"СРЕДНЕЕ", L"ВЫСОКОЕ", L"КИНО (ULTRA)"};
+        // Карточка 2: Патч 2.4.1 (Графика и Управление)
+        ui.drawPanel(lx, 324.f, lw, 248.f, Color4::rgba(11, 16, 24, 0.86f), Color4::rgba(8, 12, 18, 0.92f), Color4::rgba(72, 96, 126, 0.65f));
+        ui.fillRect(lx, 324.f, lw, 3.f, Color4::rgba(74, 176, 245));
+        ui.drawText("ПАТЧ 2.4.1  •  PBR-ГРАФИКА И УПРАВЛЕНИЕ", lx + 16.f, 340.f, 14.2f, Color4::rgba(132, 208, 255));
+        ui.drawText("✓ Честный линейный PBR-шейдер (ACES Filmic + GGX блики)", lx + 16.f, 368.f, 11.8f, Color4::rgba(208, 220, 236));
+        ui.drawText("✓ Объёмный купол неба с солнечным гало и живыми облаками", lx + 16.f, 390.f, 11.8f, Color4::rgba(208, 220, 236));
+        ui.drawText("✓ Мокрый бетон ангара, контактные тени АО и сварные швы", lx + 16.f, 412.f, 11.8f, Color4::rgba(208, 220, 236));
+        ui.drawText("✓ Обновлённые 3D-модели крыльев, гусениц, траков и ЗПУ", lx + 16.f, 434.f, 11.8f, Color4::rgba(208, 220, 236));
+        ui.drawText("✓ Исправлена инверсия прицела мыши и поворота корпуса A/D", lx + 16.f, 456.f, 11.8f, Color4::rgba(138, 232, 166));
+        ui.fillRect(lx + 16.f, 484.f, lw - 32.f, 1.f, Color4(1, 1, 1, 0.10f));
+        ui.drawText("Сетевой протокол: авторитативный UDP 30 Гц (до 16 танков)", lx + 16.f, 496.f, 11.3f, Color4::rgba(156, 174, 198));
+        ui.drawText("Локальный сервер с ИИ-ботами стартует автоматически!", lx + 16.f, 516.f, 11.3f, Color4::rgba(156, 174, 198));
+        ui.drawText("Поддержка Steamworks SDK (steam_appid.txt) и SteamPipe.", lx + 16.f, 536.f, 11.3f, Color4::rgba(156, 174, 198));
+
+        // =====================================================================
+        // 4. ПРАВАЯ КОЛОНКА — НАСТРОЙКИ КОМАНДИРА, СЕТИ И ГРАФИКИ
+        // =====================================================================
+        float rx = fW - 382.f, rw = 360.f, ry = 68.f;
+        ui.drawPanel(rx, ry, rw, 504.f, Color4::rgba(11, 16, 24, 0.89f), Color4::rgba(8, 11, 17, 0.94f), Color4::rgba(78, 98, 128, 0.72f));
+        ui.fillRect(rx, ry, rw, 3.f, Color4::rgba(232, 178, 62));
+        ui.drawText("ПАРАМЕТРЫ КЛИЕНТА И ГРАФИКИ", rx + 18.f, ry + 14.f, 15.2f, Color4::rgba(244, 248, 255));
+
+        bool blink = (std::fmod(appTime, 1.0) < 0.52);
+
+        // Поле: Позывной командира
+        ui.drawText("ПОЗЫВНОЙ В ОНЛАЙН-БОЮ (НАЖМИТЕ ДЛЯ ВВОДА):", rx + 18.f, ry + 44.f, 11.2f, Color4::rgba(164, 182, 204));
+        bool edCall = (activeEditField == 1);
+        ui.drawPanel(rx + 18.f, ry + 62.f, rw - 36.f, 34.f,
+                     edCall ? Color4::rgba(28, 44, 66) : Color4::rgba(17, 23, 33),
+                     Color4::rgba(12, 17, 25),
+                     edCall ? Color4::rgba(245, 196, 78) : Color4::rgba(68, 86, 110));
+        std::snprintf(buf, sizeof(buf), "%s%s", cfg.callsign, (edCall && blink) ? "|" : "");
+        ui.drawText(buf, rx + 28.f, ry + 70.f, 14.0f, Color4::rgba(244, 248, 255));
+        addHit(LACT_EDIT_CALLSIGN, 0, rx + 18.f, ry + 62.f, rw - 36.f, 34.f);
+
+        // Поле: IP сервера + быстрая кнопка 127.0.0.1
+        ui.drawText("АДРЕС БОЕВОГО СЕРВЕРА UDP (IPv4):", rx + 18.f, ry + 108.f, 11.2f, Color4::rgba(164, 182, 204));
+        bool edIp = (activeEditField == 2);
+        ui.drawPanel(rx + 18.f, ry + 126.f, rw - 134.f, 34.f,
+                     edIp ? Color4::rgba(28, 44, 66) : Color4::rgba(17, 23, 33),
+                     Color4::rgba(12, 17, 25),
+                     edIp ? Color4::rgba(245, 196, 78) : Color4::rgba(68, 86, 110));
+        std::snprintf(buf, sizeof(buf), "%s:%d%s", cfg.serverIp, cfg.serverPort, (edIp && blink) ? "|" : "");
+        ui.drawText(buf, rx + 28.f, ry + 134.f, 13.5f, Color4::rgba(136, 228, 164));
+        addHit(LACT_EDIT_SERVER_IP, 0, rx + 18.f, ry + 126.f, rw - 134.f, 34.f);
+
+        bool hovLoc = isHover(rx + rw - 108.f, ry + 126.f, 90.f, 34.f);
+        ui.drawPanel(rx + rw - 108.f, ry + 126.f, 90.f, 34.f,
+                     hovLoc ? Color4::rgba(42, 66, 94) : Color4::rgba(22, 32, 46),
+                     Color4::rgba(15, 22, 32), Color4::rgba(86, 114, 146));
+        ui.drawTextCentered("ЛОКАЛЬНЫЙ", rx + rw - 63.f, ry + 135.f, 11.2f, Color4::rgba(222, 234, 248));
+        addHit(LACT_RESET_LOCAL_IP, 0, rx + rw - 108.f, ry + 126.f, 90.f, 34.f);
+
+        // Пресет качества графики
+        ui.drawText("ПРЕСЕТ КАЧЕСТВА ГРАФИКИ DIRECTX 11:", rx + 18.f, ry + 174.f, 11.2f, Color4::rgba(164, 182, 204));
+        const char* qNames[4] = {"НИЗКИЕ", "СРЕДНИЕ", "ВЫСОКИЕ", "КИНО"};
         for (int q = 0; q < 4; ++q) {
-            bool act = (cfg.qualityPreset == q);
-            drawButton(dc, LACT_QUALITY, q, {208 + q * 118, 361, 208 + q * 118 + 110, 391}, qNames[q], fontSmall,
-                       act ? RGB(52, 92, 138) : RGB(24, 31, 44),
-                       act ? RGB(30, 56, 88)  : RGB(16, 21, 30),
-                       act ? RGB(130, 204, 255) : RGB(62, 76, 96), RGB(255, 255, 255));
+            float qx = rx + 18.f + q * 82.f;
+            bool sel = (cfg.qualityPreset == q);
+            bool hov = isHover(qx, ry + 194.f, 76.f, 32.f);
+            ui.drawPanel(qx, ry + 194.f, 76.f, 32.f,
+                         sel ? Color4::rgba(198, 142, 32) : (hov ? Color4::rgba(36, 48, 66) : Color4::rgba(20, 26, 36)),
+                         sel ? Color4::rgba(142, 96, 16)  : Color4::rgba(14, 18, 26),
+                         sel ? Color4::rgba(255, 218, 112): Color4::rgba(66, 82, 104));
+            ui.drawTextCentered(qNames[q], qx + 38.f, ry + 202.f, 11.6f, Color4(1, 1, 1, 1));
+            addHit(LACT_QUALITY, q, qx, ry + 194.f, 76.f, 32.f);
         }
 
-        ::SelectObject(dc, fontBold);
-        ::SetTextColor(dc, RGB(238, 244, 252));
-        ::TextOutW(dc, 38, 412, L"РЕЖИМ ЭКРАНА:", 13);
-        const wchar_t* dNames[3] = {L"БЕЗРАМОЧНЫЙ", L"ОКНО 1600×900", L"ОКНО 1280×720"};
+        // Режим окна
+        ui.drawText("РЕЖИМ ОТОБРАЖЕНИЯ ЭКРАНА:", rx + 18.f, ry + 240.f, 11.2f, Color4::rgba(164, 182, 204));
+        const char* dNames[3] = {"БЕЗ РАМКИ", "1600×900", "1280×720"};
         for (int d = 0; d < 3; ++d) {
-            bool act = (cfg.displayMode == d);
-            drawButton(dc, LACT_DISPLAY, d, {208 + d * 156, 407, 208 + d * 156 + 148, 437}, dNames[d], fontSmall,
-                       act ? RGB(52, 92, 138) : RGB(24, 31, 44),
-                       act ? RGB(30, 56, 88)  : RGB(16, 21, 30),
-                       act ? RGB(130, 204, 255) : RGB(62, 76, 96), RGB(255, 255, 255));
+            float dx = rx + 18.f + d * 110.f;
+            bool sel = (cfg.displayMode == d);
+            bool hov = isHover(dx, ry + 260.f, 104.f, 32.f);
+            ui.drawPanel(dx, ry + 260.f, 104.f, 32.f,
+                         sel ? Color4::rgba(46, 86, 128) : (hov ? Color4::rgba(34, 46, 64) : Color4::rgba(20, 26, 36)),
+                         sel ? Color4::rgba(28, 54, 84)  : Color4::rgba(14, 18, 26),
+                         sel ? Color4::rgba(122, 198, 255): Color4::rgba(66, 82, 104));
+            ui.drawTextCentered(dNames[d], dx + 52.f, ry + 268.f, 11.6f, Color4(1, 1, 1, 1));
+            addHit(LACT_DISPLAY, d, dx, ry + 260.f, 104.f, 32.f);
         }
 
-        // Чекбоксы рендера справа
-        auto optToggle = [&](int id, int x, int y, int w, const wchar_t* label, bool on) {
-            drawButton(dc, id, 0, {x, y, x + w, y + 30}, label, fontSmall,
-                       on ? RGB(36, 84, 62) : RGB(26, 30, 40),
-                       on ? RGB(22, 54, 40) : RGB(18, 20, 28),
-                       on ? RGB(106, 214, 148) : RGB(68, 78, 94),
-                       on ? RGB(220, 255, 232) : RGB(178, 188, 204));
+        // Тумблеры опций рендера и звука
+        auto drawToggle = [&](float ty, const char* label, bool on, int actId) {
+            bool hov = isHover(rx + 18.f, ty, rw - 36.f, 36.f);
+            ui.drawPanel(rx + 18.f, ty, rw - 36.f, 36.f,
+                         hov ? Color4::rgba(26, 36, 50, 0.95f) : Color4::rgba(18, 24, 34, 0.92f),
+                         Color4::rgba(13, 18, 26, 0.95f),
+                         on ? Color4::rgba(84, 158, 116, 0.85f) : Color4::rgba(62, 76, 96, 0.7f));
+            ui.drawText(label, rx + 30.f, ty + 9.f, 12.4f, Color4::rgba(226, 234, 246));
+
+            float pillRx = rx + rw - 84.f;
+            ui.drawPanel(pillRx, ty + 7.f, 54.f, 22.f,
+                         on ? Color4::rgba(38, 142, 76) : Color4::rgba(54, 60, 72),
+                         on ? Color4::rgba(24, 98, 50)  : Color4::rgba(36, 40, 50),
+                         on ? Color4::rgba(138, 238, 168): Color4::rgba(96, 106, 122));
+            ui.drawTextCentered(on ? "ВКЛ" : "ВЫКЛ", pillRx + 27.f, ty + 10.f, 10.8f, Color4(1, 1, 1, 1));
+            addHit(actId, 0, rx + 18.f, ty, rw - 36.f, 36.f);
         };
-        optToggle(LACT_TOGGLE_MSAA,    700, 361, 146, cfg.msaaSamples > 1 ? L"✓ MSAA 4X ВКЛ" : L"MSAA ВЫКЛ", cfg.msaaSamples > 1);
-        optToggle(LACT_TOGGLE_SHADOWS, 856, 361, 146, cfg.shadows ? L"✓ ТЕНИ 2048²" : L"ТЕНИ ВЫКЛ", cfg.shadows);
-        optToggle(LACT_TOGGLE_VSYNC,   700, 407, 146, cfg.vsync ? L"✓ VSYNC ВКЛ" : L"VSYNC ВЫКЛ", cfg.vsync);
-        optToggle(LACT_TOGGLE_SOUND,   856, 407, 146, cfg.soundEnabled ? L"✓ ЗВУК ВКЛ" : L"ЗВУК ВЫКЛ", cfg.soundEnabled);
 
-        // Поля ввода Позывного и IP онлайн-сервера
-        ::SelectObject(dc, fontBold);
-        ::SetTextColor(dc, RGB(238, 244, 252));
-        ::TextOutW(dc, 38, 460, L"ПОЗЫВНОЙ:", 9);
+        drawToggle(ry + 308.f, "Аппаратное сглаживание 4x MSAA",  cfg.msaaSamples > 1, LACT_TOGGLE_MSAA);
+        drawToggle(ry + 352.f, "Мягкие каскадные тени PCF 2048²", cfg.shadows,         LACT_TOGGLE_SHADOWS);
+        drawToggle(ry + 396.f, "Вертикальная синхронизация VSync", cfg.vsync,          LACT_TOGGLE_VSYNC);
+        drawToggle(ry + 440.f, "Боевой аудио-синтезатор выстрелов", cfg.soundEnabled,  LACT_TOGGLE_SOUND);
 
-        RECT callRc{142, 455, 348, 487};
-        fillRectCol(dc, callRc, activeEditField == 1 ? RGB(28, 40, 58) : RGB(12, 16, 24));
-        frameRectCol(dc, callRc, activeEditField == 1 ? RGB(248, 202, 86) : RGB(76, 94, 118));
-        std::wstring wCall = utf8ToWide(cfg.callsign) + (activeEditField == 1 ? L"_" : L"");
-        RECT callTxt{152, 455, 342, 487};
-        ::SelectObject(dc, fontBody);
-        ::SetTextColor(dc, RGB(246, 248, 255));
-        ::DrawTextW(dc, wCall.c_str(), -1, &callTxt, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-        buttons.push_back({LACT_EDIT_CALLSIGN, 0, callRc});
+        // =====================================================================
+        // 5. НИЖНИЙ ДОК ПРОГРЕССА И КНОПКА «ИГРАТЬ» (В СТИЛЕ GAIJIN LAUNCHER)
+        // =====================================================================
+        float dockH = 104.f, dockY = fH - dockH;
+        ui.drawPanel(0, dockY, fW, dockH, Color4::rgba(9, 13, 19, 0.95f), Color4::rgba(6, 9, 14, 0.98f), Color4::rgba(68, 86, 112, 0.65f));
+        ui.fillRect(0, dockY, fW, 1.5f, Color4::rgba(228, 174, 58, 0.55f));
 
-        ::SelectObject(dc, fontBold);
-        ::SetTextColor(dc, RGB(238, 244, 252));
-        ::TextOutW(dc, 372, 460, L"IP ОНЛАЙН-СЕРВЕРА:", 18);
+        const char* stHead = "";
+        std::string stDetail;
+        getStatusStrings(stHead, stDetail);
 
-        RECT ipRc{548, 455, 760, 487};
-        fillRectCol(dc, ipRc, activeEditField == 2 ? RGB(28, 40, 58) : RGB(12, 16, 24));
-        frameRectCol(dc, ipRc, activeEditField == 2 ? RGB(248, 202, 86) : RGB(76, 94, 118));
-        std::wstring wIp = utf8ToWide(cfg.serverIp) + (activeEditField == 2 ? L"_" : L"");
-        RECT ipTxt{558, 455, 754, 487};
-        ::SelectObject(dc, fontBody);
-        ::SetTextColor(dc, RGB(142, 232, 174));
-        ::DrawTextW(dc, wIp.c_str(), -1, &ipTxt, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-        buttons.push_back({LACT_EDIT_SERVER_IP, 0, ipRc});
+        Color4 headCol = (phase == PHASE_READY) ? Color4::rgba(126, 232, 158)
+                       : (phase == PHASE_LAUNCHING_GAME ? Color4::rgba(255, 206, 96) : Color4::rgba(132, 204, 255));
+        ui.drawText(stHead, 26.f, dockY + 15.f, 13.8f, headCol);
 
-        ::SelectObject(dc, fontSmall);
-        ::SetTextColor(dc, RGB(164, 180, 202));
-        ::TextOutW(dc, 772, 463, L"(127.0.0.1 = автохост с ботами)", 31);
+        char pctTxt[32];
+        std::snprintf(pctTxt, sizeof(pctTxt), "%d%%", (int)std::round(displayPct));
+        ui.drawTextRight(pctTxt, fW - 298.f, dockY + 14.f, 15.0f, Color4::rgba(244, 224, 156));
 
-        // 4. НИЖНИЙ БАР ЗАГРУЗКИ / ПРОВЕРКИ + БОЛЬШАЯ КРАСНАЯ КНОПКА «ИГРАТЬ» (КАК В WAR THUNDER!)
-        ::SelectObject(dc, fontBody);
-        ::SetTextColor(dc, clientInstalled ? RGB(136, 230, 164) : RGB(246, 208, 106));
-        ::TextOutW(dc, 24, 528, statusText.c_str(), (int)statusText.size());
+        ui.drawText(stDetail.c_str(), 26.f, dockY + 36.f, 12.0f, Color4::rgba(186, 202, 222));
 
-        RECT progBg{22, 558, 742, 586};
-        fillRectCol(dc, progBg, RGB(12, 16, 22));
-        frameRectCol(dc, progBg, RGB(64, 82, 104));
-        int pct = std::clamp(progressPct.load(), 0, 100);
-        if (pct > 0) {
-            int pw = int((progBg.right - progBg.left - 4) * (pct / 100.0));
-            RECT progFill{progBg.left + 2, progBg.top + 2, progBg.left + 2 + pw, progBg.bottom - 2};
-            fillGradV(dc, progFill,
-                      downloading.load() ? RGB(228, 164, 42) : RGB(46, 158, 86),
-                      downloading.load() ? RGB(168, 108, 18) : RGB(26, 104, 54));
+        // Многослойная анимированная полоса прогресса
+        float barX = 26.f, barY = dockY + 64.f, barW = fW - 324.f, barH = 20.f;
+        ui.drawPanel(barX, barY, barW, barH, Color4::rgba(16, 22, 32), Color4::rgba(11, 15, 22), Color4::rgba(64, 82, 106));
+
+        float fillW = std::max(0.f, (barW - 4.f) * clampf(displayPct / 100.f, 0.f, 1.f));
+        if (fillW > 1.f) {
+            Color4 cTop = (phase == PHASE_READY)          ? Color4::rgba(46, 182, 98)
+                        : (phase == PHASE_LAUNCHING_GAME) ? Color4::rgba(238, 92, 48)
+                                                          : Color4::rgba(58, 148, 236);
+            Color4 cBot = (phase == PHASE_READY)          ? Color4::rgba(26, 122, 62)
+                        : (phase == PHASE_LAUNCHING_GAME) ? Color4::rgba(176, 44, 24)
+                                                          : Color4::rgba(32, 92, 168);
+            ui.fillGradV(barX + 2.f, barY + 2.f, fillW, barH - 4.f, cTop, cBot);
+
+            // Бегущий световой блик по полосе во время проверки / запуска
+            if (phase != PHASE_READY && fillW > 48.f) {
+                float pulsePos = std::fmod((float)appTime * 360.f, fillW);
+                float pw = std::min(64.f, fillW - pulsePos);
+                ui.fillRect(barX + 2.f + pulsePos, barY + 2.f, pw, barH - 4.f, Color4(1.f, 1.f, 1.f, 0.24f));
+            }
         }
-        wchar_t pctBuf[32];
-        std::swprintf(pctBuf, 32, L"%d%%", pct);
-        ::SelectObject(dc, fontSmall);
-        ::SetTextColor(dc, RGB(245, 248, 255));
-        ::DrawTextW(dc, pctBuf, -1, &progBg, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 
-        ::SelectObject(dc, fontSmall);
-        ::SetTextColor(dc, RGB(138, 154, 176));
-        ::TextOutW(dc, 24, 598, L"Версия сборки: 1.0.4-win64-dx11  •  Исполняемый файл: bin\\win64\\SteelFrontGame.exe  •  Порт UDP: 27015", 102);
+        // Главная кнопка «ИГРАТЬ»
+        float playW = 256.f, playH = 68.f;
+        float playX = fW - playW - 22.f, playY = dockY + 18.f;
+        bool canPlay = (phase == PHASE_READY);
+        bool hovPlay = canPlay && isHover(playX, playY, playW, playH);
 
-        const wchar_t* playLabel = downloading.load() ? L"ЗАГРУЗКА..."
-                                 : (clientInstalled ? L"ИГРАТЬ" : L"СКАЧАТЬ И ИГРАТЬ");
-        drawButton(dc, LACT_PLAY, 0, {762, 526, 1018, 612}, playLabel, fontPlay,
-                   downloading.load() ? RGB(110, 90, 42) : RGB(218, 44, 34),
-                   downloading.load() ? RGB(74, 60, 28)  : RGB(144, 20, 16),
-                   RGB(255, 162, 132), RGB(255, 255, 255));
+        Color4 pTop = !canPlay ? Color4::rgba(46, 56, 72)
+                    : (hovPlay ? Color4::rgba(242, 68, 48) : Color4::rgba(208, 42, 32));
+        Color4 pBot = !canPlay ? Color4::rgba(30, 38, 50)
+                    : (hovPlay ? Color4::rgba(182, 28, 20) : Color4::rgba(144, 20, 16));
+        Color4 pBrd = !canPlay ? Color4::rgba(92, 112, 138) : Color4::rgba(255, 186, 118);
 
-        ::BitBlt(windowDc, 0, 0, W, H, dc, 0, 0, SRCCOPY);
-        ::SelectObject(dc, oldBm);
-        ::DeleteObject(bm);
-        ::DeleteDC(dc);
+        ui.drawPanel(playX, playY, playW, playH, pTop, pBot, pBrd);
+        const char* playLbl = (phase == PHASE_STARTUP_CHECK)  ? "ПРОВЕРКА..."
+                            : (phase == PHASE_DOWNLOADING)    ? "ЗАГРУЗКА..."
+                            : (phase == PHASE_LAUNCHING_GAME) ? "ЗАПУСК..."
+                            : (clientPresent ? "ИГРАТЬ" : "СКАЧАТЬ");
+        ui.drawTextCentered(playLbl, playX + playW * 0.5f, playY + 14.f, 24.f,
+                            canPlay ? Color4(1, 1, 1, 1) : Color4::rgba(196, 208, 224));
+        ui.drawTextCentered(canPlay ? "DIRECTX 11  •  В АНГАР" : "ПОЖАЛУЙСТА, ПОДОЖДИТЕ",
+                            playX + playW * 0.5f, playY + 46.f, 10.8f,
+                            canPlay ? Color4::rgba(255, 224, 168) : Color4::rgba(148, 164, 186));
+        addHit(LACT_PLAY, 0, playX, playY, playW, playH);
+
+        ui.flush(gfx.width, gfx.height);
     }
 
-    void onClick(int x, int y) {
+    bool handleUiClick(float mx, float my) {
         activeEditField = 0;
-        for (const auto& b : buttons) {
-            if (!b.contains(x, y)) continue;
+        for (int i = (int)hitBoxes.size() - 1; i >= 0; --i) {
+            if (!hitBoxes[i].contains(mx, my)) continue;
+            const auto& b = hitBoxes[i];
             switch (b.id) {
                 case LACT_CLOSE:
                     cfg.save();
+                    running = false;
                     ::PostQuitMessage(0);
-                    break;
+                    return true;
                 case LACT_MINIMIZE:
                     ::ShowWindow(hwnd, SW_MINIMIZE);
-                    break;
+                    return true;
                 case LACT_QUALITY:
                     cfg.qualityPreset = b.param;
-                    cfg.msaaSamples = (b.param >= 2) ? 4 : 1;
                     cfg.shadows = (b.param >= 1);
+                    cfg.msaaSamples = (b.param >= 2) ? 4 : 1;
                     cfg.save();
-                    break;
+                    return true;
                 case LACT_DISPLAY:
                     cfg.displayMode = b.param;
                     cfg.save();
-                    break;
+                    return true;
                 case LACT_TOGGLE_MSAA:
                     cfg.msaaSamples = (cfg.msaaSamples > 1) ? 1 : 4;
                     cfg.save();
-                    break;
+                    return true;
                 case LACT_TOGGLE_SHADOWS:
                     cfg.shadows = !cfg.shadows;
                     cfg.save();
-                    break;
+                    return true;
                 case LACT_TOGGLE_VSYNC:
                     cfg.vsync = !cfg.vsync;
                     cfg.save();
-                    break;
+                    return true;
                 case LACT_TOGGLE_SOUND:
                     cfg.soundEnabled = !cfg.soundEnabled;
                     cfg.save();
-                    break;
+                    return true;
                 case LACT_EDIT_CALLSIGN:
                     activeEditField = 1;
-                    break;
+                    return true;
                 case LACT_EDIT_SERVER_IP:
                     activeEditField = 2;
-                    break;
-                case LACT_VERIFY_UPDATE:
-                    startDownloadAndOptionalLaunch(false);
-                    break;
-                case LACT_START_SERVER:
-                    launchDedicatedServer();
-                    break;
-                case LACT_OPEN_DAGOR_DIR:
-                    if (::GetFileAttributesA("dagor_engine_mod") != INVALID_FILE_ATTRIBUTES) {
-                        ::ShellExecuteW(hwnd, L"open", L"dagor_engine_mod", nullptr, nullptr, SW_SHOWNORMAL);
-                    } else {
-                        ::ShellExecuteW(hwnd, L"open", L"https://github.com/hhdrhkvcd/serbia_MOD/tree/arena/2571b3b1-serbia-mod/dagor_engine_mod", nullptr, nullptr, SW_SHOWNORMAL);
+                    return true;
+                case LACT_RESET_LOCAL_IP:
+                    std::snprintf(cfg.serverIp, sizeof(cfg.serverIp), "127.0.0.1");
+                    cfg.save();
+                    return true;
+                case LACT_VERIFY_FILES:
+                    if (phase == PHASE_READY) {
+                        checkLocalFiles();
+                        if (!clientPresent) {
+                            startAsyncCdnDownload(true);
+                        } else {
+                            phase = PHASE_STARTUP_CHECK;
+                            phaseTimer = 0.f;
+                            displayPct = 0.f;
+                        }
                     }
-                    break;
+                    return true;
+                case LACT_START_SERVER:
+                    startDedicatedServer();
+                    return true;
+                case LACT_OPEN_DAGOR_DIR:
+                    ::ShellExecuteW(hwnd, L"explore", L"dagor_engine_mod", nullptr, nullptr, SW_SHOWNORMAL);
+                    return true;
+                case LACT_PREV_SHOWCASE:
+                    showcasePos = (showcasePos + (int)showcaseVehIndices.size() - 1) % (int)showcaseVehIndices.size();
+                    return true;
+                case LACT_NEXT_SHOWCASE:
+                    showcasePos = (showcasePos + 1) % (int)showcaseVehIndices.size();
+                    return true;
+                case LACT_CYCLE_CAMO:
+                    showcaseCamo = (showcaseCamo + 1) % (int)getCamouflages().size();
+                    return true;
                 case LACT_PLAY:
-                    launchGameExe();
-                    break;
+                    beginLaunchSequence();
+                    return true;
             }
-            ::InvalidateRect(hwnd, nullptr, FALSE);
-            return;
         }
-        ::InvalidateRect(hwnd, nullptr, FALSE);
+        return false;
     }
 
-    void onCharInput(wchar_t ch) {
-        if (activeEditField == 0) return;
+    void onCharInput(wchar_t wc) {
+        if (activeEditField == 0) {
+            if (wc == L'\r') beginLaunchSequence();
+            return;
+        }
         char* target = (activeEditField == 1) ? cfg.callsign : cfg.serverIp;
-        size_t maxLen = (activeEditField == 1) ? (sizeof(cfg.callsign) - 1) : (sizeof(cfg.serverIp) - 1);
-        std::string cur(target);
+        size_t maxLen = (activeEditField == 1) ? 24 : 42;
+        size_t len = std::strlen(target);
 
-        if (ch == L'\b') {
-            while (!cur.empty() && ((uint8_t)cur.back() & 0xC0) == 0x80) cur.pop_back();
-            if (!cur.empty()) cur.pop_back();
-        } else if (ch == L'\r' || ch == L'\x1B') {
+        if (wc == L'\b') {
+            while (len > 0) {
+                uint8_t c = (uint8_t)target[--len];
+                target[len] = 0;
+                if ((c & 0xC0) != 0x80) break;
+            }
+        } else if (wc == L'\r' || wc == L'\x1B') {
             activeEditField = 0;
-        } else if (ch >= 32) {
-            if (activeEditField == 2) {
-                // Для IP-адреса разрешаем цифры, точки и буквы хоста
-                if ((ch >= L'0' && ch <= L'9') || ch == L'.' || (ch >= L'a' && ch <= L'z') || (ch >= L'A' && ch <= L'Z') || ch == L'-') {
-                    if (cur.size() + 1 < maxLen) cur.push_back((char)ch);
-                }
-            } else {
-                char u8[8] = {};
-                int n = ::WideCharToMultiByte(CP_UTF8, 0, &ch, 1, u8, sizeof(u8), nullptr, nullptr);
-                if (n > 0 && cur.size() + n < maxLen) cur.append(u8, n);
+            cfg.save();
+        } else if (wc >= 32) {
+            if (activeEditField == 2 && !((wc >= L'0' && wc <= L'9') || wc == L'.')) return;
+            char utf8[8] = {};
+            int n = ::WideCharToMultiByte(CP_UTF8, 0, &wc, 1, utf8, sizeof(utf8), nullptr, nullptr);
+            if (len + n < maxLen) {
+                std::memcpy(target + len, utf8, n);
+                target[len + n] = 0;
             }
         }
-        std::snprintf(target, maxLen + 1, "%s", cur.c_str());
-        cfg.save();
-        ::InvalidateRect(hwnd, nullptr, FALSE);
+    }
+
+    void shutdown() {
+        for (auto& m : showcaseModels) m.release();
+        escortModelA.release();
+        escortModelB.release();
+        env.release();
+        ui.shutdown();
+        gfx.shutdown();
     }
 };
 
-static LauncherApp gLauncher;
+static D3DLauncherApp gLauncher;
 
 static LRESULT CALLBACK LauncherWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
-        case WM_ERASEBKGND:
-            return 1;
-        case WM_PAINT: {
-            PAINTSTRUCT ps{};
-            HDC dc = ::BeginPaint(hWnd, &ps);
-            gLauncher.paint(dc);
-            ::EndPaint(hWnd, &ps);
-            return 0;
-        }
         case WM_MOUSEMOVE:
-            gLauncher.mouseX = GET_X_LPARAM(lParam);
-            gLauncher.mouseY = GET_Y_LPARAM(lParam);
-            ::InvalidateRect(hWnd, nullptr, FALSE);
-            return 0;
-        case WM_NCHITTEST: {
-            POINT pt{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
-            ::ScreenToClient(hWnd, &pt);
-            // Перетаскивание окна за шапку лаунчера (кроме кнопок справа)
-            if (pt.y >= 0 && pt.y <= 50 && pt.x < 540) {
-                return HTCAPTION;
+            gLauncher.mouseX = (float)GET_X_LPARAM(lParam);
+            gLauncher.mouseY = (float)GET_Y_LPARAM(lParam);
+            if (gLauncher.dragging3D) {
+                int dx = GET_X_LPARAM(lParam) - gLauncher.lastDragPt.x;
+                int dy = GET_Y_LPARAM(lParam) - gLauncher.lastDragPt.y;
+                gLauncher.camYaw   = wrapAngle(gLauncher.camYaw + dx * 0.0065f);
+                gLauncher.camPitch = clampf(gLauncher.camPitch + dy * 0.005f, 0.06f, 0.62f);
+                gLauncher.lastDragPt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
             }
-            return HTCLIENT;
-        }
-        case WM_LBUTTONDOWN:
-            gLauncher.onClick(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
             return 0;
+        case WM_LBUTTONDOWN: {
+            float mx = (float)GET_X_LPARAM(lParam);
+            float my = (float)GET_Y_LPARAM(lParam);
+            gLauncher.mouseX = mx;
+            gLauncher.mouseY = my;
+            if (gLauncher.handleUiClick(mx, my)) return 0;
+
+            // Перетаскивание окна за свободную зону верхней шапки
+            if (my < 52.f) {
+                ::ReleaseCapture();
+                ::SendMessageW(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+                return 0;
+            }
+
+            // Вращение 3D-танка прямо в фоне лаунчера!
+            gLauncher.dragging3D = true;
+            gLauncher.lastDragPt = {(LONG)mx, (LONG)my};
+            ::SetCapture(hWnd);
+            return 0;
+        }
+        case WM_RBUTTONDOWN:
+            gLauncher.dragging3D = true;
+            gLauncher.lastDragPt = {GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+            ::SetCapture(hWnd);
+            return 0;
+        case WM_LBUTTONUP:
+        case WM_RBUTTONUP:
+            if (gLauncher.dragging3D) {
+                gLauncher.dragging3D = false;
+                ::ReleaseCapture();
+            }
+            return 0;
+        case WM_MOUSEWHEEL: {
+            float steps = float(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA;
+            gLauncher.camDist = clampf(gLauncher.camDist - steps * 0.55f, 5.4f, 12.0f);
+            return 0;
+        }
         case WM_CHAR:
             gLauncher.onCharInput((wchar_t)wParam);
             return 0;
-        case WM_USER + 10:
-            gLauncher.launchGameExe();
-            return 0;
         case WM_DESTROY:
+            gLauncher.running = false;
             ::PostQuitMessage(0);
             return 0;
     }
@@ -677,28 +944,55 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int) {
     wc.lpfnWndProc = LauncherWndProc;
     wc.hInstance = hInst;
     wc.hCursor = ::LoadCursor(nullptr, IDC_ARROW);
-    wc.lpszClassName = L"SteelFrontGaijinLauncher";
+    wc.lpszClassName = L"SteelFrontDX11Launcher";
     ::RegisterClassExW(&wc);
 
-    int sx = (::GetSystemMetrics(SM_CXSCREEN) - LauncherApp::W) / 2;
-    int sy = (::GetSystemMetrics(SM_CYSCREEN) - LauncherApp::H) / 2;
-    HWND hwnd = ::CreateWindowExW(0, wc.lpszClassName, L"Steel Front: Online — Launcher",
-                                  WS_POPUP | WS_MINIMIZEBOX | WS_SYSMENU | WS_VISIBLE,
-                                  std::max(0, sx), std::max(0, sy), LauncherApp::W, LauncherApp::H,
+    int sx = (::GetSystemMetrics(SM_CXSCREEN) - D3DLauncherApp::W) / 2;
+    int sy = (::GetSystemMetrics(SM_CYSCREEN) - D3DLauncherApp::H) / 2;
+    HWND hwnd = ::CreateWindowExW(0, wc.lpszClassName, L"Steel Front: Online — Лаунчер",
+                                  WS_POPUP | WS_VISIBLE,
+                                  std::max(0, sx), std::max(0, sy),
+                                  D3DLauncherApp::W, D3DLauncherApp::H,
                                   nullptr, nullptr, hInst, nullptr);
     if (!hwnd) return 1;
 
-    // Скруглённые углы окна в Windows 11 (DWMWCP_ROUND = 2)
-    DWORD roundPref = 2;
+    BOOL dark = TRUE;
+    ::DwmSetWindowAttribute(hwnd, 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/, &dark, sizeof(dark));
+    DWORD roundPref = 2; /*DWMWCP_ROUND (Windows 11 скруглённые углы окна)*/
     ::DwmSetWindowAttribute(hwnd, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, &roundPref, sizeof(roundPref));
 
-    gLauncher.init(hwnd);
-    ::InvalidateRect(hwnd, nullptr, FALSE);
+    if (!gLauncher.init(hwnd)) {
+        ::MessageBoxW(hwnd, L"Не удалось инициализировать DirectX 11 для лаунчера!", L"Steel Front Launcher", MB_ICONERROR);
+        return 1;
+    }
+
+    LARGE_INTEGER freq{}, prev{};
+    ::QueryPerformanceFrequency(&freq);
+    ::QueryPerformanceCounter(&prev);
 
     MSG msg{};
-    while (::GetMessageW(&msg, nullptr, 0, 0)) {
-        ::TranslateMessage(&msg);
-        ::DispatchMessageW(&msg);
+    while (gLauncher.running) {
+        while (::PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT) gLauncher.running = false;
+            ::TranslateMessage(&msg);
+            ::DispatchMessageW(&msg);
+        }
+        if (!gLauncher.running) break;
+
+        LARGE_INTEGER now{};
+        ::QueryPerformanceCounter(&now);
+        float dt = float(double(now.QuadPart - prev.QuadPart) / double(freq.QuadPart));
+        prev = now;
+        dt = clampf(dt, 0.0005f, 0.08f);
+
+        gLauncher.update(dt);
+        if (!gLauncher.running) break;
+
+        gLauncher.render3DShowcase();
+        gLauncher.renderLauncherUi();
+        gLauncher.gfx.present();
     }
+
+    gLauncher.shutdown();
     return 0;
 }

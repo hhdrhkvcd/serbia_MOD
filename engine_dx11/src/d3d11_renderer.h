@@ -18,6 +18,8 @@ struct Vertex3D {
     float nx, ny, nz;
     float r, g, b, a;
     // mx=roughness, my=metallic, mz=matTag, mw=ao
+    // matTag: 0=terrain, 1=paintedArmor, 2=rubberTrack, 3=gunmetalSteel,
+    //         4=concreteAsphalt, 5=foliageWood, 6=emissive, 7=eraBrick, 8=xrayModule, 9=skyDome
     float mx, my, mz, mw;
 };
 
@@ -60,7 +62,7 @@ struct MeshBuilder {
         addTri(i0, i2, i3);
     }
 
-    // Скошенный (фасочный) 3D-блок для реалистичных бронеплит, ДЗ и деталей без угловатых «кубиков»
+    // Скошенный (фасочный) 3D-блок с микро-AO на нижних гранях
     void addChamferBox(const Vec3& center, const Vec3& halfExt, float bevel,
                        const Vec4& col, float rough, float metal, float tag, float ao = 1.f,
                        const Mat4* localXf = nullptr) {
@@ -74,72 +76,67 @@ struct MeshBuilder {
             return localXf ? localXf->transformPoint(p) : p;
         };
 
-        auto emitBoxFaces = [&](const Vec3& h0, const Vec3& h1) {
-            // 6 основных граней + 12 фасочных переходов
-            // Верх и низ
-            addQuad(xfP({-h0.x,  h1.y, -h0.z}), xfP({-h0.x,  h1.y,  h0.z}), xfP({ h0.x,  h1.y,  h0.z}), xfP({ h0.x,  h1.y, -h0.z}), col, rough, metal, tag, ao);
-            addQuad(xfP({-h0.x, -h1.y,  h0.z}), xfP({-h0.x, -h1.y, -h0.z}), xfP({ h0.x, -h1.y, -h0.z}), xfP({ h0.x, -h1.y,  h0.z}), col, rough, metal, tag, ao * 0.7f);
-            // Перед (-Z) и корма (+Z)
-            addQuad(xfP({-h0.x, -h0.y, -h1.z}), xfP({-h0.x,  h0.y, -h1.z}), xfP({ h0.x,  h0.y, -h1.z}), xfP({ h0.x, -h0.y, -h1.z}), col, rough, metal, tag, ao);
-            addQuad(xfP({ h0.x, -h0.y,  h1.z}), xfP({ h0.x,  h0.y,  h1.z}), xfP({-h0.x,  h0.y,  h1.z}), xfP({-h0.x, -h0.y,  h1.z}), col, rough, metal, tag, ao);
-            // Левый (-X) и правый (+X) борта
-            addQuad(xfP({-h1.x, -h0.y,  h0.z}), xfP({-h1.x,  h0.y,  h0.z}), xfP({-h1.x,  h0.y, -h0.z}), xfP({-h1.x, -h0.y, -h0.z}), col, rough, metal, tag, ao);
-            addQuad(xfP({ h1.x, -h0.y, -h0.z}), xfP({ h1.x,  h0.y, -h0.z}), xfP({ h1.x,  h0.y,  h0.z}), xfP({ h1.x, -h0.y,  h0.z}), col, rough, metal, tag, ao);
+        const Vec3& h0 = inH;
+        const Vec3& h1 = halfExt;
 
-            if (bevel > 1e-4f) {
-                // Верхние фаски (4)
-                addQuad(xfP({-h0.x, h0.y, -h1.z}), xfP({-h0.x, h1.y, -h0.z}), xfP({ h0.x, h1.y, -h0.z}), xfP({ h0.x, h0.y, -h1.z}), col, rough, metal, tag, ao);
-                addQuad(xfP({ h0.x, h0.y,  h1.z}), xfP({ h0.x, h1.y,  h0.z}), xfP({-h0.x, h1.y,  h0.z}), xfP({-h0.x, h0.y,  h1.z}), col, rough, metal, tag, ao);
-                addQuad(xfP({-h1.x, h0.y,  h0.z}), xfP({-h0.x, h1.y,  h0.z}), xfP({-h0.x, h1.y, -h0.z}), xfP({-h1.x, h0.y, -h0.z}), col, rough, metal, tag, ao);
-                addQuad(xfP({ h1.x, h0.y, -h0.z}), xfP({ h0.x, h1.y, -h0.z}), xfP({ h0.x, h1.y,  h0.z}), xfP({ h1.x, h0.y,  h0.z}), col, rough, metal, tag, ao);
-                // Боковые вертикальные фаски (4)
-                addQuad(xfP({-h1.x, -h0.y, -h0.z}), xfP({-h1.x,  h0.y, -h0.z}), xfP({-h0.x,  h0.y, -h1.z}), xfP({-h0.x, -h0.y, -h1.z}), col, rough, metal, tag, ao);
-                addQuad(xfP({ h0.x, -h0.y, -h1.z}), xfP({ h0.x,  h0.y, -h1.z}), xfP({ h1.x,  h0.y, -h0.z}), xfP({ h1.x, -h0.y, -h0.z}), col, rough, metal, tag, ao);
-                addQuad(xfP({ h1.x, -h0.y,  h0.z}), xfP({ h1.x,  h0.y,  h0.z}), xfP({ h0.x,  h0.y,  h1.z}), xfP({ h0.x, -h0.y,  h1.z}), col, rough, metal, tag, ao);
-                addQuad(xfP({-h0.x, -h0.y,  h1.z}), xfP({-h0.x,  h0.y,  h1.z}), xfP({-h1.x,  h0.y,  h0.z}), xfP({-h1.x, -h0.y,  h0.z}), col, rough, metal, tag, ao);
-                // Нижние фаски (4)
-                addQuad(xfP({-h0.x, -h1.y, -h0.z}), xfP({-h0.x, -h0.y, -h1.z}), xfP({ h0.x, -h0.y, -h1.z}), xfP({ h0.x, -h1.y, -h0.z}), col, rough, metal, tag, ao * 0.8f);
-                addQuad(xfP({ h0.x, -h1.y,  h0.z}), xfP({ h0.x, -h0.y,  h1.z}), xfP({-h0.x, -h0.y,  h1.z}), xfP({-h0.x, -h1.y,  h0.z}), col, rough, metal, tag, ao * 0.8f);
-                addQuad(xfP({-h0.x, -h1.y,  h0.z}), xfP({-h1.x, -h0.y,  h0.z}), xfP({-h1.x, -h0.y, -h0.z}), xfP({-h0.x, -h1.y, -h0.z}), col, rough, metal, tag, ao * 0.8f);
-                addQuad(xfP({ h0.x, -h1.y, -h0.z}), xfP({ h1.x, -h0.y, -h0.z}), xfP({ h1.x, -h0.y,  h0.z}), xfP({ h0.x, -h1.y,  h0.z}), col, rough, metal, tag, ao * 0.8f);
-                // 8 угловых треугольников
-                uint32_t c0 = addVert(xfP({-h0.x, h1.y, -h0.z}), Vec3(-1,1,-1).normalized(), col, rough, metal, tag, ao);
-                uint32_t c1 = addVert(xfP({-h1.x, h0.y, -h0.z}), Vec3(-1,1,-1).normalized(), col, rough, metal, tag, ao);
-                uint32_t c2 = addVert(xfP({-h0.x, h0.y, -h1.z}), Vec3(-1,1,-1).normalized(), col, rough, metal, tag, ao);
-                addTri(c1, c0, c2);
+        // Верх и низ
+        addQuad(xfP({-h0.x,  h1.y, -h0.z}), xfP({-h0.x,  h1.y,  h0.z}), xfP({ h0.x,  h1.y,  h0.z}), xfP({ h0.x,  h1.y, -h0.z}), col, rough, metal, tag, ao);
+        addQuad(xfP({-h0.x, -h1.y,  h0.z}), xfP({-h0.x, -h1.y, -h0.z}), xfP({ h0.x, -h1.y, -h0.z}), xfP({ h0.x, -h1.y,  h0.z}), col, rough, metal, tag, ao * 0.55f);
+        // Перед (-Z) и корма (+Z)
+        addQuad(xfP({-h0.x, -h0.y, -h1.z}), xfP({-h0.x,  h0.y, -h1.z}), xfP({ h0.x,  h0.y, -h1.z}), xfP({ h0.x, -h0.y, -h1.z}), col, rough, metal, tag, ao * 0.96f);
+        addQuad(xfP({ h0.x, -h0.y,  h1.z}), xfP({ h0.x,  h0.y,  h1.z}), xfP({-h0.x,  h0.y,  h1.z}), xfP({-h0.x, -h0.y,  h1.z}), col, rough, metal, tag, ao * 0.92f);
+        // Левый (-X) и правый (+X) борта
+        addQuad(xfP({-h1.x, -h0.y,  h0.z}), xfP({-h1.x,  h0.y,  h0.z}), xfP({-h1.x,  h0.y, -h0.z}), xfP({-h1.x, -h0.y, -h0.z}), col, rough, metal, tag, ao * 0.95f);
+        addQuad(xfP({ h1.x, -h0.y, -h0.z}), xfP({ h1.x,  h0.y, -h0.z}), xfP({ h1.x,  h0.y,  h0.z}), xfP({ h1.x, -h0.y,  h0.z}), col, rough, metal, tag, ao * 0.95f);
 
-                c0 = addVert(xfP({ h0.x, h1.y, -h0.z}), Vec3(1,1,-1).normalized(), col, rough, metal, tag, ao);
-                c1 = addVert(xfP({ h0.x, h0.y, -h1.z}), Vec3(1,1,-1).normalized(), col, rough, metal, tag, ao);
-                c2 = addVert(xfP({ h1.x, h0.y, -h0.z}), Vec3(1,1,-1).normalized(), col, rough, metal, tag, ao);
-                addTri(c1, c0, c2);
+        if (bevel > 1e-4f) {
+            float edgeRough = std::max(0.22f, rough * 0.82f); // лёгкий блик на фасках брони
+            addQuad(xfP({-h0.x, h0.y, -h1.z}), xfP({-h0.x, h1.y, -h0.z}), xfP({ h0.x, h1.y, -h0.z}), xfP({ h0.x, h0.y, -h1.z}), col, edgeRough, metal, tag, ao);
+            addQuad(xfP({ h0.x, h0.y,  h1.z}), xfP({ h0.x, h1.y,  h1.z}), xfP({-h0.x, h1.y,  h1.z}), xfP({-h0.x, h0.y,  h1.z}), col, edgeRough, metal, tag, ao);
+            addQuad(xfP({-h1.x, h0.y,  h0.z}), xfP({-h0.x, h1.y,  h0.z}), xfP({-h0.x, h1.y, -h0.z}), xfP({-h1.x, h0.y, -h0.z}), col, edgeRough, metal, tag, ao);
+            addQuad(xfP({ h1.x, h0.y, -h0.z}), xfP({ h0.x, h1.y, -h0.z}), xfP({ h0.x, h1.y,  h0.z}), xfP({ h1.x, h0.y,  h0.z}), col, edgeRough, metal, tag, ao);
 
-                c0 = addVert(xfP({ h0.x, h1.y,  h0.z}), Vec3(1,1,1).normalized(), col, rough, metal, tag, ao);
-                c1 = addVert(xfP({ h1.x, h0.y,  h0.z}), Vec3(1,1,1).normalized(), col, rough, metal, tag, ao);
-                c2 = addVert(xfP({ h0.x, h0.y,  h1.z}), Vec3(1,1,1).normalized(), col, rough, metal, tag, ao);
-                addTri(c1, c0, c2);
+            addQuad(xfP({-h1.x, -h0.y, -h0.z}), xfP({-h1.x,  h0.y, -h0.z}), xfP({-h0.x,  h0.y, -h1.z}), xfP({-h0.x, -h0.y, -h1.z}), col, edgeRough, metal, tag, ao);
+            addQuad(xfP({ h0.x, -h0.y, -h1.z}), xfP({ h0.x,  h0.y, -h1.z}), xfP({ h1.x,  h0.y, -h0.z}), xfP({ h1.x, -h0.y, -h0.z}), col, edgeRough, metal, tag, ao);
+            addQuad(xfP({ h1.x, -h0.y,  h0.z}), xfP({ h1.x,  h0.y,  h0.z}), xfP({ h0.x,  h0.y,  h1.z}), xfP({ h0.x, -h0.y,  h1.z}), col, edgeRough, metal, tag, ao);
+            addQuad(xfP({-h0.x, -h0.y,  h1.z}), xfP({-h0.x,  h0.y,  h1.z}), xfP({-h1.x,  h0.y,  h0.z}), xfP({-h1.x, -h0.y,  h0.z}), col, edgeRough, metal, tag, ao);
 
-                c0 = addVert(xfP({-h0.x, h1.y,  h0.z}), Vec3(-1,1,1).normalized(), col, rough, metal, tag, ao);
-                c1 = addVert(xfP({-h0.x, h0.y,  h1.z}), Vec3(-1,1,1).normalized(), col, rough, metal, tag, ao);
-                c2 = addVert(xfP({-h1.x, h0.y,  h0.z}), Vec3(-1,1,1).normalized(), col, rough, metal, tag, ao);
-                addTri(c1, c0, c2);
-            }
-        };
-        emitBoxFaces(inH, halfExt);
+            addQuad(xfP({-h0.x, -h1.y, -h0.z}), xfP({-h0.x, -h0.y, -h1.z}), xfP({ h0.x, -h0.y, -h1.z}), xfP({ h0.x, -h1.y, -h0.z}), col, rough, metal, tag, ao * 0.7f);
+            addQuad(xfP({ h0.x, -h1.y,  h0.z}), xfP({ h0.x, -h0.y,  h1.z}), xfP({-h0.x, -h0.y,  h1.z}), xfP({-h0.x, -h1.y,  h0.z}), col, rough, metal, tag, ao * 0.7f);
+            addQuad(xfP({-h0.x, -h1.y,  h0.z}), xfP({-h1.x, -h0.y,  h0.z}), xfP({-h1.x, -h0.y, -h0.z}), xfP({-h0.x, -h1.y, -h0.z}), col, rough, metal, tag, ao * 0.7f);
+            addQuad(xfP({ h0.x, -h1.y, -h0.z}), xfP({ h1.x, -h0.y, -h0.z}), xfP({ h1.x, -h0.y,  h0.z}), xfP({ h0.x, -h1.y,  h0.z}), col, rough, metal, tag, ao * 0.7f);
+
+            uint32_t c0 = addVert(xfP({-h0.x, h1.y, -h0.z}), Vec3(-1,1,-1).normalized(), col, edgeRough, metal, tag, ao);
+            uint32_t c1 = addVert(xfP({-h1.x, h0.y, -h0.z}), Vec3(-1,1,-1).normalized(), col, edgeRough, metal, tag, ao);
+            uint32_t c2 = addVert(xfP({-h0.x, h0.y, -h1.z}), Vec3(-1,1,-1).normalized(), col, edgeRough, metal, tag, ao);
+            addTri(c1, c0, c2);
+
+            c0 = addVert(xfP({ h0.x, h1.y, -h0.z}), Vec3(1,1,-1).normalized(), col, edgeRough, metal, tag, ao);
+            c1 = addVert(xfP({ h0.x, h0.y, -h1.z}), Vec3(1,1,-1).normalized(), col, edgeRough, metal, tag, ao);
+            c2 = addVert(xfP({ h1.x, h0.y, -h0.z}), Vec3(1,1,-1).normalized(), col, edgeRough, metal, tag, ao);
+            addTri(c1, c0, c2);
+
+            c0 = addVert(xfP({ h0.x, h1.y,  h0.z}), Vec3(1,1,1).normalized(), col, edgeRough, metal, tag, ao);
+            c1 = addVert(xfP({ h1.x, h0.y,  h0.z}), Vec3(1,1,1).normalized(), col, edgeRough, metal, tag, ao);
+            c2 = addVert(xfP({ h0.x, h0.y,  h1.z}), Vec3(1,1,1).normalized(), col, edgeRough, metal, tag, ao);
+            addTri(c1, c0, c2);
+
+            c0 = addVert(xfP({-h0.x, h1.y,  h0.z}), Vec3(-1,1,1).normalized(), col, edgeRough, metal, tag, ao);
+            c1 = addVert(xfP({-h0.x, h0.y,  h1.z}), Vec3(-1,1,1).normalized(), col, edgeRough, metal, tag, ao);
+            c2 = addVert(xfP({-h1.x, h0.y,  h0.z}), Vec3(-1,1,1).normalized(), col, edgeRough, metal, tag, ao);
+            addTri(c1, c0, c2);
+        }
     }
 
-    // Произвольная 8-вершинная трапециевидная призма (клинья ВЛД/НЛД, скулы башни, скошенные борта)
     void addPrism8(const Vec3 v[8], const Vec4& col, float rough, float metal, float tag, float ao = 1.f) {
-        // v0..v3 нижний контур (-x-z, +x-z, +x+z, -x+z), v4..v7 верхний контур (-x-z, +x-z, +x+z, -x+z)
-        addQuad(v[4], v[7], v[6], v[5], col, rough, metal, tag, ao);        // top
-        addQuad(v[0], v[1], v[2], v[3], col, rough, metal, tag, ao * 0.7f); // bottom
-        addQuad(v[0], v[4], v[5], v[1], col, rough, metal, tag, ao);        // front (-Z)
-        addQuad(v[2], v[6], v[7], v[3], col, rough, metal, tag, ao);        // rear (+Z)
-        addQuad(v[3], v[7], v[4], v[0], col, rough, metal, tag, ao);        // left (-X)
-        addQuad(v[1], v[5], v[6], v[2], col, rough, metal, tag, ao);        // right (+X)
+        addQuad(v[4], v[7], v[6], v[5], col, rough, metal, tag, ao);
+        addQuad(v[0], v[1], v[2], v[3], col, rough, metal, tag, ao * 0.55f);
+        addQuad(v[0], v[4], v[5], v[1], col, rough, metal, tag, ao * 0.98f);
+        addQuad(v[2], v[6], v[7], v[3], col, rough, metal, tag, ao * 0.92f);
+        addQuad(v[3], v[7], v[4], v[0], col, rough, metal, tag, ao * 0.95f);
+        addQuad(v[1], v[5], v[6], v[2], col, rough, metal, tag, ao * 0.95f);
     }
 
-    // Сглаженный цилиндр / усечённый конус (ствол, эжектор, катки, топливные бочки, дымовые гранатомёты)
-    // axis: 0=X (ось катков), 1=Y (вертикальные турели/люки), 2=Z (ствол орудия)
     void addCylinder(const Vec3& center, float r0, float r1, float length, int segs, int axis,
                      const Vec4& col, float rough, float metal, float tag, float ao = 1.f,
                      bool caps = true, const Mat4* localXf = nullptr) {
@@ -199,7 +196,6 @@ struct MeshBuilder {
         }
     }
 
-    // Куполообразная сфера / полусфера (литые башни Т-72/M-84, взрывы, дымы, кроны сосен/кустов)
     void addEllipsoid(const Vec3& center, const Vec3& radii, int latSegs, int lonSegs,
                       bool upperHalfOnly, const Vec4& col, float rough, float metal, float tag, float ao = 1.f) {
         int latEnd = upperHalfOnly ? (latSegs / 2) : latSegs;
@@ -253,24 +249,23 @@ struct MeshBuilder {
     }
 };
 
-// Константные буферы HLSL (кратно 16 байтам)
 struct alignas(16) CBFrame {
     Mat4  viewProj;
     Mat4  lightViewProj;
-    Vec4  camPosTime;     // xyz=camPos, w=timeSec
-    Vec4  sunDirQuality;  // xyz=sunDir(to light), w=shadowEnabled
+    Vec4  camPosTime;      // xyz=camPos, w=timeSec
+    Vec4  sunDirQuality;   // xyz=sunDir(to light), w=shadowEnabled
     Vec4  sunColorExposure;// xyz=sunColor, w=exposure
-    Vec4  skyTopFogStart; // xyz=skyTop, w=fogStart
-    Vec4  skyHorizFogEnd; // xyz=skyHorizon, w=fogEnd
-    Vec4  groundAmbMode;  // xyz=groundBounce, w=globalRenderMode (0=PBR, 1=ThermalFLIR)
+    Vec4  skyTopFogStart;  // xyz=skyTop(sRGB), w=fogStart
+    Vec4  skyHorizFogEnd;  // xyz=skyHorizon(sRGB), w=fogEnd
+    Vec4  groundAmbMode;   // xyz=groundBounce(sRGB), w=globalRenderMode (0=PBR, 1=ThermalFLIR)
 };
 
 struct alignas(16) CBObject {
     Mat4  world;
-    Vec4  tintAlpha;      // xyz=tint/camoColA, w=alphaMult
-    Vec4  camoColBPattern;// xyz=camoColB, w=camoPattern(0..5)
-    Vec4  camoColCObjMode;// xyz=camoColC, w=objMode(0=normal, 1=hotTargetThermal, 2=armorInsp, 3=xrayGhost)
-    Vec4  armorParams;    // x=frontMM, y=sideMM, z=rearMM, w=burntFactor(0..1)
+    Vec4  tintAlpha;       // xyz=tint/camoColA(sRGB), w=alphaMult
+    Vec4  camoColBPattern; // xyz=camoColB(sRGB), w=camoPattern(0..5)
+    Vec4  camoColCObjMode; // xyz=camoColC(sRGB), w=objMode(0=normal, 1=hotTarget, 2=armorInsp, 3=xrayGhost)
+    Vec4  armorParams;     // x=frontMM, y=sideMM, z=rearMM, w=burntFactor(0..1)
 };
 
 static const char* kDagorPbrHlsl = R"HLSL(
@@ -313,6 +308,10 @@ struct PSIn {
     float4 shadowPos : TEXCOORD4;
 };
 
+float3 srgbToLinear(float3 c) {
+    return pow(max(c, 0.0001), 2.2);
+}
+
 float hash31(float3 p) {
     p = frac(p * 0.1031);
     p += dot(p, p.yzx + 33.33);
@@ -335,13 +334,11 @@ float noise3D(float3 p) {
     float nx10 = lerp(n010, n110, f.x);
     float nx01 = lerp(n001, n101, f.x);
     float nx11 = lerp(n011, n111, f.x);
-    float nxy0 = lerp(nx00, nx10, f.y);
-    float nxy1 = lerp(nx01, nx11, f.y);
-    return lerp(nxy0, nxy1, f.z);
+    return lerp(lerp(nx00, nx10, f.y), lerp(nx01, nx11, f.y), f.z);
 }
 
 float fbm3(float3 p) {
-    return noise3D(p) * 0.55 + noise3D(p * 2.13) * 0.30 + noise3D(p * 4.47) * 0.15;
+    return noise3D(p) * 0.54 + noise3D(p * 2.13) * 0.28 + noise3D(p * 4.51) * 0.18;
 }
 
 PSIn VSMain(VSIn vin) {
@@ -362,13 +359,40 @@ float4 VSShadow(VSIn vin) : SV_Position {
     return mul(wp, uLightViewProj);
 }
 
+// Атмосферное небо Dagor с солнечным ореолом Ми и объёмными кучевыми облаками
+float3 evalSkyAtmosphere(float3 dir, float3 L, float timeSec) {
+    float3 zenCol = srgbToLinear(uSkyTopFogStart.xyz);
+    float3 horCol = srgbToLinear(uSkyHorizFogEnd.xyz);
+    float h = saturate(dir.y);
+    float3 sky = lerp(horCol, zenCol, pow(max(0.0001, h), 0.58));
+
+    // Солнечный ореол и диск
+    float sunDot = saturate(dot(dir, L));
+    sky += float3(1.0, 0.72, 0.38) * pow(max(0.0001, sunDot), 10.0) * 0.38;
+    sky += float3(1.4, 1.25, 0.98) * smoothstep(0.9990, 0.9997, sunDot) * 4.5;
+
+    // Слоистые кучевые облака с солнечным подсветом краёв
+    if (dir.y > 0.03) {
+        float2 cuv = dir.xz / (dir.y + 0.16);
+        float3 cp = float3(cuv.x * 0.55 + timeSec * 0.008, 1.7, cuv.y * 0.55 - timeSec * 0.005);
+        float c1 = fbm3(cp);
+        float c2 = fbm3(cp * 2.35 + float3(4.2, 0.5, 1.8));
+        float dens = smoothstep(0.50, 0.76, c1 * 0.72 + c2 * 0.28) * smoothstep(0.03, 0.20, dir.y);
+        float litCloud = smoothstep(0.42, 0.75, fbm3(cp + L * 0.22));
+        float3 cloudShadow = lerp(zenCol * 0.75 + float3(0.06, 0.07, 0.09), float3(0.92, 0.90, 0.88), litCloud);
+        cloudShadow += float3(1.0, 0.78, 0.50) * pow(max(0.0001, sunDot), 5.0) * 0.45;
+        sky = lerp(sky, cloudShadow, dens * 0.86);
+    }
+    return sky;
+}
+
 float sampleShadowPCF(float4 shadowClip, float ndotl) {
     if (uSunDirQuality.w < 0.5) return 1.0;
     float3 proj = shadowClip.xyz / max(0.0001, shadowClip.w);
     float2 uv = float2(proj.x * 0.5 + 0.5, -proj.y * 0.5 + 0.5);
     if (uv.x <= 0.01 || uv.x >= 0.99 || uv.y <= 0.01 || uv.y >= 0.99 || proj.z <= 0.0 || proj.z >= 1.0)
         return 1.0;
-    float bias = max(0.0016 * (1.0 - ndotl), 0.00065);
+    float bias = max(0.0022 * (1.0 - ndotl), 0.00075);
     float sum = 0.0;
     float2 texel = float2(1.0 / 2048.0, 1.0 / 2048.0);
     [unroll] for (int y = -1; y <= 1; ++y) {
@@ -385,125 +409,169 @@ float3 acesTonemap(float3 x) {
 }
 
 float4 PSMain(PSIn pin) : SV_Target {
+    float3 L = normalize(uSunDirQuality.xyz);
+    int tag = (int)round(pin.mat.z);
+
+    // Купол неба (tag == 9)
+    if (tag == 9) {
+        if (uGroundAmbMode.w > 0.5) return float4(0.02, 0.05, 0.04, 1.0);
+        float3 rayDir = normalize(pin.worldPos - uCamPosTime.xyz);
+        float3 skyLin = evalSkyAtmosphere(rayDir, L, uCamPosTime.w) * uSunColorExp.w * 0.72;
+        float3 skyOut = pow(max(acesTonemap(skyLin), 0.0001), 1.0 / 2.2);
+        return float4(skyOut, 1.0);
+    }
+
     float3 N = normalize(pin.worldNorm);
     float3 V = normalize(uCamPosTime.xyz - pin.worldPos);
-    float3 L = normalize(uSunDirQuality.xyz);
     float3 H = normalize(V + L);
 
     float rough = saturate(pin.mat.x);
     float metal = saturate(pin.mat.y);
-    int   tag   = (int)round(pin.mat.z);
     float ao    = saturate(pin.mat.w);
     float objMode = uCamoCObjMode.w;
 
-    // Самосветящиеся трассеры, вспышки, лазеры и внутренние модули X-Ray
+    // Самосветящиеся трассеры, вспышки, оптика и внутренние модули X-Ray
     if (tag == 6 || tag == 8) {
         float3 em = pin.col.rgb * uTintAlpha.rgb;
         if (tag == 8) {
             float rim = pow(max(0.0001, 1.0 - saturate(dot(N, V))), 1.6);
-            em = em * (0.65 + 0.55 * saturate(dot(N, L))) + em * rim * 0.65;
+            em = em * (0.62 + 0.55 * saturate(dot(N, L))) + em * rim * 0.75;
         }
         return float4(em, saturate(pin.col.a * uTintAlpha.w));
     }
 
-    // Призрачный рентгеновский контур брони (X-Ray в ангаре и 3D Hit Camera)
+    // Рентгеновский полупрозрачный контур брони
     if (objMode > 2.5) {
         float fres = pow(max(0.0001, 1.0 - abs(dot(N, V))), 2.1);
-        float3 xcol = lerp(float3(0.06, 0.19, 0.30), float3(0.32, 0.80, 1.00), fres);
+        float3 xcol = lerp(float3(0.05, 0.17, 0.28), float3(0.32, 0.82, 1.00), fres);
         float alpha = saturate(0.11 + fres * 0.38) * uTintAlpha.w;
         return float4(xcol, alpha);
     }
 
-    // Инспектор толщины брони в ангаре
+    // Инспектор приведённой брони в ангаре
     if (objMode > 1.5 && objMode < 2.5) {
         float cosImp = max(0.28, abs(dot(N, V)));
         float nom = (abs(pin.localPos.x) > 1.18) ? uArmorParams.y : ((pin.localPos.z > 1.1) ? uArmorParams.z : uArmorParams.x);
         float eff = nom / cosImp;
         float t = saturate((eff - 80.0) / 780.0);
         float3 acol = (t < 0.5)
-            ? lerp(float3(0.15, 0.85, 0.32), float3(0.95, 0.82, 0.15), t * 2.0)
-            : lerp(float3(0.95, 0.82, 0.15), float3(0.92, 0.18, 0.14), (t - 0.5) * 2.0);
-        float lit = 0.45 + 0.55 * saturate(dot(N, L));
+            ? lerp(float3(0.12, 0.82, 0.30), float3(0.96, 0.82, 0.14), t * 2.0)
+            : lerp(float3(0.96, 0.82, 0.14), float3(0.92, 0.16, 0.12), (t - 0.5) * 2.0);
+        float lit = 0.42 + 0.58 * saturate(dot(N, L));
         return float4(acol * lit, 1.0);
     }
 
-    float3 albedo = pin.col.rgb;
+    // Переводим базовое альбедо из sRGB в честное линейное пространство PBR!
+    float3 srgbAlbedo = pin.col.rgb;
 
-    // Трёхцветный процедурный камуфляж + литая броневая микротекстура + пыль/грязь катков
     if (tag == 1 || tag == 7) {
-        albedo *= uTintAlpha.rgb;
+        srgbAlbedo *= uTintAlpha.rgb;
         int pat = (int)round(uCamoBPat.w);
         if (pat > 0) {
-            float scale = (pat == 4) ? 2.6 : 0.88;
+            float scale = (pat == 4) ? 2.4 : 0.85;
             float3 sampleP = (pat == 4) ? floor(pin.localPos * 4.5) * 0.55 : pin.localPos * scale;
             float n1 = fbm3(sampleP + float3(2.1, 0.7, 4.3));
-            float n2 = fbm3(sampleP * 1.65 + float3(8.4, 3.2, 1.9));
-            if (n1 > 0.53) albedo = uCamoBPat.rgb * (tag == 7 ? 0.90 : 1.0);
-            if (n2 > 0.62) albedo = uCamoCObjMode.rgb * (tag == 7 ? 0.92 : 1.0);
+            float n2 = fbm3(sampleP * 1.68 + float3(8.4, 3.2, 1.9));
+            if (n1 > 0.52) srgbAlbedo = uCamoBPat.rgb * (tag == 7 ? 0.92 : 1.0);
+            if (n2 > 0.61) srgbAlbedo = uCamoCObjMode.rgb * (tag == 7 ? 0.94 : 1.0);
         }
-        // Микрозерно катаной/литой стали
-        float grain = noise3D(pin.localPos * 26.0) * 0.08 - 0.04;
-        N = normalize(N + float3(grain, grain * 0.5, -grain));
-        albedo *= (0.96 + grain * 0.9);
+    }
 
-        // Полевая пыль и грязь на НЛД, бортовых экранах и катках
-        float mudMask = saturate((0.82 - pin.localPos.y) * 1.6) * (0.45 + 0.55 * fbm3(pin.localPos * 3.4));
-        albedo = lerp(albedo, float3(0.24, 0.20, 0.15), mudMask * 0.48);
-        rough = lerp(rough, 0.92, mudMask * 0.6);
+    float3 albedo = srgbToLinear(srgbAlbedo);
 
-        // Копоть уничтоженного танка
+    if (tag == 1 || tag == 7) {
+        // Рельеф катаной/литой броневой стали + сварные швы и металлический износ кромок
+        float grain = noise3D(pin.localPos * 32.0) * 0.10 - 0.05;
+        float weld  = smoothstep(0.92, 0.98, abs(sin(pin.localPos.z * 9.5))) * 0.06;
+        N = normalize(N + float3(grain, (grain - weld) * 0.6, -grain));
+        albedo *= (0.94 + grain * 1.2);
+
+        // Металлический блеск потёртых граней брони
+        float edgeWear = pow(max(0.0001, 1.0 - abs(dot(N, V))), 3.2) * noise3D(pin.localPos * 14.0);
+        albedo = lerp(albedo, float3(0.22, 0.23, 0.25), saturate(edgeWear * 0.42));
+        metal  = saturate(metal + edgeWear * 0.30);
+        rough  = lerp(rough, 0.34, saturate(edgeWear * 0.35));
+
+        // Полевая пыль, брызги грунта и нагар у выхлопа
+        float mudMask = saturate((0.88 - pin.localPos.y) * 1.45) * (0.40 + 0.60 * fbm3(pin.localPos * 3.6));
+        albedo = lerp(albedo, srgbToLinear(float3(0.25, 0.21, 0.16)), mudMask * 0.52);
+        rough  = lerp(rough, 0.92, mudMask * 0.65);
+
+        // Контактное затенение днища и подкрылков
+        ao *= lerp(0.45, 1.0, saturate(pin.localPos.y * 0.95));
+
         if (uArmorParams.w > 0.01) {
-            albedo = lerp(albedo, float3(0.055, 0.05, 0.048), saturate(uArmorParams.w));
-            rough = 0.94;
-            metal = 0.08;
+            albedo = lerp(albedo, float3(0.008, 0.007, 0.007), saturate(uArmorParams.w));
+            rough = 0.95;
+            metal = 0.05;
         }
     }
     else if (tag == 0) {
-        // Ландшафт Dagor: многослойное смешивание травы/грунта со скальной породой на склонах
-        float macro = fbm3(pin.worldPos * 0.045);
-        float detail = noise3D(pin.worldPos * 0.48);
+        // Многослойный ландшафт Dagor: трава, сухая земля, колеи и скальные выходы на склонах
+        float macro  = fbm3(pin.worldPos * 0.045);
+        float detail = noise3D(pin.worldPos * 0.65);
+        float micro  = noise3D(pin.worldPos * 3.8);
+        N = normalize(N + float3((micro - 0.5) * 0.14, 0.0, (detail - 0.5) * 0.14));
         float slope = 1.0 - saturate(N.y);
-        albedo *= (0.82 + macro * 0.34) * (0.92 + detail * 0.16);
-        float3 rockCol = float3(0.32, 0.31, 0.29) * (0.8 + detail * 0.35);
-        albedo = lerp(albedo, rockCol, saturate((slope - 0.22) * 3.2));
-        rough = lerp(0.88, 0.74, saturate(slope * 2.0));
+        albedo *= (0.72 + macro * 0.56) * (0.86 + micro * 0.28);
+        float3 dryGrass = srgbToLinear(float3(0.38, 0.35, 0.20));
+        albedo = lerp(albedo, dryGrass, smoothstep(0.55, 0.78, macro) * 0.45);
+        float3 rockCol = srgbToLinear(float3(0.34, 0.33, 0.31)) * (0.75 + detail * 0.45);
+        albedo = lerp(albedo, rockCol, saturate((slope - 0.18) * 3.4));
+        rough = lerp(0.90, 0.72, saturate(slope * 2.0));
     }
     else if (tag == 4) {
-        // Бетонный плац/асфальт ангара с влажными зеркальными лужами (как в War Thunder!)
-        float concreteVar = fbm3(pin.worldPos * 0.32);
-        float seam = ( abs(frac(pin.worldPos.x * 0.166) - 0.5) > 0.485 ||
-                       abs(frac(pin.worldPos.z * 0.166) - 0.5) > 0.485 ) ? 0.72 : 1.0;
-        albedo *= (0.86 + concreteVar * 0.26) * seam;
+        // Бетонный плац ангара / асфальт с температурными швами, следами гусениц и зеркальными лужами!
+        float concreteVar = fbm3(pin.worldPos * 0.34);
+        float microGrit   = noise3D(pin.worldPos * 6.5);
+        float seam = ( abs(frac(pin.worldPos.x * 0.1666) - 0.5) > 0.486 ||
+                       abs(frac(pin.worldPos.z * 0.1666) - 0.5) > 0.486 ) ? 0.38 : 1.0;
+        albedo *= (0.78 + concreteVar * 0.42) * (0.90 + microGrit * 0.20) * seam;
+
+        // Контактная тень АО на бетонном плацу прямо под центральным танком в ангаре!
+        if (abs(pin.worldPos.y) < 0.12) {
+            float2 d0 = pin.worldPos.xz / float2(2.15, 3.85);
+            float underTank = 1.0 - smoothstep(0.55, 1.25, length(d0));
+            ao *= (1.0 - underTank * 0.72);
+        }
+
         if (N.y > 0.92) {
-            float puddle = smoothstep(0.56, 0.68, fbm3(pin.worldPos * 0.14 + float3(3.1, 0.0, 5.7)));
-            albedo = lerp(albedo, albedo * 0.55, puddle * 0.75);
-            rough  = lerp(rough, 0.09, puddle * 0.88);
-            metal  = lerp(metal, 0.18, puddle * 0.5);
+            float puddle = smoothstep(0.54, 0.67, fbm3(pin.worldPos * 0.15 + float3(3.1, 0.0, 5.7)));
+            albedo = lerp(albedo, albedo * 0.42, puddle * 0.80);
+            rough  = lerp(rough, 0.055, puddle * 0.92);
+            metal  = lerp(metal, 0.22, puddle * 0.55);
+            N      = lerp(N, float3(0, 1, 0), puddle * 0.90);
         }
     }
     else if (tag == 2) {
-        // Траки и бандажи катков
-        float tread = sin(pin.localPos.z * 28.0) * 0.06;
-        albedo *= (0.94 + tread);
+        // Стальные траки и резиновые бандажи
+        float tread = sin(pin.localPos.z * 34.0) * 0.12;
+        albedo *= (0.88 + tread);
+        ao *= 0.82;
+    }
+    else if (tag == 5) {
+        // Хвоя и кора деревьев с вариацией листвы и самозатенением кроны
+        float leaf = noise3D(pin.worldPos * 2.8);
+        albedo *= (0.74 + leaf * 0.52);
+        ao *= (0.68 + 0.32 * saturate(N.y * 0.5 + 0.5));
     }
 
     // Режим ТВП (тепловизор 3-го поколения FLIR)
     if (uGroundAmbMode.w > 0.5) {
-        float lum = dot(albedo, float3(0.299, 0.587, 0.114));
-        float coldEnv = 0.06 + lum * 0.22 + (1.0 - N.y) * 0.08;
+        float lum = dot(pow(max(albedo, 0.0001), 1.0 / 2.2), float3(0.299, 0.587, 0.114));
+        float coldEnv = 0.05 + lum * 0.20 + (1.0 - N.y) * 0.07;
         float heat = coldEnv;
         if (objMode > 0.5 && objMode < 1.5) {
-            // Горячий двигатель МТО, катки, ствол и корпус боевой машины
             float engineHot = saturate((pin.localPos.z - 0.4) * 0.65) * 0.35;
             float rimHot = pow(max(0.0001, 1.0 - abs(dot(N, V))), 1.5) * 0.25;
-            heat = saturate(0.68 + engineHot + rimHot + (tag == 2 ? 0.22 : 0.0));
+            heat = saturate(0.70 + engineHot + rimHot + (tag == 2 ? 0.22 : 0.0));
         }
         float scan = 0.95 + 0.05 * sin(pin.svPos.y * 1.57);
-        float3 flir = lerp(float3(0.02, 0.05, 0.04), float3(0.92, 1.00, 0.94), saturate(heat)) * scan;
+        float3 flir = lerp(float3(0.015, 0.045, 0.035), float3(0.94, 1.00, 0.95), saturate(heat)) * scan;
         return float4(flir, saturate(pin.col.a * uTintAlpha.w));
     }
 
-    // PBR освещение GGX + полусферический GI неба/земли + тени PCF
+    // Физически корректное освещение GGX + полусферический GI + отражения неба во влажном бетоне и броне
     float NdotL = saturate(dot(N, L));
     float NdotV = max(0.001, saturate(dot(N, V)));
     float NdotH = saturate(dot(N, H));
@@ -512,7 +580,7 @@ float4 PSMain(PSIn pin) : SV_Target {
     float shadow = sampleShadowPCF(pin.shadowPos, NdotL);
 
     float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metal);
-    float  a  = max(0.045, rough * rough);
+    float  a  = max(0.035, rough * rough);
     float  a2 = a * a;
     float  denom = (NdotH * NdotH * (a2 - 1.0) + 1.0);
     float  D = a2 / max(0.0001, 3.14159265 * denom * denom);
@@ -526,21 +594,30 @@ float4 PSMain(PSIn pin) : SV_Target {
     float3 sunRadiance = uSunColorExp.xyz;
     float3 direct = (kd * albedo / 3.14159265 + spec) * sunRadiance * NdotL * shadow;
 
-    // Полусферическое рассеянное освещение неба + отражение неба во влажных лужах и броне
+    // Полусферическое рассеянное освещение неба/земли в линейном пространстве
+    float3 skyZenLin = srgbToLinear(uSkyTopFogStart.xyz);
+    float3 skyHorLin = srgbToLinear(uSkyHorizFogEnd.xyz);
+    float3 gndAmbLin = srgbToLinear(uGroundAmbMode.xyz) * 0.55;
+
     float hemi = N.y * 0.5 + 0.5;
-    float3 skyAmb = lerp(uGroundAmbMode.xyz, lerp(uSkyHorizFogEnd.xyz, uSkyTopFogStart.xyz, 0.55), hemi);
+    float3 skyAmb = lerp(gndAmbLin, lerp(skyHorLin, skyZenLin, 0.62), hemi) * 0.82;
+
     float3 R = reflect(-V, N);
-    float3 envRefl = lerp(uGroundAmbMode.xyz, lerp(uSkyHorizFogEnd.xyz, uSkyTopFogStart.xyz, saturate(R.y)), saturate(R.y * 0.5 + 0.5));
+    float3 envRefl = lerp(gndAmbLin, lerp(skyHorLin, skyZenLin, saturate(R.y)), saturate(R.y * 0.5 + 0.5));
+    float sunRefl = pow(max(0.0001, saturate(dot(R, L))), lerp(180.0, 12.0, rough)) * (1.0 - rough * 0.82) * shadow;
+    envRefl += sunRadiance * sunRefl * 0.35;
+
     float3 fresEnv = F0 + (max(float3(1.0 - rough, 1.0 - rough, 1.0 - rough), F0) - F0) * pow(max(0.0001, 1.0 - NdotV), 5.0);
-    float3 ambient = (kd * albedo * skyAmb + envRefl * fresEnv * (1.0 - rough * 0.72) * 0.55) * ao;
+    float3 ambient = (kd * albedo * skyAmb + envRefl * fresEnv * (1.0 - rough * 0.68) * 0.72) * ao;
 
     float3 color = (direct + ambient) * uSunColorExp.w;
 
-    // Атмосферная дымка горизонта
+    // Атмосферная дымка горизонта в линейном пространстве
     float dist = length(pin.worldPos - uCamPosTime.xyz);
     float fogT = saturate((dist - uSkyTopFogStart.w) / max(1.0, uSkyHorizFogEnd.w - uSkyTopFogStart.w));
-    float3 fogCol = lerp(uSkyHorizFogEnd.xyz, uSkyTopFogStart.xyz, 0.22);
-    color = lerp(color, fogCol, fogT * 0.88);
+    fogT = fogT * fogT * (3.0 - 2.0 * fogT);
+    float3 fogCol = lerp(skyHorLin, skyZenLin, 0.18) * 0.92;
+    color = lerp(color, fogCol, fogT * 0.85);
 
     color = acesTonemap(color);
     color = pow(max(color, 0.0001), 1.0 / 2.2);
@@ -563,7 +640,6 @@ public:
     ID3D11Texture2D*        depthTex = nullptr;
     ID3D11DepthStencilView* mainDSV = nullptr;
 
-    // Shadow Map 2048x2048
     ID3D11Texture2D*          shadowTex = nullptr;
     ID3D11DepthStencilView*   shadowDSV = nullptr;
     ID3D11ShaderResourceView* shadowSRV = nullptr;
@@ -599,7 +675,6 @@ public:
         HRESULT hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
                                        levels, 2, D3D11_SDK_VERSION, &device, &outLevel, &ctx);
         if (FAILED(hr)) {
-            // Запасной режим WARP, если GPU-драйвер отсутствует
             hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, 0,
                                    levels, 2, D3D11_SDK_VERSION, &device, &outLevel, &ctx);
             if (FAILED(hr)) return false;
@@ -697,6 +772,7 @@ public:
         sd.AddressU = sd.AddressV = sd.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
         sd.BorderColor[0] = sd.BorderColor[1] = sd.BorderColor[2] = sd.BorderColor[3] = 1.f;
         sd.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
+        sd.MaxLOD = D3D11_FLOAT32_MAX;
         device->CreateSamplerState(&sd, &shadowSamp);
         return true;
     }
@@ -747,13 +823,13 @@ public:
     void createStates() {
         D3D11_RASTERIZER_DESC rd{};
         rd.FillMode = D3D11_FILL_SOLID;
-        rd.CullMode = D3D11_CULL_NONE; // Двусторонние тонкие бронеэкраны и траки без дыр
+        rd.CullMode = D3D11_CULL_NONE;
         rd.MultisampleEnable = (msaaSamples > 1);
         rd.DepthClipEnable = TRUE;
         device->CreateRasterizerState(&rd, &rsSolid);
 
-        rd.DepthBias = 1200;
-        rd.SlopeScaledDepthBias = 2.0f;
+        rd.DepthBias = 900;
+        rd.SlopeScaledDepthBias = 1.8f;
         device->CreateRasterizerState(&rd, &rsShadow);
 
         D3D11_DEPTH_STENCIL_DESC dsd{};
@@ -839,7 +915,6 @@ public:
         ctx->PSSetSamplers(0, 1, &shadowSamp);
     }
 
-    // Мини-вьюпорт для рентгеновской 3D-камеры попаданий в правом верхнем углу экрана!
     void beginSubViewport3D(float x, float y, float w, float h, const CBFrame& subFrame) {
         curFrame = subFrame;
         inShadowPass = false;

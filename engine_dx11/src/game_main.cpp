@@ -180,8 +180,9 @@ public:
     float mgCooldown = 0.f;
 
     // Прицеливание в стиле War Thunder (два круга: камера + реальный ствол)
+    // camPitch: угол возвышения линии визирования (+вверх, -вниз)
     float camYaw = 0.f;
-    float camPitch = 0.14f;
+    float camPitch = -0.02f;
     bool  sniperMode = false;
     float sniperZoom = 5.0f; // 4x..12x
     bool  thermalMode = false;
@@ -426,6 +427,7 @@ public:
                 myX = sp.x; myZ = sp.z;
                 myY = getTerrainHeight(ack->mapIdx, myX, myZ);
                 myHullYaw = myTurretYaw = camYaw = sp.yaw;
+                camPitch = -0.02f;
                 myGunPitch = 0.f;
                 mySpeed = 0.f;
             }
@@ -564,10 +566,11 @@ public:
         if (me.alive && !pauseMenuOpen && !chatInputActive) {
             bool canDrive = (me.flags & 2) == 0 && me.modHealth[0] > 0 && me.modHealth[2] > 0;
             float throttle = 0.f, turn = 0.f;
-            if (::GetAsyncKeyState('W') & 0x8000) throttle += 1.f;
-            if (::GetAsyncKeyState('S') & 0x8000) throttle -= 1.f;
-            if (::GetAsyncKeyState('A') & 0x8000) turn += 1.f;
-            if (::GetAsyncKeyState('D') & 0x8000) turn -= 1.f;
+            if ((::GetAsyncKeyState('W') & 0x8000) || (::GetAsyncKeyState(VK_UP) & 0x8000))    throttle += 1.f;
+            if ((::GetAsyncKeyState('S') & 0x8000) || (::GetAsyncKeyState(VK_DOWN) & 0x8000))  throttle -= 1.f;
+            // D / Вправо -> поворот вправо (+yaw), A / Влево -> поворот влево (-yaw)
+            if ((::GetAsyncKeyState('D') & 0x8000) || (::GetAsyncKeyState(VK_RIGHT) & 0x8000)) turn += 1.f;
+            if ((::GetAsyncKeyState('A') & 0x8000) || (::GetAsyncKeyState(VK_LEFT) & 0x8000))  turn -= 1.f;
 
             if (canDrive) {
                 myHullYaw = wrapAngle(myHullYaw + turn * deg2rad(veh.hullDegSec) * dt);
@@ -584,18 +587,21 @@ public:
                 mySpeed *= 0.85f;
             }
 
-            // Луч командного прицела камеры (если зажата C — свободный обзор без поворота башни!)
-            Vec3 camOrigin = sniperMode
-                ? Vec3(myX - std::sin(myTurretYaw) * 1.1f, myY + 1.92f, myZ - std::cos(myTurretYaw) * 1.1f)
-                : Vec3(myX + std::sin(camYaw) * 9.6f * std::cos(camPitch),
-                       myY + 2.55f + std::sin(camPitch) * 9.6f,
-                       myZ + std::cos(camYaw) * 9.6f * std::cos(camPitch));
+            // Единый вектор прицеливания камеры для вида от 3-го лица и снайперского прицела
             Vec3 camForward(
                 -std::sin(camYaw) * std::cos(camPitch),
-                -std::sin(camPitch),
+                 std::sin(camPitch),
                 -std::cos(camYaw) * std::cos(camPitch)
             );
-            if (sniperMode) camForward = Vec3(-std::sin(camYaw)*std::cos(camPitch), -std::sin(camPitch), -std::cos(camYaw)*std::cos(camPitch));
+            Vec3 camOrigin;
+            if (sniperMode) {
+                camOrigin = Vec3(myX - std::sin(myTurretYaw) * 1.15f, myY + 1.94f, myZ - std::cos(myTurretYaw) * 1.15f);
+            } else {
+                Vec3 pivot(myX, myY + 2.55f, myZ);
+                camOrigin = pivot - camForward * 9.4f + Vec3(0.f, 0.85f, 0.f);
+                float gndH = getTerrainHeight(worldSnap.mapIdx, camOrigin.x, camOrigin.z) + 0.65f;
+                if (camOrigin.y < gndH) camOrigin.y = gndH;
+            }
 
             if (!(::GetAsyncKeyState('C') & 0x8000)) {
                 // Трассируем командную точку прицеливания по ландшафту, объектам и вражеским танкам
@@ -730,9 +736,10 @@ public:
                 int dx = cur.x - center.x;
                 int dy = cur.y - center.y;
                 if (dx != 0 || dy != 0) {
-                    float sens = sniperMode ? (0.0018f * (4.f / sniperZoom)) : 0.0026f;
-                    camYaw = wrapAngle(camYaw - dx * sens);
-                    camPitch = clampf(camPitch + dy * sens, -0.32f, 0.68f);
+                    float sens = sniperMode ? (0.0018f * (4.f / sniperZoom)) : 0.0025f;
+                    // Мышь вправо (dx > 0) -> прицел вправо (+camYaw); мышь вверх (dy < 0) -> прицел вверх (+camPitch)
+                    camYaw   = wrapAngle(camYaw + dx * sens);
+                    camPitch = clampf(camPitch - dy * sens, -0.42f, 0.48f);
                     POINT scrCenter = center;
                     ::ClientToScreen(hwnd, &scrCenter);
                     ::SetCursorPos(scrCenter.x, scrCenter.y);
@@ -882,27 +889,34 @@ public:
             );
 
             Vec3 sunDir = hangarBunkerMode ? Vec3(0.28f, 0.92f, -0.25f).normalized()
-                                           : Vec3(0.56f, 0.62f, -0.55f).normalized();
-            Mat4 lightVP = Mat4::lookAtLH(sunDir * 42.f, Vec3(0, 0, 0), Vec3(0, 1, 0)) *
-                           Mat4::orthoLH(36.f, 36.f, 4.f, 95.f);
+                                           : Vec3(0.62f, 0.50f, -0.60f).normalized();
+            Mat4 lightVP = Mat4::lookAtLH(sunDir * 42.f, Vec3(0, 0.8f, 0), Vec3(0, 1, 0)) *
+                           Mat4::orthoLH(28.f, 28.f, 4.f, 88.f);
             Mat4 viewProj = Mat4::lookAtLH(camPos, target, Vec3(0, 1, 0)) *
-                            Mat4::perspectiveFovLH(deg2rad(46.f), aspect, 0.25f, 420.f);
+                            Mat4::perspectiveFovLH(deg2rad(45.f), aspect, 0.25f, 760.f);
 
             CBFrame fb{};
             fb.viewProj      = viewProj;
             fb.lightViewProj = lightVP;
             fb.camPosTime    = Vec4(camPos.x, camPos.y, camPos.z, (float)appTimeSec);
             fb.sunDirQuality = Vec4(sunDir.x, sunDir.y, sunDir.z, gfx.shadowsEnabled ? 1.f : 0.f);
-            fb.sunColorExposure = hangarBunkerMode ? Vec4(2.2f, 2.25f, 2.45f, 1.05f) : Vec4(3.35f, 3.05f, 2.65f, 1.08f);
-            fb.skyTopFogStart   = hangarBunkerMode ? Vec4(0.10f, 0.12f, 0.16f, 32.f) : Vec4(0.22f, 0.42f, 0.72f, 65.f);
-            fb.skyHorizFogEnd   = hangarBunkerMode ? Vec4(0.16f, 0.18f, 0.22f, 95.f) : Vec4(0.68f, 0.76f, 0.86f, 210.f);
-            fb.groundAmbMode    = Vec4(0.16f, 0.17f, 0.15f, 0.f);
+            fb.sunColorExposure = hangarBunkerMode ? Vec4(2.4f, 2.45f, 2.75f, 1.05f) : Vec4(4.45f, 3.85f, 3.05f, 1.12f);
+            fb.skyTopFogStart   = hangarBunkerMode ? Vec4(0.08f, 0.10f, 0.14f, 35.f) : Vec4(0.14f, 0.34f, 0.68f, 75.f);
+            fb.skyHorizFogEnd   = hangarBunkerMode ? Vec4(0.14f, 0.16f, 0.20f, 98.f) : Vec4(0.64f, 0.75f, 0.88f, 255.f);
+            fb.groundAmbMode    = Vec4(0.15f, 0.16f, 0.14f, 0.f);
 
             int vIdx = currentVehIdx();
             int camoIdx = profile.vehicleCamo[vIdx];
             float idleTurYaw = std::sin((float)appTimeSec * 0.35f) * 0.16f;
 
             auto drawHangarObjects = [&](bool shadowPass) {
+                if (!shadowPass && !hangarBunkerMode) {
+                    CBObject skyObj{};
+                    skyObj.world = Mat4::translation(camPos.x, 0.f, camPos.z);
+                    skyObj.tintAlpha = Vec4(1, 1, 1, 1);
+                    gfx.drawMesh(envAssets.skyDome, skyObj);
+                }
+
                 CBObject envObj{};
                 envObj.world = Mat4::identity();
                 envObj.tintAlpha = Vec4(1, 1, 1, 1);
@@ -934,7 +948,7 @@ public:
                 gfx.beginShadowPass(fb);
                 drawHangarObjects(true);
             }
-            gfx.beginMainPass(fb, hangarBunkerMode ? Vec4(0.08f, 0.09f, 0.11f, 1.f) : Vec4(0.42f, 0.58f, 0.78f, 1.f));
+            gfx.beginMainPass(fb, hangarBunkerMode ? Vec4(0.06f, 0.07f, 0.09f, 1.f) : Vec4(0.26f, 0.44f, 0.68f, 1.f));
             drawHangarObjects(false);
             return;
         }
@@ -945,33 +959,33 @@ public:
         int mapIdx = hasWorldSnap ? worldSnap.mapIdx : selectedMapChoice;
         const MapSpec& map = getMaps()[mapIdx];
 
+        Vec3 camForward(
+            -std::sin(camYaw) * std::cos(camPitch),
+             std::sin(camPitch),
+            -std::cos(camYaw) * std::cos(camPitch)
+        );
         Vec3 camPos, camTarget;
         float fovDeg = 55.f;
         if (sniperMode) {
             fovDeg = 52.f / sniperZoom;
-            Vec3 fwd(-std::sin(camYaw) * std::cos(camPitch), -std::sin(camPitch), -std::cos(camYaw) * std::cos(camPitch));
             camPos = Vec3(myX - std::sin(myTurretYaw) * 1.15f, myY + 1.94f, myZ - std::cos(myTurretYaw) * 1.15f);
-            camTarget = camPos + fwd * 50.f;
+            camTarget = camPos + camForward * 60.f;
         } else {
-            float dist = 9.6f;
-            camTarget = Vec3(myX, myY + 2.25f, myZ);
-            camPos = Vec3(
-                camTarget.x + std::sin(camYaw) * std::cos(camPitch) * dist,
-                camTarget.y + std::sin(camPitch) * dist,
-                camTarget.z + std::cos(camYaw) * std::cos(camPitch) * dist
-            );
+            Vec3 pivot(myX, myY + 2.55f, myZ);
+            camPos = pivot - camForward * 9.4f + Vec3(0.f, 0.85f, 0.f);
             float gndH = getTerrainHeight(mapIdx, camPos.x, camPos.z) + 0.65f;
             if (camPos.y < gndH) camPos.y = gndH;
+            camTarget = camPos + camForward * 60.f;
         }
 
-        Vec3 sunDir = (mapIdx == 1) ? Vec3(-0.48f, 0.58f, -0.66f).normalized()
-                                    : Vec3(0.54f, 0.64f, -0.55f).normalized();
-        Vec3 sunCol = (mapIdx == 1) ? Vec3(1.0f, 0.92f, 0.82f) : Vec3(1.06f, 0.98f, 0.88f);
+        Vec3 sunDir = (mapIdx == 1) ? Vec3(-0.54f, 0.50f, -0.68f).normalized()
+                                    : Vec3(0.58f, 0.52f, -0.62f).normalized();
+        Vec3 sunCol = (mapIdx == 1) ? Vec3(1.06f, 0.90f, 0.74f) : Vec3(1.08f, 0.96f, 0.82f);
         Vec3 shadowFocus(myX, myY, myZ);
         Mat4 lightVP = Mat4::lookAtLH(shadowFocus + sunDir * 120.f, shadowFocus, Vec3(0, 1, 0)) *
-                       Mat4::orthoLH(130.f, 130.f, 10.f, 280.f);
+                       Mat4::orthoLH(115.f, 115.f, 10.f, 280.f);
         Mat4 viewMat = Mat4::lookAtLH(camPos, camTarget, Vec3(0, 1, 0));
-        Mat4 projMat = Mat4::perspectiveFovLH(deg2rad(fovDeg), aspect, 0.35f, 750.f);
+        Mat4 projMat = Mat4::perspectiveFovLH(deg2rad(fovDeg), aspect, 0.35f, 880.f);
         Mat4 mainVP  = viewMat * projMat;
 
         CBFrame fb{};
@@ -979,14 +993,20 @@ public:
         fb.lightViewProj = lightVP;
         fb.camPosTime    = Vec4(camPos.x, camPos.y, camPos.z, (float)appTimeSec);
         fb.sunDirQuality = Vec4(sunDir.x, sunDir.y, sunDir.z, gfx.shadowsEnabled ? 1.f : 0.f);
-        fb.sunColorExposure = Vec4(sunCol.x * 3.1f, sunCol.y * 3.1f, sunCol.z * 3.1f, 1.06f);
-        fb.skyTopFogStart   = Vec4(map.skyTop.x, map.skyTop.y, map.skyTop.z, 145.f);
-        fb.skyHorizFogEnd   = Vec4(map.skyHorizon.x, map.skyHorizon.y, map.skyHorizon.z, 460.f);
-        fb.groundAmbMode    = Vec4(map.groundColor.x * 0.65f, map.groundColor.y * 0.65f, map.groundColor.z * 0.65f,
+        fb.sunColorExposure = Vec4(sunCol.x * 4.1f, sunCol.y * 4.1f, sunCol.z * 4.1f, 1.10f);
+        fb.skyTopFogStart   = Vec4(map.skyTop.x, map.skyTop.y, map.skyTop.z, 165.f);
+        fb.skyHorizFogEnd   = Vec4(map.skyHorizon.x, map.skyHorizon.y, map.skyHorizon.z, 520.f);
+        fb.groundAmbMode    = Vec4(map.groundColor.x * 0.55f, map.groundColor.y * 0.55f, map.groundColor.z * 0.55f,
                                    (sniperMode && thermalMode) ? 1.f : 0.f);
 
         auto drawBattleWorld = [&](bool shadowPass) {
             if (!shadowPass) {
+                if (!(sniperMode && thermalMode)) {
+                    CBObject skyObj{};
+                    skyObj.world = Mat4::translation(camPos.x, 0.f, camPos.z);
+                    skyObj.tintAlpha = Vec4(1, 1, 1, 1);
+                    gfx.drawMesh(envAssets.skyDome, skyObj);
+                }
                 CBObject terrObj{};
                 terrObj.world = Mat4::identity();
                 terrObj.tintAlpha = Vec4(1, 1, 1, 1);
@@ -1232,24 +1252,24 @@ public:
         addHit(ACT_EXIT_GAME, 0, W - 56.f, 12.f, 44.f, 32.f);
 
         // 2. ЛЕВАЯ КАРТОЧКА ТТХ, БРОНЕПРОБИТИЯ И КАМУФЛЯЖЕЙ (В СТИЛЕ WAR THUNDER)
-        float cardX = 18.f, cardY = 72.f, cardW = 342.f, cardH = std::min(498.f, H - 220.f);
-        ui.drawPanel(cardX, cardY, cardW, cardH, Color4::rgba(13, 18, 25, 0.88f), Color4::rgba(9, 13, 19, 0.92f), Color4::rgba(68, 84, 106, 0.72f));
+        float cardX = 18.f, cardY = 72.f, cardW = 428.f, cardH = std::min(498.f, H - 220.f);
+        ui.drawPanel(cardX, cardY, cardW, cardH, Color4::rgba(11, 16, 23, 0.90f), Color4::rgba(8, 11, 17, 0.94f), Color4::rgba(74, 92, 118, 0.78f));
 
-        ui.drawNationFlag(v.nationIdx, cardX + 14.f, cardY + 14.f, 34.f, 22.f);
-        ui.drawText(v.name, cardX + 56.f, cardY + 11.f, 17.5f, Color4::rgba(242, 246, 252));
+        ui.drawNationFlag(v.nationIdx, cardX + 16.f, cardY + 14.f, 36.f, 22.f);
+        ui.drawText(v.name, cardX + 60.f, cardY + 10.f, 18.0f, Color4::rgba(244, 248, 255));
         char subLine[128];
         std::snprintf(subLine, sizeof(subLine), "БР %s  •  Ранг %s  •  %s", v.br, v.rank, v.roleClass);
-        ui.drawText(subLine, cardX + 56.f, cardY + 32.f, 12.2f, Color4::rgba(182, 198, 218));
+        ui.drawText(subLine, cardX + 60.f, cardY + 32.f, 12.2f, Color4::rgba(182, 198, 218));
 
         auto statRow = [&](float ry, const char* k, const char* val) {
-            ui.drawText(k, cardX + 14.f, ry, 12.8f, Color4::rgba(156, 172, 192));
-            ui.drawTextRight(val, cardX + cardW - 14.f, ry, 13.0f, Color4::rgba(235, 240, 248));
+            ui.drawText(k, cardX + 16.f, ry, 12.5f, Color4::rgba(158, 176, 198));
+            ui.drawTextRight(val, cardX + cardW - 16.f, ry, 12.8f, Color4::rgba(238, 243, 250));
         };
         char buf[128];
         std::snprintf(buf, sizeof(buf), "%d / %d / %d мм", v.turretArmor[0], v.turretArmor[1], v.turretArmor[2]);
-        statRow(cardY + 62.f, "Броня башни (лоб/борт/корма):", buf);
+        statRow(cardY + 62.f, "Броня башни (лоб / борт / корма):", buf);
         std::snprintf(buf, sizeof(buf), "%d / %d / %d мм", v.hullArmor[0], v.hullArmor[1], v.hullArmor[2]);
-        statRow(cardY + 83.f, "Броня корпуса (ВЛД/борт/корма):", buf);
+        statRow(cardY + 83.f, "Броня корпуса (ВЛД / борт / корма):", buf);
         std::snprintf(buf, sizeof(buf), "%s (%.1f с)", v.gunName, v.reloadSec);
         statRow(cardY + 104.f, "Вооружение / Перезарядка:", buf);
         std::snprintf(buf, sizeof(buf), "+%.0f / -%.0f км/ч  (%d л.с.)", v.fwdKmh, v.revKmh, v.engineHp);
@@ -1258,83 +1278,83 @@ public:
         statRow(cardY + 146.f, "Привод башни / Защита:", buf);
 
         // Выбор боеприпасов (1, 2, 3) и таблица бронепробития по дистанциям
-        ui.fillRect(cardX + 12.f, cardY + 172.f, cardW - 24.f, 1.f, Color4(1, 1, 1, 0.12f));
-        ui.drawText("БОЕКОМПЛЕКТ И БРОНЕПРОБИТИЕ (0°):", cardX + 14.f, cardY + 180.f, 12.5f, Color4::rgba(218, 178, 82));
+        ui.fillRect(cardX + 14.f, cardY + 172.f, cardW - 28.f, 1.f, Color4(1, 1, 1, 0.12f));
+        ui.drawText("БОЕКОМПЛЕКТ И БРОНЕПРОБИТИЕ (0°):", cardX + 16.f, cardY + 180.f, 12.5f, Color4::rgba(224, 184, 86));
 
         for (int s = 0; s < 3; ++s) {
-            float sx = cardX + 14.f + s * 106.f;
+            float sx = cardX + 16.f + s * 136.f;
             float sy = cardY + 202.f;
             bool sel = (selectedShellIdx == s);
-            ui.drawPanel(sx, sy, 100.f, 38.f,
-                         sel ? Color4::rgba(46, 78, 116, 0.95f) : Color4::rgba(22, 28, 38, 0.9f),
-                         sel ? Color4::rgba(28, 48, 76, 0.95f)  : Color4::rgba(16, 20, 28, 0.9f),
+            ui.drawPanel(sx, sy, 124.f, 38.f,
+                         sel ? Color4::rgba(46, 78, 116, 0.96f) : Color4::rgba(22, 28, 38, 0.92f),
+                         sel ? Color4::rgba(28, 48, 76, 0.96f)  : Color4::rgba(16, 20, 28, 0.92f),
                          sel ? Color4::rgba(116, 188, 255) : Color4::rgba(62, 76, 94));
-            ui.drawTextCentered(v.shells[s].code, sx + 50.f, sy + 4.f, 12.2f, Color4(1, 1, 1, 1));
+            ui.drawTextCentered(v.shells[s].code, sx + 62.f, sy + 4.f, 12.4f, Color4(1, 1, 1, 1));
             char pStr[32];
             std::snprintf(pStr, sizeof(pStr), "%d мм", v.shells[s].basePenMM);
-            ui.drawTextCentered(pStr, sx + 50.f, sy + 20.f, 12, Color4::rgba(250, 208, 102));
-            addHit(ACT_SELECT_SHELL, s, sx, sy, 100.f, 38.f);
+            ui.drawTextCentered(pStr, sx + 62.f, sy + 20.f, 12.0f, Color4::rgba(250, 208, 102));
+            addHit(ACT_SELECT_SHELL, s, sx, sy, 124.f, 38.f);
         }
 
         const ShellSpec& curSh = v.shells[selectedShellIdx];
         int m0[3], m200[3], m500[3];
         curSh.getPenTable(m0, m200, m500);
-        std::snprintf(buf, sizeof(buf), "%s • %d м/с • 10м: %d | 200м: %d | 500м: %d мм",
+        std::snprintf(buf, sizeof(buf), "%s  •  %d м/с  •  10м: %d  |  200м: %d  |  500м: %d мм",
                       curSh.label, (int)curSh.speedMs, m0[0], m200[0], m500[0]);
-        ui.drawText(buf, cardX + 14.f, cardY + 247.f, 11.8f, Color4::rgba(196, 212, 232));
+        ui.drawText(buf, cardX + 16.f, cardY + 247.f, 11.8f, Color4::rgba(196, 212, 232));
 
         // Свотчи камуфляжа (6 штук)
-        ui.fillRect(cardX + 12.f, cardY + 272.f, cardW - 24.f, 1.f, Color4(1, 1, 1, 0.12f));
+        ui.fillRect(cardX + 14.f, cardY + 272.f, cardW - 28.f, 1.f, Color4(1, 1, 1, 0.12f));
         std::snprintf(buf, sizeof(buf), "КАМУФЛЯЖ: %s", camos[profile.vehicleCamo[vIdx]].name);
-        ui.drawText(buf, cardX + 14.f, cardY + 280.f, 12.2f, Color4::rgba(218, 178, 82));
+        ui.drawText(buf, cardX + 16.f, cardY + 280.f, 12.2f, Color4::rgba(224, 184, 86));
 
         for (int c = 0; c < (int)camos.size(); ++c) {
-            float cx = cardX + 14.f + c * 53.f;
+            float cx = cardX + 16.f + c * 67.6f;
             float cy = cardY + 303.f;
             Vec3 sw = camos[c].useVehicleBase ? v.baseColor : camos[c].c0;
-            ui.fillRect(cx, cy, 45.f, 26.f, Color4(sw.x, sw.y, sw.z, 1.f));
+            ui.fillRect(cx, cy, 58.f, 26.f, Color4(sw.x, sw.y, sw.z, 1.f));
             if (!camos[c].useVehicleBase) {
-                ui.fillRect(cx + 22.f, cy, 23.f, 13.f, Color4(camos[c].c1.x, camos[c].c1.y, camos[c].c1.z, 1.f));
-                ui.fillRect(cx + 22.f, cy + 13.f, 23.f, 13.f, Color4(camos[c].c2.x, camos[c].c2.y, camos[c].c2.z, 1.f));
+                ui.fillRect(cx + 29.f, cy, 29.f, 13.f, Color4(camos[c].c1.x, camos[c].c1.y, camos[c].c1.z, 1.f));
+                ui.fillRect(cx + 29.f, cy + 13.f, 29.f, 13.f, Color4(camos[c].c2.x, camos[c].c2.y, camos[c].c2.z, 1.f));
             }
             bool selC = (profile.vehicleCamo[vIdx] == c);
-            ui.drawRectOutline(cx, cy, 45.f, 26.f, selC ? 2.f : 1.f, selC ? Color4::rgba(255, 214, 92) : Color4(1,1,1,0.3f));
-            addHit(ACT_SELECT_CAMO, c, cx, cy, 45.f, 26.f);
+            ui.drawRectOutline(cx, cy, 58.f, 26.f, selC ? 2.f : 1.f, selC ? Color4::rgba(255, 214, 92) : Color4(1,1,1,0.3f));
+            addHit(ACT_SELECT_CAMO, c, cx, cy, 58.f, 26.f);
         }
 
         // Режимы анализа брони / рентгена / смены сцены ангара
-        ui.fillRect(cardX + 12.f, cardY + 340.f, cardW - 24.f, 1.f, Color4(1, 1, 1, 0.12f));
+        ui.fillRect(cardX + 14.f, cardY + 340.f, cardW - 28.f, 1.f, Color4(1, 1, 1, 0.12f));
         const char* inspNames[3] = {"ОБЫЧНЫЙ ВИД", "АНАЛИЗ БРОНИ", "РЕНТГЕН X-RAY"};
         for (int m = 0; m < 3; ++m) {
-            float mx = cardX + 14.f + m * 106.f;
+            float mx = cardX + 16.f + m * 136.f;
             float my = cardY + 350.f;
             bool act = (inspectorMode == m);
-            ui.drawPanel(mx, my, 100.f, 30.f,
+            ui.drawPanel(mx, my, 124.f, 30.f,
                          act ? Color4::rgba(52, 92, 132) : Color4::rgba(22, 28, 38),
                          act ? Color4::rgba(32, 58, 86)  : Color4::rgba(15, 19, 26),
                          act ? Color4::rgba(120, 200, 255) : Color4::rgba(64, 78, 96));
-            ui.drawTextCentered(inspNames[m], mx + 50.f, my + 7.f, 11.5f, Color4(1, 1, 1, 1));
-            addHit(ACT_SET_INSPECTOR, m, mx, my, 100.f, 30.f);
+            ui.drawTextCentered(inspNames[m], mx + 62.f, my + 7.f, 11.8f, Color4(1, 1, 1, 1));
+            addHit(ACT_SET_INSPECTOR, m, mx, my, 124.f, 30.f);
         }
 
-        ui.drawPanel(cardX + 14.f, cardY + 390.f, cardW - 28.f, 30.f, Color4::rgba(26, 34, 46), Color4::rgba(18, 24, 34), Color4::rgba(76, 96, 122));
+        ui.drawPanel(cardX + 16.f, cardY + 390.f, cardW - 32.f, 30.f, Color4::rgba(26, 34, 46), Color4::rgba(18, 24, 34), Color4::rgba(76, 96, 122));
         ui.drawTextCentered(hangarBunkerMode ? "ЛОКАЦИЯ АНГАРА: ЗАЩИЩЁННЫЙ БУНКЕР (СМЕНИТЬ)" : "ЛОКАЦИЯ АНГАРА: ПОЛЕВАЯ ВОЕННАЯ БАЗА (СМЕНИТЬ)",
-                            cardX + cardW * 0.5f, cardY + 397.f, 11.5f, Color4::rgba(210, 226, 245));
-        addHit(ACT_TOGGLE_HANGAR_SCENE, 0, cardX + 14.f, cardY + 390.f, cardW - 28.f, 30.f);
+                            cardX + cardW * 0.5f, cardY + 397.f, 11.8f, Color4::rgba(210, 226, 245));
+        addHit(ACT_TOGGLE_HANGAR_SCENE, 0, cardX + 16.f, cardY + 390.f, cardW - 32.f, 30.f);
 
         // Кнопка исследования и покупки, если машина ещё закрыта
         if (!profile.isUnlocked(vIdx)) {
             bool canBuy = (profile.rp >= v.costRp && profile.silver >= v.costSilver);
-            ui.drawPanel(cardX + 14.f, cardY + 432.f, cardW - 28.f, 44.f,
+            ui.drawPanel(cardX + 16.f, cardY + 432.f, cardW - 32.f, 44.f,
                          canBuy ? Color4::rgba(42, 138, 68) : Color4::rgba(82, 42, 42),
                          canBuy ? Color4::rgba(24, 92, 44)  : Color4::rgba(54, 26, 26),
                          Color4::rgba(150, 235, 168));
             std::snprintf(buf, sizeof(buf), "ИССЛЕДОВАТЬ И КУПИТЬ (%d ОИ + %d СЛ)", v.costRp, v.costSilver);
             ui.drawTextCentered(buf, cardX + cardW * 0.5f, cardY + 445.f, 12.5f, Color4(1, 1, 1, 1));
-            addHit(ACT_UNLOCK_VEHICLE, vIdx, cardX + 14.f, cardY + 432.f, cardW - 28.f, 44.f);
+            addHit(ACT_UNLOCK_VEHICLE, vIdx, cardX + 16.f, cardY + 432.f, cardW - 32.f, 44.f);
         } else {
-            ui.drawTextCentered("✓ МАШИНА В СТРОЮ • ЛКМ/ПКМ ВРАЩАТЬ КАМЕРУ, КОЛЕСО — ЗУМ",
-                                cardX + cardW * 0.5f, cardY + 446.f, 11.5f, Color4::rgba(128, 224, 154));
+            ui.drawTextCentered("✓ МАШИНА В СТРОЮ • ЛКМ/ПКМ — КАМЕРА, КОЛЕСО — ЗУМ",
+                                cardX + cardW * 0.5f, cardY + 446.f, 12.0f, Color4::rgba(128, 224, 154));
         }
 
         // 3. НИЖНЯЯ ПАНЕЛЬ НАЦИЙ (7 СТРАН С ФЛАГАМИ) И СЛОТЫ ЭКИПАЖЕЙ (КАК В WAR THUNDER)
