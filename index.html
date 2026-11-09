@@ -755,7 +755,7 @@
   <div class="strip">
     <div><b><i>fwidth()</i> сколы</b><span>геометрические, не текстура</span></div>
     <div><b>3 источника света</b><span>солнце + HDR-небо + отражение</span></div>
-    <div><b>43 000+ треугольников</b><span>катки, траки, ERA, башня</span></div>
+    <div><b>12 000+ треугольников</b><span>катки, траки, ERA, башня</span></div>
     <div><b>4 атмосферы daSkies2</b><span>день · закат · гроза · ночь</span></div>
     <div><b>23 машины · 7 наций</b><span>переключаются в инспекторе</span></div>
   </div>
@@ -1205,7 +1205,7 @@ const M4 = {
     ]);
   },
   trs(t, r){
-    // rot: [yaw(Y), pitch(X), roll(Z)] radians
+    // rot: [pitch(X), yaw(Y), roll(Z)] — как в Geo.box/rotVec
     const cy = Math.cos(r[0]), sy = Math.sin(r[0]);
     const cx = Math.cos(r[1]), sx = Math.sin(r[1]);
     const cz = Math.cos(r[2]), sz = Math.sin(r[2]);
@@ -1368,6 +1368,71 @@ class Geo {
       this.tri([cx, cy, cz-halfL], p0, p1, [0,0,-1], mat, ao, wear);
     }
   }
+  /* ------------------------------------------------------------------
+     ЛОФТ: сшиваем два замкнутых контура (одинаковое число точек),
+     получая настоящий корпус с наклонными бортами и лобовым листом.
+     section = { y, pts:[[x,z], ...] }   (по часовой, вид сверху)
+     ------------------------------------------------------------------ */
+  loft(secA, secB, mat, ao, wear, capA, capB){
+    const A = secA.pts, B = secB.pts;
+    const n = A.length;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const a0 = [A[i][0], secA.y, A[i][1]];
+      const a1 = [A[j][0], secA.y, A[j][1]];
+      const b0 = [B[i][0], secB.y, B[i][1]];
+      const b1 = [B[j][0], secB.y, B[j][1]];
+      // нормаль грани
+      const e1 = [a1[0]-a0[0], a1[1]-a0[1], a1[2]-a0[2]];
+      const e2 = [b0[0]-a0[0], b0[1]-a0[1], b0[2]-a0[2]];
+      let nx = e1[1]*e2[2]-e1[2]*e2[1], ny = e1[2]*e2[0]-e1[0]*e2[2], nz = e1[0]*e2[1]-e1[1]*e2[0];
+      // разворачиваем наружу (от оси Y в плане)
+      const cx = (a0[0]+a1[0]+b0[0]+b1[0])/4, cz = (a0[2]+a1[2]+b0[2]+b1[2])/4;
+      if (nx*cx + nz*cz < 0) { nx = -nx; ny = -ny; nz = -nz; }
+      const L = Math.hypot(nx, ny, nz) || 1;
+      this.quad(a0, a1, b1, b0, [nx/L, ny/L, nz/L], mat, ao, wear);
+    }
+    // крышки
+    const cy = (arr, y, up) => {
+      let sx = 0, sz = 0;
+      for (const p of arr) { sx += p[0]; sz += p[1]; }
+      const c = [sx / arr.length, y, sz / arr.length];
+      for (let i = 0; i < arr.length; i++) {
+        const j = (i + 1) % arr.length;
+        const p1 = [arr[i][0], y, arr[i][1]], p2 = [arr[j][0], y, arr[j][1]];
+        if (up) this.tri(c, p2, p1, [0, up, 0], mat, ao, wear);
+        else this.tri(c, p1, p2, [0, -1, 0], mat, ao, wear);
+      }
+    };
+    if (capB) cy(B, secB.y, 1);
+    if (capA) cy(A, secA.y, -1);
+  }
+
+  /* ------------------------------------------------------------------
+     Плоская плита в заданном базисе: o — центр, u — вдоль длины,
+     n — наружная нормаль. Даёт наклонные листы с правильной нормалью.
+     ------------------------------------------------------------------ */
+  plate(o, uAxis, nAxis, halfLen, halfWid, halfTh, mat, ao, wear){
+    const u = uAxis, n = nAxis;
+    // v = n x u  (ортогонально обоим)
+    const v = [n[1]*u[2]-n[2]*u[1], n[2]*u[0]-n[0]*u[2], n[0]*u[1]-n[1]*u[0]];
+    const P = (su, sv, sn) => [
+      o[0] + u[0]*su + v[0]*sv + n[0]*sn,
+      o[1] + u[1]*su + v[1]*sv + n[1]*sn,
+      o[2] + u[2]*su + v[2]*sv + n[2]*sn
+    ];
+    const L = halfLen, Wd = halfWid, T = halfTh;
+    // верх/низ
+    this.quad(P(-L,-Wd,T), P(L,-Wd,T), P(L,Wd,T), P(-L,Wd,T), n, mat, ao, wear);
+    this.quad(P(-L,-Wd,-T), P(-L,Wd,-T), P(L,Wd,-T), P(L,-Wd,-T),
+      [-n[0],-n[1],-n[2]], mat, ao, wear);
+    // торцы
+    this.quad(P(L,-Wd,-T), P(L,Wd,-T), P(L,Wd,T), P(L,-Wd,T), u, mat, ao, wear);
+    this.quad(P(-L,-Wd,T), P(-L,Wd,T), P(-L,Wd,-T), P(-L,-Wd,-T), [-u[0],-u[1],-u[2]], mat, ao, wear);
+    this.quad(P(-L,Wd,T), P(L,Wd,T), P(L,Wd,-T), P(-L,Wd,-T), v, mat, ao, wear);
+    this.quad(P(-L,-Wd,-T), P(L,-Wd,-T), P(L,-Wd,T), P(-L,-Wd,T), [-v[0],-v[1],-v[2]], mat, ao, wear);
+  }
+
   get array(){ return new Float32Array(this.a); }
 }
 </script>
@@ -1399,34 +1464,90 @@ function buildVehicle(veh) {
   const west  = veh.eraType === "western";
   const light = veh.eraType === "light";
 
-  /* ================= КОРПУС ================= */
-  // ванна (нижняя часть, в тени)
-  hull.box([0, 0.98, 0.05], [tubHalf, 0.38, L / 2 - 0.30], null, M.PAINT2, 0.52, 0.6);
-  // верхняя палуба
-  hull.box([0, roofY - 0.045, 0.10], [tubHalf + 0.02, 0.05, L / 2 - 0.55], null, M.PAINT, 0.86, 1.0);
-  // кормовой лист (наклонный)
-  hull.box([0, 1.10, L / 2 - 0.16], [tubHalf + 0.005, 0.34, 0.07], [0.22, 0, 0], M.PAINT2, 0.6, 1.0);
-  // кормовая решётка МТО
-  hull.box([0, roofY + 0.005, L / 2 - 0.72], [tubHalf * 0.80, 0.025, 0.52], null, M.WELD, 0.72, 1.6);
-  for (let i = 0; i < 7; i++) {
-    hull.box([0, roofY + 0.035, L / 2 - 1.16 + i * 0.145], [tubHalf * 0.72, 0.018, 0.022], null, M.STEEL, 0.85, 1.4);
+  /* ================= КОРПУС: ЛОФТ ИЗ СЕЧЕНИЙ ================= */
+  // План корпуса (вид сверху): скошенный нос, прямые борта, срез кормы.
+  // Строим 4 горизонтальных сечения и сшиваем их — получаем наклонные
+  // борта, лобовой лист и подныр в одной непрерывной поверхности.
+  const hullTop = (z) => 0.74;                       // верх борта у палубы
+  const zN = -L / 2, zK = L / 2;
+
+  function planform(halfW, noseTaper, rearTaper, frontZ) {
+    // точки по часовой стрелке (вид сверху, +Z к корме)
+    // frontZ — если задан, нос срезан плоской кромкой (под наклонный ВЛД)
+    const w = halfW, nt = noseTaper, rt = rearTaper;
+    if (frontZ !== undefined) {
+      // те же 11 точек, но нос «подтянут» к плоской кромке frontZ
+      return [
+        [ w * 0.42, frontZ ],
+        [ w * 0.94, frontZ + (nt * 0.55) * 0.55 ],
+        [ w,        frontZ + nt * 0.55 ],
+        [ w,        zK - rt ],
+        [ w * 0.90, zK - rt * 0.25 ],
+        [0,         zK],
+        [-w * 0.90, zK - rt * 0.25 ],
+        [-w,        zK - rt ],
+        [-w,        frontZ + nt * 0.55 ],
+        [-w * 0.94, frontZ + (nt * 0.55) * 0.55 ],
+        [-w * 0.42, frontZ ]
+      ];
+    }
+    return [
+      [ w * 0.42, zN + 0.02 ],          // правый нос
+      [ w * 0.94, zN + nt * 0.55 ],     // скула
+      [ w,        zN + nt ],            // правый борт у носа
+      [ w,        zK - rt ],            // правый борт
+      [ w * 0.90, zK - rt * 0.25 ],     // скругление кормы
+      [0,         zK],                  // середина кормы
+      [-w * 0.90, zK - rt * 0.25 ],
+      [-w,        zK - rt ],
+      [-w,        zN + nt ],
+      [-w * 0.94, zN + nt * 0.55 ],
+      [-w * 0.42, zN + 0.02 ]
+    ];
   }
 
-  /* ---- лобовой узел ---- */
-  const glacisPitch = -0.72;
-  const glC = [0, 1.00, -L / 2 + 0.60];      // центр наклонной плиты
-  const glLen = 0.70;                         // половина длины по склону
-  hull.box(glC, [tubHalf + 0.02, 0.055, glLen], [glacisPitch, 0, 0], M.PAINT, 0.92, 1.0);
-  // нижний носовой лист
-  hull.box([0, 0.72, -L / 2 + 0.10], [tubHalf + 0.01, 0.19, 0.16], [0.5, 0, 0], M.PAINT2, 0.62, 1.2);
-  // буксирные крюки
-  for (const s of [-1, 1]) {
-    hull.box([s * 0.60, 0.80, -L / 2 - 0.06], [0.075, 0.065, 0.10], null, M.WELD, 0.6, 2.0);
-    hull.box([s * 0.60, 0.93, -L / 2 + 0.30], [0.034, 0.034, 0.045], null, M.STEEL, 0.7, 2.4);
+  // сечение 1: днище (узкое)
+  hull.loft(
+    { y: 0.50, pts: planform(tubHalf * 0.90, 0.62, 0.20) },
+    { y: 0.86, pts: planform(tubHalf * 0.985, 0.50, 0.18) },
+    M.PAINT2, 0.34, 0.5, true, false
+  );
+  // сечение 2: борт до надгусеничной полки (нос срезан под ВЛД)
+  const deckFrontZ = zN + 1.30;                 // передняя кромка палубы
+  hull.loft(
+    { y: 0.86, pts: planform(tubHalf * 0.985, 0.50, 0.18) },
+    { y: 1.20, pts: planform(tubHalf, 0.44, 0.16) },
+    M.PAINT, 0.62, 1.0, false, false
+  );
+  // сечение 3: верхний борт, нос закрыт ВЛД
+  hull.loft(
+    { y: 1.20, pts: planform(tubHalf, 0.44, 0.16) },
+    { y: roofY, pts: planform(tubHalf * 0.965, 0.44, 0.15, deckFrontZ) },
+    M.PAINT, 0.86, 1.2, false, true
+  );
+
+  // ВЛД: наклонный лист от нижней кромки носа до передней кромки палубы
+  const gA = [0, 0.86, zN + 0.16];          // нижняя кромка (у носа)
+  const gB = [0, roofY, zN + 1.36];         // верхняя кромка (у палубы)
+  const gLen = Math.hypot(gB[1]-gA[1], gB[2]-gA[2]);
+  const glacisPitch = -Math.asin((gB[1]-gA[1]) / gLen);
+  const gCy = Math.cos(glacisPitch), gSy = Math.sin(glacisPitch);
+  const gAxis = [0, -gSy, gCy];             // вдоль плиты
+  const gNrm  = [0, gCy, gSy];              // наружу-вверх-вперёд
+  const gCtr  = [0, (gA[1]+gB[1])/2, (gA[2]+gB[2])/2];
+  hull.plate(gCtr, gAxis, gNrm, gLen/2 + 0.02, tubHalf * 0.90, 0.075, M.PAINT, 0.95, 1.1);
+
+  // носовой блок и буксирные крюки
+  hull.box([0, 0.86, zN + 0.12], [tubHalf * 0.80, 0.16, 0.14], [0.30, 0, 0], M.PAINT2, 0.55, 1.0);
+  for (const sx of [-1, 1]) {
+    hull.box([sx * tubHalf * 0.55, 0.74, zN - 0.04], [0.070, 0.060, 0.09], null, M.WELD, 0.55, 2.0);
   }
-  // передние брызговики
-  for (const s of [-1, 1]) {
-    hull.box([s * (W / 2 - 0.34), 1.02, -L / 2 + 0.10], [0.31, 0.20, 0.028], [0.18, 0, 0], M.RUBBER, 0.34, 0.5);
+  // кормовой лист
+  hull.box([0, 1.04, zK + 0.02], [tubHalf * 0.88, 0.30, 0.055], [0.16, 0, 0], M.PAINT2, 0.55, 1.0);
+  // решётка МТО
+  hull.box([0, roofY + 0.008, zK - 0.72], [tubHalf * 0.76, 0.022, 0.50], null, M.WELD, 0.74, 1.6);
+  for (let i = 0; i < 6; i++) {
+    hull.box([0, roofY + 0.034, zK - 1.14 + i * 0.155], [tubHalf * 0.68, 0.016, 0.020], null, M.STEEL, 0.86, 1.4);
   }
 
   /* ---- надгусеничные полки, ящики, экраны ---- */
@@ -1469,42 +1590,35 @@ function buildVehicle(veh) {
   }
 
   /* ---- ВЛД: ERA-мозаика или композит ---- */
-  const cp = Math.cos(glacisPitch), sp = Math.sin(glacisPitch);
-  const platePoint = (u, v) => [
-    glC[0] + v,
-    glC[1] + u * cp + 0.075 * -sp,
-    glC[2] + u * sp + 0.075 * cp
+  const gAt = (u, v, nOff) => [
+    gCtr[0] + gAxis[0]*u + gNrm[0]*nOff + v,
+    gCtr[1] + gAxis[1]*u + gNrm[1]*nOff,
+    gCtr[2] + gAxis[2]*u + gNrm[2]*nOff
   ];
+  const gRot = [glacisPitch, 0, 0];
   if (!west) {
-    const rows = heavy ? 3 : 2, cols = light ? 6 : 8;
-    const cellW = (tubHalf * 1.90) / cols;
-    const cellH = (glLen * 1.72) / rows;
+    const rows = heavy ? 4 : 3, cols = light ? 5 : 6;
+    const cellW = (tubHalf * 1.58) / cols;
+    const cellH = (gLen * 1.40) / rows;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const fx = (c - (cols - 1) / 2) * cellW;
         const u = (r - (rows - 1) / 2) * cellH;
-        const p = platePoint(u, fx);
-        hull.box(p, [cellW * 0.455, 0.048, cellH * 0.455], [glacisPitch, 0, 0], M.ERA, 0.88, 1.6);
+        hull.box(gAt(u, fx, 0.105), [cellW * 0.43, 0.055, cellH * 0.42], gRot, M.ERA, 0.90, 1.7);
       }
     }
-    // верхняя кромка ВЛД
-    const top = platePoint(glLen * 0.92, 0);
-    hull.box(top, [tubHalf + 0.015, 0.05, 0.10], [glacisPitch, 0, 0], M.PAINT2, 0.9, 1.8);
+    // верхняя кромка листа — сварной воротник
+    hull.box(gAt(gLen * 0.46, 0, 0.09), [tubHalf * 0.90, 0.045, 0.075], gRot, M.WELD, 0.9, 1.9);
   } else {
-    // композитный «клюв»
-    const p = platePoint(0, 0);
-    hull.box(p, [tubHalf + 0.06, 0.11, glLen * 0.96], [glacisPitch, 0, 0], M.ERA, 0.90, 1.3);
-    const p2 = platePoint(glLen * 0.62, 0);
-    hull.box(p2, [tubHalf * 0.88, 0.045, 0.22], [glacisPitch - 0.12, 0, 0], M.PAINT2, 0.9, 1.6);
-    for (const s of [-1, 1]) {
-      const p3 = platePoint(-glLen * 0.14, s * tubHalf * 0.74);
-      hull.box(p3, [0.26, 0.05, 0.30], [glacisPitch, 0, s * 0.05], M.STEEL, 0.85, 2.2);
+    hull.box(gAt(0, 0, 0.13), [tubHalf * 0.90, 0.11, gLen * 0.46], gRot, M.ERA, 0.92, 1.3);
+    for (const sx of [-1, 1]) {
+      hull.box(gAt(-gLen * 0.16, sx * tubHalf * 0.60, 0.16), [0.24, 0.05, 0.26], gRot, M.STEEL, 0.86, 2.2);
     }
-    // буксирные проушины на ВЛД
-    for (const s of [-1, 1]) {
-      const p4 = platePoint(-glLen * 0.62, s * tubHalf * 0.66);
-      hull.box(p4, [0.075, 0.085, 0.075], [glacisPitch, 0, 0], M.WELD, 0.85, 2.0);
-    }
+  }
+  // палуба: люк механика-водителя, перископы
+  hull.box([0.56, roofY + 0.06, zN + 1.62], [0.17, 0.018, 0.17], null, M.PAINT2, 0.96, 1.7);
+  for (let i = -1; i <= 1; i++) {
+    hull.box([0.56 + i * 0.095, roofY + 0.082, zN + 1.38], [0.032, 0.026, 0.036], null, M.GLASS, 0.96, 0.5);
   }
 
   /* ================= ХОДОВАЯ ================= */
@@ -1596,24 +1710,39 @@ function buildVehicle(veh) {
 
   /* ================= БАШНЯ ================= */
   const tw = veh.tw, td = veh.td * 0.80;                      // корпус башни без кормовой ниши
-  const th = Math.min(0.44, Math.max(0.34, veh.th * 0.62));   // полувысота корпуса башни
+  const th = 0.30;                                            // полувысота корпуса башни
   const tRoof = roofY + th * 2 + 0.04;
   const tb = (tw / 2) / 0.9239, db = (td / 2) / 0.9239;
 
-  // корпус башни — 8-гранная усечённая призма
-  tur.frustum(th + 0.02, th, tb, db, tb * 0.93, db * 0.90, M.PAINT, 0.88, 1.0, [0, 0, 0.03]);
-  // крыша башни
-  tur.box([0, th * 2 + 0.055, 0.03], [tb * 0.86, 0.035, db * 0.86], null, M.PAINT, 0.92, 1.4);
-  // кормовая ниша
-  tur.box([0, th + 0.01, db * 0.86], [tb * 0.64, th * 0.66, 0.26], null, M.PAINT2, 0.66, 1.2);
-  tur.box([0, th * 2 - 0.02, db * 0.90], [tb * 0.62, 0.028, 0.24], null, M.PAINT, 0.86, 1.2);
-  // решётка багажника
-  for (let i = 0; i < 3; i++) {
-    tur.box([0, th + 0.01 + (i - 1) * th * 0.46, db * 0.86 + 0.268], [tb * 0.60, 0.016, 0.018], null, M.STEEL, 0.92, 1.8);
+  // ---- корпус башни: лофт из двух планов ----
+  // План низа шире, верх уже и со скошенной передней частью — так
+  // получается характерная «скула» ОБТ и наклонный лоб башни.
+  function turretPlan(scaleX, scaleZ, frontCut) {
+    const bx = tb * scaleX, bz = db * scaleZ;
+    return [
+      [ bx * 0.34, -bz * (1.00 - frontCut) ],
+      [ bx * 0.86, -bz * 0.90 ],
+      [ bx * 1.00, -bz * 0.42 ],
+      [ bx * 1.00,  bz * 0.52 ],
+      [ bx * 0.84,  bz * 1.00 ],
+      [ bx * 0.30,  bz * 1.00 ],
+      [-bx * 0.30,  bz * 1.00 ],
+      [-bx * 0.84,  bz * 1.00 ],
+      [-bx * 1.00,  bz * 0.52 ],
+      [-bx * 1.00, -bz * 0.42 ],
+      [-bx * 0.86, -bz * 0.90 ],
+      [-bx * 0.34, -bz * (1.00 - frontCut) ]
+    ];
   }
+  const lowerTur = { y: 0.02, pts: turretPlan(1.00, 1.00, 0.05) };
+  const upperTur = { y: th * 1.80, pts: turretPlan(0.86, 0.90, 0.13) };
+  tur.loft(lowerTur, upperTur, M.PAINT, 0.88, 1.1, true, true);
+
+  // кормовая ниша
+  tur.box([0, th * 0.92, db * 1.06], [tb * 0.60, th * 0.72, 0.24], null, M.PAINT2, 0.68, 1.2);
+  tur.box([0, th * 1.62, db * 1.10], [tb * 0.58, 0.026, 0.22], null, M.PAINT, 0.88, 1.2);
   // маска орудия
-  tur.box([0, th + 0.04, -db * 0.74], [0.42, 0.245, 0.18], null, M.GUN, 0.82, 1.6);
-  tur.box([0, th + 0.04, -db * 0.88], [0.30, 0.18, 0.07], null, M.PAINT2, 0.78, 1.4);
+  tur.box([0, th * 0.92, -db * 0.92], [0.38, 0.26, 0.16], null, M.GUN, 0.84, 1.6);
 
   // лоб башни
   if (!west) {
@@ -2090,23 +2219,26 @@ void main(){
     albedo = vec3(0.60, 0.62, 0.64); metal = 0.10; rough = 0.70;
   }
 
-  // ---------- fwidth-сколы по геометрическим рёбрам ----------
+  // ---------- сколы по геометрическим рёбрам ----------
+  // Ширина кромки задаётся производной самой барицентрики (как в
+  // стандартном каркасном трюке), а не мировой величиной пикселя —
+  // иначе размер скола зависит от масштаба треугольника.
   if (vMat < 1.05 || id == 2 || id == 11) {
-    vec3 dx = dFdx(vWorld), dy = dFdy(vWorld);
-    float fp = max(length(dx), length(dy));
     float e = min(min(vBary.x, vBary.y), vBary.z);
-    float px = e / max(fp, 1e-5);
-    float chip = 1.0 - smoothstep(0.6, 2.2, px);
-    // рваный фронт скола
-    float n = fbm(vWorld.xz * 22.0 + vWorld.y * 17.0, 3);
-    chip = sat(chip * (0.45 + 1.25 * n));
-    chip = smoothstep(0.34, 0.72, chip);
+    float w = max(fwidth(e), 1e-6);
+    // рваный фронт: шум смещает границу кромки
+    float n = fbm(vWorld.xz * 13.0 + vWorld.y * 11.0, 4);
+    float edge = e / w;
+    float chip = 1.0 - smoothstep(0.6, 2.8, edge * (0.55 + 0.90 * n));
+    // не солим всю поверхность: скол есть только у реальных кромок
+    chip *= 0.92;
     edgeMask = chip;
-    float rustE = fbm(vWorld.xz * 6.0, 2);
-    vec3 bareSteel = mix(vec3(0.50, 0.52, 0.545), vec3(0.30, 0.215, 0.145), smoothstep(0.60, 0.92, rustE) * 0.85);
+    float rustE = fbm(vWorld.xz * 5.0 + vWorld.y * 4.0, 3);
+    vec3 bareSteel = mix(vec3(0.44, 0.455, 0.470), vec3(0.27, 0.195, 0.130),
+                         smoothstep(0.62, 0.94, rustE) * 0.80);
     albedo = mix(albedo, bareSteel, chip);
-    metal = mix(metal, 0.93, chip);
-    rough = mix(rough, 0.235, chip);
+    metal = mix(metal, 0.90, chip);
+    rough = mix(rough, 0.30, chip);
     detail = mix(1.0, 3.2, chip);
   }
 
@@ -2520,11 +2652,12 @@ function uploadGeo(arr){
   const vbo = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
   gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+  // раскладка вершины: pos3 | nrm3 | mat, ao, wear | bary3  = 12 float
   const stride = 12 * 4;
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);
-  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 12);
-  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 2, gl.FLOAT, false, stride, 24);
-  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 3, gl.FLOAT, false, stride, 32);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 3 * 4);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 2, gl.FLOAT, false, stride, 6 * 4);
+  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 3, gl.FLOAT, false, stride, 9 * 4); // 32 -> 36
   gl.bindVertexArray(null);
   R.buffers.push(vbo);
   return { vao, count:arr.length / 12, vbo };
@@ -2784,7 +2917,7 @@ function drawScene(prog, mode, view, proj){
   // орудие: качание вокруг цапфы в башне + откат по оси ствола
   const pivot = b.gunPivot;                       // [0, 0.36, gz0] в пространстве башни
   const toPivot   = M4.trs([pivot[0], pivot[1], pivot[2] - rec], [0, 0, 0]);
-  const elev      = M4.trs([0, 0, 0], [gp, 0, 0]);
+  const elev      = M4.trs([0, 0, 0], [gp, 0, 0]);   // подъём ствола вокруг X (цапфы)
   const fromPivot = M4.trs([-pivot[0], -pivot[1], -pivot[2]], [0, 0, 0]);
   const gunLocal  = M4.mul(M4.mul(toPivot, elev), fromPivot);
   const gunWorld  = M4.mul(turM, gunLocal);
