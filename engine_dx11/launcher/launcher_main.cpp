@@ -399,7 +399,7 @@ public:
             target.z + std::cos(camYaw) * std::cos(camPitch) * camDist
         );
 
-        Vec3 sunDir = Vec3(0.74f, 0.24f, -0.63f).normalized();
+        Vec3 sunDir = Vec3(0.58f, 0.56f, -0.59f).normalized();
         Mat4 lightVP = Mat4::lookAtLH(sunDir * 42.f, Vec3(0, 0.8f, 0), Vec3(0, 1, 0)) *
                        Mat4::orthoLH(26.f, 26.f, 4.f, 88.f);
         Mat4 viewProj = Mat4::lookAtLH(camPos, target, Vec3(0, 1, 0)) *
@@ -410,10 +410,10 @@ public:
         fb.lightViewProj    = lightVP;
         fb.camPosTime       = Vec4(camPos.x, camPos.y, camPos.z, (float)appTime);
         fb.sunDirQuality    = Vec4(sunDir.x, sunDir.y, sunDir.z, 1.f);
-        fb.sunColorExposure = Vec4(5.25f, 3.10f, 1.62f, 1.16f);
-        fb.skyTopFogStart   = Vec4(0.10f, 0.17f, 0.38f, 75.f);
-        fb.skyHorizFogEnd   = Vec4(0.92f, 0.46f, 0.21f, 255.f);
-        fb.groundAmbMode    = Vec4(0.17f, 0.15f, 0.13f, 0.f);
+        fb.sunColorExposure = Vec4(4.85f, 4.62f, 4.25f, 1.14f);
+        fb.skyTopFogStart   = Vec4(0.12f, 0.34f, 0.71f, 75.f);
+        fb.skyHorizFogEnd   = Vec4(0.60f, 0.75f, 0.90f, 255.f);
+        fb.groundAmbMode    = Vec4(0.16f, 0.17f, 0.18f, 0.f);
 
         int vIdx = showcaseVehIndices[showcasePos];
         float turSweep = std::sin((float)appTime * 0.42f) * 0.22f;

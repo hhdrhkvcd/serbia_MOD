@@ -867,27 +867,27 @@ public:
 
     void getDaSkiesPresetParams(int preset, Vec3& outSunDir, Vec4& outSunColExp, Vec4& outSkyTop, Vec4& outSkyHoriz) const {
         switch (preset & 3) {
-            case 0: // ЗАКАТ daSkies (Golden Hour — кинематографичное освещение по умолчанию!)
+            case 0: // ЯСНЫЙ ДЕНЬ daSkies (Контрастный дневной свет полигона Никинци — подчёркивает холодную сталь!)
+                outSunDir    = Vec3(0.58f, 0.56f, -0.59f).normalized();
+                outSunColExp = Vec4(4.85f, 4.62f, 4.25f, 1.14f);
+                outSkyTop    = Vec4(0.12f, 0.34f, 0.71f, 95.f);
+                outSkyHoriz  = Vec4(0.60f, 0.75f, 0.90f, 295.f);
+                break;
+            case 1: // ЗАКАТ daSkies (Golden Hour)
                 outSunDir    = Vec3(0.74f, 0.24f, -0.63f).normalized();
-                outSunColExp = Vec4(5.25f, 3.10f, 1.62f, 1.16f);
-                outSkyTop    = Vec4(0.10f, 0.17f, 0.38f, 80.f);
-                outSkyHoriz  = Vec4(0.92f, 0.46f, 0.21f, 265.f);
+                outSunColExp = Vec4(5.15f, 3.25f, 1.85f, 1.14f);
+                outSkyTop    = Vec4(0.10f, 0.19f, 0.42f, 80.f);
+                outSkyHoriz  = Vec4(0.88f, 0.48f, 0.24f, 265.f);
                 break;
-            case 1: // ПОЛДЕНЬ daSkies (Ясное небо)
-                outSunDir    = Vec3(0.56f, 0.62f, -0.55f).normalized();
-                outSunColExp = Vec4(4.45f, 4.05f, 3.45f, 1.10f);
-                outSkyTop    = Vec4(0.13f, 0.34f, 0.69f, 95.f);
-                outSkyHoriz  = Vec4(0.62f, 0.76f, 0.90f, 290.f);
-                break;
-            case 2: // ГРОЗА daSkies (Штормовой фронт и мокрый асфальт)
+            case 2: // ГРОЗА daSkies (Штормовой фронт и мокрый бетон)
                 outSunDir    = Vec3(-0.42f, 0.48f, -0.77f).normalized();
-                outSunColExp = Vec4(2.15f, 2.35f, 2.75f, 1.04f);
+                outSunColExp = Vec4(2.35f, 2.55f, 2.95f, 1.08f);
                 outSkyTop    = Vec4(0.11f, 0.14f, 0.19f, 55.f);
                 outSkyHoriz  = Vec4(0.28f, 0.33f, 0.39f, 195.f);
                 break;
             default: // НОЧЬ daSkies (Звёздное небо daStars / Ночной полигон ПНВ)
                 outSunDir    = Vec3(-0.55f, 0.07f, -0.83f).normalized();
-                outSunColExp = Vec4(0.68f, 0.88f, 1.42f, 0.96f);
+                outSunColExp = Vec4(0.68f, 0.88f, 1.42f, 0.98f);
                 outSkyTop    = Vec4(0.02f, 0.03f, 0.07f, 50.f);
                 outSkyHoriz  = Vec4(0.06f, 0.09f, 0.16f, 180.f);
                 break;
@@ -1256,7 +1256,7 @@ public:
     void renderDagorOverlays(float W, float H) {
         const auto& dk = dagor::RuntimeKernel::instance();
         char buf[220];
-        const char* skiesNames[4] = {"ЗАКАТ Golden Hour", "ПОЛДЕНЬ Clear", "ГРОЗА Storm", "НОЧЬ daStars"};
+        const char* skiesNames[4] = {"ЯСНЫЙ ДЕНЬ Nikinci", "ЗАКАТ Golden Hour", "ГРОЗА Storm", "НОЧЬ daStars"};
 
         // 1. ТЕЛЕМЕТРИЯ ДВИЖКА DAGOR ENGINE 6.5 В ПРАВОМ ВЕРХНЕМ УГЛУ (F2)
         if (showDagorProfiler && appState == 0) {
@@ -1403,7 +1403,7 @@ public:
         ui.drawTextCentered("ИССЛЕДОВАНИЯ", ttX + 68.f, 19.f, 12.4f, Color4::rgba(255, 240, 204));
         addHit(ACT_TOGGLE_TECH_TREE, 0, ttX, 10.f, 136.f, 36.f);
 
-        const char* skShort[4] = {"daSkies: ЗАКАТ", "daSkies: ДЕНЬ", "daSkies: ГРОЗА", "daSkies: НОЧЬ"};
+        const char* skShort[4] = {"daSkies: ДЕНЬ", "daSkies: ЗАКАТ", "daSkies: ГРОЗА", "daSkies: НОЧЬ"};
         float skX = ttX - 142.f;
         if (skX > 275.f) {
             ui.drawPanel(skX, 10.f, 134.f, 36.f, Color4::rgba(38, 30, 20, 0.96f), Color4::rgba(22, 18, 12, 0.96f), Color4::rgba(238, 166, 56, 0.85f));

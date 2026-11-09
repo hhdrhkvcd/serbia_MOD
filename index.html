@@ -1,871 +1,1086 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0d0e10">
-  <title>Steel Front: Online — Официальный сайт на движке Gaijin Dagor Engine 6.5 (Windows x64)</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      --bg: #0c0d0f;
-      --bg-soft: #131518;
-      --panel: rgba(20, 22, 25, 0.94);
-      --panel-hi: rgba(28, 30, 35, 0.96);
-      --amber: #eab038;
-      --amber-bright: #ffd066;
-      --crimson: #dc3f1e;
-      --crimson-hi: #f2572c;
-      --green: #6ae282;
-      --text: #f3efe6;
-      --muted: #a6a9b2;
-      --line: rgba(234, 176, 56, 0.28);
-      --line-soft: rgba(255, 255, 255, 0.09);
-    }
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      background:
-        radial-gradient(ellipse 90% 45% at 50% 0%, rgba(220, 92, 30, 0.16), transparent 65%),
-        radial-gradient(ellipse 70% 50% at 85% 20%, rgba(234, 176, 56, 0.10), transparent 60%),
-        var(--bg);
-      color: var(--text);
-      font: 15.5px/1.55 "Segoe UI", Inter, Roboto, system-ui, -apple-system, sans-serif;
-    }
-    a { color: inherit; text-decoration: none; }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08090b">
+<title>Steel Front: Online — Gaijin Dagor Engine 6.5 · Hard-Surface PBR (Windows x64)</title>
+<meta name="description" content="Steel Front: Online — танковый экшен на Gaijin Dagor Engine 6.5. Живой GPU-инспектор техники (WebGL2, Cook-Torrance GGX PBR), 7 наций, 23 машины, ветка ВС Сербии, Windows 10/11 x64.">
+<style>
+  :root{
+    color-scheme: dark;
+    --ink:#08090b;
+    --steel-0:#0b0d10;
+    --steel-1:#0f1216;
+    --steel-2:#14181d;
+    --steel-3:#1a1f25;
+    --hair:rgba(255,255,255,.075);
+    --hair-2:rgba(255,255,255,.145);
+    --amber:#f0a828;
+    --amber-hi:#ffc85a;
+    --red:#d63a24;
+    --red-hi:#f2603a;
+    --green:#78e08a;
+    --cyan:#66d7e8;
+    --txt:#e9e7e2;
+    --muted:#98a0a9;
+    --muted-2:#6f777f;
+    --sans: ui-sans-serif, "Segoe UI Variable Display", "Segoe UI", Inter, Roboto, system-ui, -apple-system, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+    --r:3px;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse 70% 40% at 78% -8%, rgba(240,168,40,.09), transparent 60%),
+      radial-gradient(ellipse 60% 45% at 8% 4%, rgba(214,58,36,.07), transparent 62%),
+      linear-gradient(180deg,#0a0c0f 0%, #08090b 40%, #07080a 100%);
+    background-color:var(--ink);
+    color:var(--txt);
+    font:15.5px/1.6 var(--sans);
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:repeating-linear-gradient(0deg, rgba(255,255,255,.014) 0 1px, transparent 1px 3px);
+    opacity:.6;
+  }
+  a{ color:inherit; text-decoration:none; }
+  ::selection{ background:rgba(240,168,40,.28); color:#fff; }
 
-    /* TOP NAVBAR (daRg Style) */
-    header.topbar {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      backdrop-filter: blur(14px);
-      background: rgba(13, 14, 17, 0.92);
-      border-bottom: 2px solid rgba(234, 176, 56, 0.55);
-    }
-    .topbar-inner {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 12px 22px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .brand-bar {
-      width: 5px;
-      height: 34px;
-      background: linear-gradient(180deg, var(--crimson-hi), var(--amber));
-      border-radius: 2px;
-    }
-    .brand-title {
-      font-weight: 900;
-      font-size: 18px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-    .brand-sub {
-      font-size: 11px;
-      color: var(--amber);
-      letter-spacing: 0.12em;
-      font-weight: 700;
-    }
-    nav.navlinks {
-      display: flex;
-      gap: 18px;
-      flex-wrap: wrap;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: #d6d3cb;
-    }
-    nav.navlinks a:hover { color: var(--amber-bright); }
-    .nav-cta {
-      padding: 8px 16px;
-      border-radius: 6px;
-      background: linear-gradient(180deg, var(--crimson-hi), #a52410);
-      border: 1px solid rgba(255, 198, 108, 0.8);
-      font-weight: 800;
-      font-size: 13px;
-      letter-spacing: 0.06em;
-      box-shadow: 0 6px 20px rgba(220, 63, 30, 0.35);
-    }
+  /* ---------- TOP BAR ---------- */
+  header.topbar{
+    position:sticky; top:0; z-index:60;
+    background:linear-gradient(180deg, rgba(9,11,13,.97), rgba(9,11,13,.86));
+    backdrop-filter:blur(16px) saturate(1.1);
+    border-bottom:1px solid var(--hair-2);
+    box-shadow:0 1px 0 rgba(0,0,0,.6), 0 18px 40px -28px rgba(0,0,0,.9);
+  }
+  header.topbar::after{
+    content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+    background:linear-gradient(90deg, transparent, rgba(240,168,40,.65) 18%, rgba(240,168,40,.65) 42%, transparent 78%);
+    opacity:.75;
+  }
+  .bar-in{
+    max-width:1340px; margin:0 auto; padding:11px 24px;
+    display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+  }
+  .brand{ display:flex; align-items:center; gap:13px; min-width:0; }
+  .brand-mark{
+    position:relative; width:38px; height:38px; flex:0 0 auto;
+    background:linear-gradient(160deg,#242a31,#0d1013);
+    border:1px solid var(--hair-2);
+    clip-path:polygon(0 0,100% 0,100% 68%,68% 100%,0 100%);
+    display:grid; place-items:center;
+  }
+  .brand-mark span{
+    font:900 15px/1 var(--mono); letter-spacing:-.04em;
+    background:linear-gradient(180deg,var(--amber-hi),#b97710);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .brand-mark::after{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(140deg, rgba(255,255,255,.14), transparent 45%);
+    pointer-events:none;
+  }
+  .brand-txt{ min-width:0; }
+  .brand-title{
+    font-weight:900; font-size:15px; letter-spacing:.16em; text-transform:uppercase;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .brand-title em{ font-style:normal; color:var(--amber); }
+  .brand-sub{
+    font:10.5px/1.3 var(--mono); letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  nav.navlinks{ display:flex; gap:22px; flex-wrap:wrap; }
+  nav.navlinks a{
+    position:relative; font-size:11.5px; font-weight:800; letter-spacing:.13em;
+    text-transform:uppercase; color:#b9bfc6; padding:5px 0; transition:color .16s;
+  }
+  nav.navlinks a::after{
+    content:""; position:absolute; left:0; right:0; bottom:-2px; height:1px;
+    background:var(--amber); transform:scaleX(0); transform-origin:left; transition:transform .2s;
+  }
+  nav.navlinks a:hover{ color:#fff; }
+  nav.navlinks a:hover::after{ transform:scaleX(1); }
+  .cta-top{
+    display:inline-flex; align-items:center; gap:9px;
+    padding:9px 15px; border-radius:var(--r);
+    background:linear-gradient(180deg,#2a2013,#171208);
+    border:1px solid rgba(240,168,40,.55);
+    box-shadow:inset 0 1px 0 rgba(255,214,140,.22), 0 10px 24px -14px rgba(240,168,40,.6);
+    font-size:11.5px; font-weight:900; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--amber-hi); transition:background .16s, border-color .16s, transform .16s;
+    white-space:nowrap;
+  }
+  .cta-top:hover{ background:linear-gradient(180deg,#3a2c16,#211809); border-color:var(--amber-hi); transform:translateY(-1px); }
+  .cta-top .sz{ color:var(--muted); font-weight:700; letter-spacing:.04em; }
 
-    .container {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding: 32px 22px 72px;
-    }
+  .wrap{ position:relative; z-index:1; max-width:1340px; margin:0 auto; padding:26px 24px 80px; }
 
-    /* HERO GRID */
-    .hero {
-      display: grid;
-      grid-template-columns: 1.05fr 1.15fr;
-      gap: 28px;
-      align-items: stretch;
-      margin-top: 8px;
-    }
-    @media (max-width: 980px) {
-      .hero { grid-template-columns: 1fr; }
-    }
-    .hero-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-top: 3px solid var(--amber);
-      border-radius: 12px;
-      padding: 28px;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    .badge-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 11.5px;
-      font-weight: 800;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      background: rgba(234, 176, 56, 0.13);
-      border: 1px solid rgba(234, 176, 56, 0.45);
-      color: var(--amber-bright);
-    }
-    .badge.live {
-      background: rgba(106, 226, 130, 0.12);
-      border-color: rgba(106, 226, 130, 0.45);
-      color: var(--green);
-    }
-    h1 {
-      margin: 4px 0 12px;
-      font-size: clamp(30px, 4.2vw, 48px);
-      line-height: 1.04;
-      letter-spacing: -0.02em;
-      text-transform: uppercase;
-    }
-    h1 span { color: var(--amber); }
-    .hero-lead {
-      color: #d4d1c8;
-      margin: 0 0 18px;
-      font-size: 15.5px;
-    }
-    .feature-pills {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 22px;
-    }
-    @media (max-width: 560px) {
-      .feature-pills { grid-template-columns: 1fr; }
-    }
-    .fpill {
-      background: rgba(12, 13, 16, 0.75);
-      border: 1px solid var(--line-soft);
-      border-left: 3px solid var(--amber);
-      padding: 9px 12px;
-      border-radius: 6px;
-      font-size: 12.8px;
-    }
-    .fpill strong { display: block; color: var(--amber-bright); font-size: 13px; }
+  /* ---------- HERO ---------- */
+  .hero{ display:grid; grid-template-columns:minmax(0,0.92fr) minmax(0,1.18fr); gap:22px; align-items:stretch; }
+  @media (max-width:1080px){ .hero{ grid-template-columns:1fr; } }
 
-    .cta-group {
-      display: grid;
-      gap: 11px;
-    }
-    .btn-battle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      min-height: 60px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      background: linear-gradient(180deg, #f45828 0%, #c82e16 55%, #94190c 100%);
-      border: 1px solid rgba(255, 206, 118, 0.92);
-      color: #fff;
-      font-size: 17px;
-      font-weight: 900;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      box-shadow: 0 12px 32px rgba(220, 63, 30, 0.42);
-      cursor: pointer;
-      transition: transform 0.14s, filter 0.14s;
-    }
-    .btn-battle:hover { transform: translateY(-2px); filter: brightness(1.08); }
-    .btn-secondary-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    @media (max-width: 560px) {
-      .btn-secondary-row { grid-template-columns: 1fr; }
-    }
-    .btn-amber {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 46px;
-      padding: 10px 14px;
-      border-radius: 7px;
-      background: rgba(58, 42, 14, 0.88);
-      border: 1px solid rgba(234, 176, 56, 0.72);
-      color: var(--amber-bright);
-      font-weight: 800;
-      font-size: 13.2px;
-      text-align: center;
-      transition: background 0.14s;
-    }
-    .btn-amber:hover { background: rgba(88, 64, 20, 0.95); }
-    .dl-hint {
-      margin-top: 10px;
-      font-size: 12.2px;
-      color: var(--muted);
-    }
+  .panel{
+    position:relative;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.035), transparent 22%),
+      linear-gradient(180deg,#11151a,#0b0e11);
+    border:1px solid var(--hair-2);
+    border-radius:var(--r);
+    box-shadow:0 1px 0 rgba(255,255,255,.05) inset, 0 30px 70px -40px rgba(0,0,0,.95);
+  }
+  .panel::before, .panel::after{
+    content:""; position:absolute; width:9px; height:9px; pointer-events:none;
+    border-color:rgba(240,168,40,.85); border-style:solid;
+  }
+  .panel::before{ top:-1px; left:-1px; border-width:1px 0 0 1px; }
+  .panel::after{ bottom:-1px; right:-1px; border-width:0 1px 1px 0; }
 
-    /* LIVE 3D CANVAS VIEWPORT */
-    .viewport-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-top: 3px solid var(--amber);
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
-    }
-    .vp-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 10px 14px;
-      background: rgba(12, 13, 16, 0.95);
-      border-bottom: 1px solid var(--line-soft);
-      flex-wrap: wrap;
-    }
-    .vp-title {
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--amber-bright);
-      letter-spacing: 0.06em;
-    }
-    .vp-btns {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .vp-btn {
-      background: #1b1d21;
-      color: #e6e2d8;
-      border: 1px solid rgba(234, 176, 56, 0.42);
-      border-radius: 5px;
-      padding: 5px 9px;
-      font-size: 11.5px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .vp-btn.active, .vp-btn:hover {
-      background: #543b12;
-      border-color: var(--amber-bright);
-      color: #fff;
-    }
-    .canvas-wrap {
-      position: relative;
-      flex: 1;
-      min-height: 360px;
-      background: #090b0f;
-    }
-    #dagorCanvas {
-      width: 100%;
-      height: 100%;
-      min-height: 360px;
-      display: block;
-      cursor: grab;
-    }
-    #dagorCanvas:active { cursor: grabbing; }
-    .hud-telemetry {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: rgba(12, 13, 15, 0.86);
-      border: 1px solid rgba(234, 176, 56, 0.65);
-      border-top: 2px solid var(--amber);
-      border-radius: 6px;
-      padding: 8px 11px;
-      font: 11px/1.45 Consolas, "Courier New", monospace;
-      color: #dfd9cc;
-      pointer-events: none;
-    }
-    .hud-telemetry .ok { color: var(--green); font-weight: 700; }
-    .hud-bottom {
-      position: absolute;
-      left: 12px;
-      bottom: 12px;
-      right: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      pointer-events: none;
-    }
-    .hud-tank-pill {
-      pointer-events: auto;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(14, 15, 18, 0.9);
-      border: 1px solid rgba(234, 176, 56, 0.65);
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 12.5px;
-      font-weight: 800;
-    }
+  .hero-copy{ padding:30px 30px 26px; display:flex; flex-direction:column; }
+  .kicker{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px;
+  }
+  .tag{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 9px; border:1px solid rgba(255,255,255,.14); border-radius:2px;
+    font:700 10.5px/1.5 var(--mono); letter-spacing:.11em; text-transform:uppercase; color:#c8ced5;
+    background:rgba(255,255,255,.03);
+  }
+  .tag.live{ color:#a9f3b6; border-color:rgba(120,224,138,.42); background:rgba(120,224,138,.08); }
+  .tag.live i{
+    width:6px; height:6px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 0 3px rgba(120,224,138,.16); animation:pulse 2.4s infinite;
+  }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .tag.amber{ color:var(--amber-hi); border-color:rgba(240,168,40,.42); background:rgba(240,168,40,.08); }
 
-    /* SECTION HEADINGS */
-    section.block {
-      margin-top: 48px;
-    }
-    .sec-head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 12px;
-      margin-bottom: 22px;
-    }
-    .sec-head h2 {
-      margin: 0;
-      font-size: clamp(22px, 3vw, 30px);
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-    }
-    .sec-head h2 span { color: var(--amber); }
-    .sec-sub { color: var(--muted); font-size: 14px; }
+  h1{
+    margin:0 0 14px; font-size:clamp(31px,3.6vw,50px); line-height:.97;
+    letter-spacing:-.025em; text-transform:uppercase; font-weight:900;
+  }
+  h1 .l1{ display:block; color:#fff; }
+  h1 .l2{
+    display:block;
+    background:linear-gradient(96deg,var(--amber-hi) 0%,#e07b1e 46%,#c9412a 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .lead{ margin:0 0 20px; color:#c3c8cf; font-size:14.6px; line-height:1.62; }
+  .lead strong{ color:#fff; font-weight:700; }
+  .lead code, .spec code{ font:12.4px/1 var(--mono); color:var(--amber-hi); background:rgba(240,168,40,.1); padding:2px 5px; border-radius:2px; }
 
-    /* ENGINE ARCHITECTURE CARDS (4 + 3 MODES) */
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 18px;
-    }
-    .grid-4 {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 16px;
-    }
-    @media (max-width: 980px) {
-      .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-    @media (max-width: 620px) {
-      .grid-3, .grid-4 { grid-template-columns: 1fr; }
-    }
-    .dcard {
-      background: var(--panel);
-      border: 1px solid var(--line-soft);
-      border-top: 3px solid var(--amber);
-      border-radius: 10px;
-      padding: 20px;
-    }
-    .dcard h3 {
-      margin: 0 0 8px;
-      font-size: 16.5px;
-      color: var(--amber-bright);
-    }
-    .dcard p { margin: 0; color: #cbc8c0; font-size: 13.8px; }
-    .dcard code {
-      background: rgba(234, 176, 56, 0.12);
-      color: var(--amber-bright);
-      padding: 1px 5px;
-      border-radius: 4px;
-      font-size: 12.2px;
-    }
+  .stat-row{
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px;
+    background:var(--hair); border:1px solid var(--hair); margin:4px 0 22px;
+  }
+  .stat{ background:#0c0f12; padding:11px 12px; }
+  .stat b{ display:block; font:900 20px/1.1 var(--sans); letter-spacing:-.02em; color:#fff; font-variant-numeric:tabular-nums; }
+  .stat span{ display:block; margin-top:3px; font:9.6px/1.3 var(--mono); letter-spacing:.09em; text-transform:uppercase; color:var(--muted-2); }
+  .stat b i{ font-style:normal; color:var(--amber); }
 
-    /* DOWNLOAD FILES TABLE */
-    .dl-table-wrap {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      overflow-x: auto;
-    }
-    table.dl-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13.8px;
-    }
-    table.dl-table th, table.dl-table td {
-      padding: 13px 16px;
-      text-align: left;
-      border-bottom: 1px solid var(--line-soft);
-    }
-    table.dl-table th {
-      background: rgba(12, 13, 16, 0.9);
-      color: var(--amber);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-    }
-    .hash {
-      font-family: Consolas, monospace;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .mini-dl {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 5px;
-      background: rgba(220, 63, 30, 0.2);
-      border: 1px solid rgba(242, 87, 44, 0.75);
-      color: #ffd7ca;
-      font-weight: 700;
-      font-size: 12.5px;
-    }
-    .mini-dl:hover { background: rgba(220, 63, 30, 0.45); color: #fff; }
+  .cta-stack{ margin-top:auto; display:grid; gap:9px; }
+  .btn-main{
+    position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:15px 18px; border-radius:var(--r); border:1px solid rgba(255,196,110,.8);
+    background:linear-gradient(180deg,#e65426 0%,#c02c14 52%,#8a170a 100%);
+    box-shadow:inset 0 1px 0 rgba(255,220,170,.45), 0 18px 40px -22px rgba(214,58,36,.95);
+    color:#fff; font-weight:900; font-size:15px; letter-spacing:.03em; text-transform:uppercase;
+    transition:transform .15s, filter .15s, box-shadow .15s;
+  }
+  .btn-main::after{
+    content:""; position:absolute; top:0; left:-60%; width:35%; height:100%;
+    background:linear-gradient(100deg, transparent, rgba(255,255,255,.35), transparent);
+    transform:skewX(-18deg); transition:left .55s ease;
+  }
+  .btn-main:hover{ transform:translateY(-1px); filter:brightness(1.07); box-shadow:inset 0 1px 0 rgba(255,220,170,.5), 0 22px 46px -20px rgba(214,58,36,1); }
+  .btn-main:hover::after{ left:130%; }
+  .btn-main small{ display:block; font:600 11px/1.4 var(--mono); letter-spacing:.06em; color:#ffd9c9; text-transform:none; }
+  .btn-main .arrow{ font-size:20px; line-height:1; opacity:.9; }
 
-    /* NATIONS & 23 VEHICLES TECH TREE */
-    .nation-tabs {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 18px;
-    }
-    .ntab {
-      background: #17191d;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      color: #dedad0;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-weight: 800;
-      font-size: 13px;
-      cursor: pointer;
-    }
-    .ntab.active, .ntab:hover {
-      background: linear-gradient(180deg, #5c4014, #38260b);
-      border-color: var(--amber-bright);
-      color: var(--amber-bright);
-    }
-    .veh-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(285px, 1fr));
-      gap: 14px;
-    }
-    .vcard {
-      background: var(--panel);
-      border: 1px solid var(--line-soft);
-      border-left: 3px solid var(--amber);
-      border-radius: 8px;
-      padding: 15px 16px;
-      transition: border-color 0.15s, transform 0.15s;
-    }
-    .vcard.serbia {
-      border-left-color: #f2572c;
-      background: linear-gradient(180deg, rgba(42, 24, 20, 0.55), rgba(20, 22, 25, 0.95));
-    }
-    .vcard:hover {
-      border-color: var(--amber);
-      transform: translateY(-2px);
-    }
-    .vcard-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
-    .vname { font-weight: 800; font-size: 15.5px; color: #fff; }
-    .vbr {
-      background: rgba(234, 176, 56, 0.18);
-      border: 1px solid rgba(234, 176, 56, 0.55);
-      color: var(--amber-bright);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .vmeta { font-size: 12px; color: var(--amber); margin-bottom: 8px; font-weight: 700; }
-    .vstats {
-      font-size: 12.6px;
-      color: #ccc9c1;
-      display: grid;
-      gap: 3px;
-    }
-    .armor-bar {
-      margin-top: 8px;
-      height: 5px;
-      background: #23262c;
-      border-radius: 3px;
-      overflow: hidden;
-    }
-    .armor-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--amber), var(--crimson-hi));
-    }
+  .btn-row{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+  @media (max-width:520px){ .btn-row{ grid-template-columns:1fr; } .stat-row{ grid-template-columns:1fr 1fr; } }
+  .btn-ghost{
+    display:flex; flex-direction:column; gap:2px; justify-content:center;
+    padding:10px 13px; border-radius:var(--r);
+    background:linear-gradient(180deg,#171d23,#101418);
+    border:1px solid var(--hair-2);
+    font-size:12.6px; font-weight:800; letter-spacing:.03em; color:#dfe3e8;
+    transition:border-color .15s, background .15s, color .15s;
+  }
+  .btn-ghost span{ font:600 10.4px/1.4 var(--mono); color:var(--muted-2); letter-spacing:.02em; }
+  .btn-ghost:hover{ border-color:rgba(240,168,40,.6); background:linear-gradient(180deg,#1e252c,#131a1f); color:#fff; }
+  .btn-ghost:hover span{ color:var(--amber); }
 
-    /* INTERACTIVE DAGOR VISUAL CONSOLE (~) */
-    .console-box {
-      background: #080b09;
-      border: 1px solid rgba(106, 226, 130, 0.65);
-      border-top: 3px solid var(--green);
-      border-radius: 10px;
-      padding: 18px;
-      font-family: Consolas, "Courier New", monospace;
-    }
-    .console-presets {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .cbtn {
-      background: #121c14;
-      border: 1px solid rgba(106, 226, 130, 0.45);
-      color: #a9f5b8;
-      padding: 5px 10px;
-      border-radius: 5px;
-      font: 700 12px Consolas, monospace;
-      cursor: pointer;
-    }
-    .cbtn:hover { background: #1c3121; color: #fff; }
-    #consoleLog {
-      background: #050706;
-      border: 1px solid rgba(106, 226, 130, 0.22);
-      border-radius: 6px;
-      padding: 12px;
-      height: 195px;
-      overflow-y: auto;
-      font-size: 12.8px;
-      color: #cde8d2;
-      white-space: pre-wrap;
-      margin-bottom: 10px;
-    }
-    .console-input-row {
-      display: flex;
-      gap: 8px;
-    }
-    .console-input-row input {
-      flex: 1;
-      background: #0e1510;
-      border: 1px solid rgba(106, 226, 130, 0.55);
-      border-radius: 6px;
-      padding: 9px 12px;
-      color: #fff3a8;
-      font: 13.5px Consolas, monospace;
-    }
-    .console-input-row button {
-      background: #235c2e;
-      border: 1px solid var(--green);
-      color: #fff;
-      font-weight: 800;
-      padding: 0 18px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
+  /* ---------- INSPECTOR ---------- */
+  .inspector{ display:flex; flex-direction:column; overflow:hidden; }
+  .insp-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    padding:10px 14px; background:linear-gradient(180deg,#12161b,#0c1013);
+    border-bottom:1px solid var(--hair);
+  }
+  .insp-title{
+    display:flex; align-items:center; gap:8px;
+    font:800 11px/1 var(--mono); letter-spacing:.13em; text-transform:uppercase; color:#d5dae0;
+  }
+  .insp-title b{ color:var(--amber); }
+  .insp-title .dot{ width:5px; height:5px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); }
+  .insp-stats{ display:flex; gap:10px; font:10.6px/1 var(--mono); color:var(--muted-2); letter-spacing:.04em; }
+  .insp-stats b{ color:var(--cyan); font-weight:700; }
 
-    footer {
-      margin-top: 56px;
-      padding-top: 24px;
-      border-top: 1px solid var(--line-soft);
-      color: var(--muted);
-      font-size: 13px;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-  </style>
+  .toolbar{ display:flex; flex-wrap:wrap; gap:6px; padding:9px 12px; background:#0a0d10; border-bottom:1px solid var(--hair); }
+  .toolbar .grp{ display:flex; gap:4px; flex-wrap:wrap; }
+  .toolbar .sep{ width:1px; align-self:stretch; background:var(--hair-2); margin:0 4px; }
+  .chip{
+    appearance:none; cursor:pointer;
+    padding:5px 9px; border-radius:2px;
+    background:#12171c; border:1px solid rgba(255,255,255,.11);
+    color:#b9c0c8; font:700 11px/1.4 var(--mono); letter-spacing:.05em;
+    transition:background .14s, border-color .14s, color .14s;
+  }
+  .chip:hover{ background:#1a2027; border-color:rgba(255,255,255,.22); color:#fff; }
+  .chip.on{ background:linear-gradient(180deg,#33260f,#211706); border-color:rgba(240,168,40,.75); color:var(--amber-hi); }
+  .chip.fire{ border-color:rgba(214,58,36,.6); color:#ffb9a4; background:#1b0f0c; }
+  .chip.fire:hover{ background:#2b140f; color:#fff; }
+
+  .stage{ position:relative; flex:1 1 auto; min-height:404px; background:#05070a; overflow:hidden; }
+  .stage canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+  .stage canvas:active{ cursor:grabbing; }
+  .stage .fallback{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; }
+  .stage.no-gl .fallback{ display:block; }
+  .stage.no-gl canvas{ display:none; }
+
+  .hud{ position:absolute; pointer-events:none; font-family:var(--mono); }
+  .hud-tl{ top:11px; left:12px; }
+  .hud-tr{ top:11px; right:12px; text-align:right; }
+  .hud-bl{ bottom:11px; left:12px; right:12px; display:flex; align-items:flex-end; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .hud-box{
+    background:rgba(6,9,12,.78); border:1px solid rgba(255,255,255,.12);
+    padding:7px 10px; backdrop-filter:blur(6px);
+  }
+  .hud-line{ font-size:10.4px; letter-spacing:.05em; color:#9aa3ac; line-height:1.65; white-space:nowrap; }
+  .hud-line b{ color:#e8ecf0; font-weight:700; }
+  .hud-line .g{ color:var(--green); }
+  .hud-line .a{ color:var(--amber); }
+  .hud-line .c{ color:var(--cyan); }
+  .tank-chip{
+    pointer-events:auto; display:inline-flex; align-items:center; gap:9px;
+    background:rgba(6,9,12,.86); border:1px solid rgba(240,168,40,.45);
+    padding:6px 8px 6px 10px;
+  }
+  .tank-chip .nm{ font:800 12px/1.3 var(--sans); letter-spacing:.02em; color:#fff; }
+  .tank-chip .sb{ font:9.8px/1.3 var(--mono); color:var(--muted-2); letter-spacing:.06em; }
+  .nav-btn{
+    appearance:none; cursor:pointer; width:24px; height:24px; display:grid; place-items:center;
+    background:#141a20; border:1px solid rgba(255,255,255,.16); color:#cfd6dd;
+    font:700 12px/1 var(--mono); border-radius:2px;
+  }
+  .nav-btn:hover{ background:#222b34; color:#fff; border-color:var(--amber); }
+  .hint{ font:10.4px/1.5 var(--mono); color:var(--muted-2); letter-spacing:.04em; text-align:right; }
+  .hint b{ color:#c9d1d9; }
+
+  .flash{
+    position:absolute; pointer-events:none; left:0; top:0; width:100%; height:100%;
+    background:radial-gradient(circle at 66% 46%, rgba(255,238,196,.95), rgba(255,170,70,.55) 12%, rgba(255,110,30,.18) 30%, transparent 58%);
+    opacity:0; mix-blend-mode:screen;
+  }
+  .flash.on{ animation:boom .34s ease-out; }
+  @keyframes boom{ 0%{ opacity:.95; } 100%{ opacity:0; } }
+
+  .insp-foot{
+    display:flex; flex-wrap:wrap; gap:14px 22px; align-items:center;
+    padding:9px 14px; background:#0a0d10; border-top:1px solid var(--hair);
+  }
+  .mat{ display:flex; align-items:center; gap:7px; font:10.4px/1 var(--mono); color:var(--muted-2); letter-spacing:.05em; }
+  .mat .sw{ width:11px; height:11px; border:1px solid rgba(255,255,255,.2); }
+  .mat b{ color:#dfe4e9; font-weight:700; font-variant-numeric:tabular-nums; }
+  .mat .sw.paint{ background:linear-gradient(140deg,#5d6b48,#39422d); }
+  .mat .sw.steel{ background:linear-gradient(140deg,#dfe6ec,#7d858c 60%,#3b4147); }
+  .mat .sw.rubber{ background:linear-gradient(140deg,#2a2d30,#101213); }
+  .mat .sw.gun{ background:linear-gradient(140deg,#b9c2ca,#59636c 65%,#2b3136); }
+
+  /* ---------- SPEC STRIP ---------- */
+  .strip{
+    margin-top:14px; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1px;
+    background:var(--hair); border:1px solid var(--hair);
+  }
+  @media (max-width:900px){ .strip{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .strip div{ background:linear-gradient(180deg,#0e1216,#0a0d10); padding:13px 15px; }
+  .strip b{ display:block; font:900 13px/1.3 var(--sans); color:#fff; letter-spacing:.01em; }
+  .strip span{ display:block; margin-top:3px; font:10px/1.4 var(--mono); color:var(--muted-2); letter-spacing:.06em; text-transform:uppercase; }
+  .strip i{ font-style:normal; color:var(--amber); }
+
+  /* ---------- SECTIONS ---------- */
+  section.block{ margin-top:62px; scroll-margin-top:78px; }
+  .sec-head{
+    display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap;
+    padding-bottom:14px; margin-bottom:24px; border-bottom:1px solid var(--hair);
+    position:relative;
+  }
+  .sec-head::after{
+    content:""; position:absolute; left:0; bottom:-1px; width:64px; height:2px;
+    background:linear-gradient(90deg,var(--amber),rgba(240,168,40,0));
+  }
+  .sec-head h2{
+    margin:0; font-size:clamp(21px,2.5vw,29px); line-height:1.12;
+    letter-spacing:-.015em; text-transform:uppercase; font-weight:900; color:#fff;
+  }
+  .sec-head h2 span{ color:var(--amber); }
+  .sec-head p{ margin:5px 0 0; font-size:13.2px; color:var(--muted); max-width:62ch; }
+  .sec-num{ font:800 10.5px/1 var(--mono); letter-spacing:.16em; color:var(--muted-2); text-transform:uppercase; white-space:nowrap; }
+  .sec-num b{ color:var(--amber); }
+
+  /* GALLERY */
+  .gallery{ display:grid; grid-template-columns:repeat(12,1fr); gap:14px; }
+  .shot{
+    position:relative; overflow:hidden; border:1px solid var(--hair-2);
+    background:#0a0d10; cursor:zoom-in; display:block;
+  }
+  .shot img{ display:block; width:100%; height:100%; object-fit:cover; transition:transform .7s cubic-bezier(.2,.7,.2,1), filter .4s; }
+  .shot:hover img{ transform:scale(1.035); filter:saturate(1.08) contrast(1.04); }
+  .shot.big{ grid-column:span 7; aspect-ratio:16/10; }
+  .shot.small{ grid-column:span 5; aspect-ratio:16/10; }
+  .shot.half{ grid-column:span 6; aspect-ratio:16/9; }
+  @media (max-width:860px){ .shot.big,.shot.small,.shot.half{ grid-column:span 12; aspect-ratio:16/10; } }
+  .shot .cap{
+    position:absolute; left:0; right:0; bottom:0; padding:26px 16px 13px;
+    background:linear-gradient(180deg, transparent, rgba(5,7,9,.92) 62%);
+    display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+  }
+  .shot .cap b{ display:block; font-size:13.6px; font-weight:800; color:#fff; letter-spacing:.01em; }
+  .shot .cap span{ display:block; font:10.2px/1.5 var(--mono); color:#9aa3ac; letter-spacing:.06em; margin-top:2px; }
+  .shot .badge{
+    position:absolute; top:11px; left:11px;
+    padding:3px 7px; background:rgba(5,7,9,.72); border:1px solid rgba(255,255,255,.18);
+    font:700 9.6px/1.5 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:#dfe4e9;
+  }
+  .shot .zoom{
+    flex:0 0 auto; width:30px; height:30px; display:grid; place-items:center;
+    border:1px solid rgba(255,255,255,.24); background:rgba(5,7,9,.6); color:#fff; font-size:13px;
+    transition:border-color .2s, background .2s;
+  }
+  .shot:hover .zoom{ border-color:var(--amber); background:rgba(240,168,40,.22); }
+
+  /* GALLERY LIGHTBOX */
+  .lb{
+    position:fixed; inset:0; z-index:120; display:none; place-items:center;
+    background:rgba(4,6,8,.94); backdrop-filter:blur(8px); padding:26px;
+  }
+  .lb.open{ display:grid; }
+  .lb img{ max-width:min(1600px,96vw); max-height:88vh; border:1px solid var(--hair-2); box-shadow:0 40px 120px rgba(0,0,0,.9); }
+  .lb-close{
+    position:absolute; top:18px; right:20px; width:40px; height:40px; cursor:pointer;
+    background:#12171c; border:1px solid var(--hair-2); color:#fff; font-size:18px; border-radius:2px;
+  }
+  .lb-close:hover{ border-color:var(--amber); color:var(--amber); }
+
+  /* MATERIALS */
+  .mat-grid{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:13px; }
+  @media (max-width:1100px){ .mat-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+  @media (max-width:720px){ .mat-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+  .mat-card{
+    background:linear-gradient(180deg,#12171c,#0b0e11); border:1px solid var(--hair);
+    padding:14px; display:flex; flex-direction:column; gap:10px;
+    transition:border-color .18s, transform .18s;
+  }
+  .mat-card:hover{ border-color:rgba(240,168,40,.4); transform:translateY(-2px); }
+  .ball{
+    width:100%; aspect-ratio:1/1; border-radius:50%;
+    background:
+      radial-gradient(circle at 30% 24%, rgba(255,255,255,.92), rgba(255,255,255,0) 26%),
+      radial-gradient(circle at 66% 78%, rgba(0,0,0,.55), transparent 58%),
+      radial-gradient(circle at 42% 38%, var(--c1), var(--c2) 78%);
+    box-shadow:0 12px 26px -14px #000, inset 0 -8px 22px -10px rgba(0,0,0,.9);
+    border:1px solid rgba(255,255,255,.1);
+    position:relative; overflow:hidden;
+  }
+  .ball::after{
+    content:""; position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(115deg, rgba(255,255,255,.05) 0 1px, transparent 1px 4px),
+      radial-gradient(circle at 62% 20%, rgba(255,255,255,.5), transparent 18%);
+    mix-blend-mode:overlay; opacity:.65;
+  }
+  .ball.matte::after{ opacity:.25; }
+  .ball.rough{ filter:contrast(1.05) saturate(.85); }
+  .mat-card h4{ margin:0; font-size:12.8px; font-weight:800; letter-spacing:.03em; color:#fff; text-transform:uppercase; }
+  .mat-card p{ margin:0; font-size:12.2px; line-height:1.5; color:#a9b0b8; }
+  .mat-card .vals{ display:flex; gap:10px; margin-top:auto; font:10.2px/1.4 var(--mono); color:var(--muted-2); }
+  .mat-card .vals b{ color:var(--amber); font-weight:700; }
+</style>
+<style>
+  /* DOWNLOADS */
+  .dl-shell{ border:1px solid var(--hair-2); background:linear-gradient(180deg,#0e1216,#0a0d10); overflow:hidden; }
+  .dl-head{
+    display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+    padding:12px 16px; border-bottom:1px solid var(--hair); background:#0b0e11;
+  }
+  .dl-head .t{ font:800 11px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; color:#d5dae0; }
+  .dl-head .t b{ color:var(--green); }
+  .dl-head .n{ font:10.6px/1 var(--mono); color:var(--muted-2); letter-spacing:.05em; }
+  .dl-tbl{ width:100%; border-collapse:collapse; font-size:13.4px; }
+  .dl-tbl th{
+    text-align:left; padding:10px 14px; background:#090c0f; border-bottom:1px solid var(--hair);
+    font:700 9.8px/1.4 var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--muted-2);
+    white-space:nowrap;
+  }
+  .dl-tbl td{ padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:middle; }
+  .dl-tbl tr:last-child td{ border-bottom:0; }
+  .dl-tbl tbody tr{ transition:background .15s; }
+  .dl-tbl tbody tr:hover{ background:rgba(255,255,255,.022); }
+  .fname{ font:700 13px/1.3 var(--mono); color:#fff; letter-spacing:-.01em; }
+  .fdesc{ font:11.6px/1.45 var(--sans); color:var(--muted); margin-top:2px; max-width:44ch; }
+  .fsize{ font:700 12.4px/1 var(--mono); color:var(--amber-hi); white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .fsize small{ display:block; margin-top:3px; font-size:10px; color:var(--muted-2); font-weight:400; }
+  .hashbox{ display:flex; align-items:center; gap:8px; }
+  .hash{
+    font:10.8px/1.5 var(--mono); color:#8e97a0; word-break:break-all; max-width:34ch;
+    background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.06); padding:4px 7px;
+  }
+  .copy{
+    appearance:none; cursor:pointer; flex:0 0 auto;
+    padding:4px 7px; border:1px solid rgba(255,255,255,.14); background:#141a20;
+    color:#c3cad1; font:700 9.6px/1.4 var(--mono); letter-spacing:.08em; text-transform:uppercase;
+  }
+  .copy:hover{ border-color:var(--amber); color:var(--amber-hi); }
+  .copy.done{ border-color:rgba(120,224,138,.6); color:var(--green); }
+  .dl-btn{
+    display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+    padding:7px 12px; border:1px solid rgba(214,58,36,.6); background:rgba(214,58,36,.13);
+    color:#ffc7b7; font:800 11.4px/1.4 var(--sans); letter-spacing:.04em; text-transform:uppercase;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .dl-btn:hover{ background:rgba(214,58,36,.32); color:#fff; border-color:var(--red-hi); }
+  @media (max-width:860px){
+    .dl-tbl thead{ display:none; }
+    .dl-tbl tr{ display:block; border-bottom:1px solid var(--hair); padding:6px 0; }
+    .dl-tbl td{ display:block; border:0; padding:6px 14px; }
+    .hash{ max-width:none; }
+  }
+  .dl-note{
+    display:flex; gap:10px; align-items:flex-start; margin-top:12px; padding:11px 14px;
+    background:rgba(240,168,40,.055); border:1px solid rgba(240,168,40,.22); border-left:2px solid var(--amber);
+    font-size:12.4px; color:#c3c9d0;
+  }
+  .dl-note b{ color:var(--amber-hi); font-weight:700; }
+
+  /* MODES */
+  .modes{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+  @media (max-width:980px){ .modes{ grid-template-columns:1fr; } }
+  .mode{
+    position:relative; padding:20px 18px 18px;
+    background:linear-gradient(180deg,#11161b,#0b0e11);
+    border:1px solid var(--hair); transition:border-color .18s, transform .18s, box-shadow .18s;
+  }
+  .mode:hover{ border-color:rgba(240,168,40,.42); transform:translateY(-2px); box-shadow:0 24px 50px -36px rgba(240,168,40,.55); }
+  .mode .num{
+    font:900 40px/1 var(--sans); letter-spacing:-.05em;
+    background:linear-gradient(180deg,rgba(240,168,40,.5),rgba(240,168,40,.06));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    position:absolute; top:12px; right:16px;
+  }
+  .mode h3{ margin:0 0 8px; font-size:15px; font-weight:800; letter-spacing:.01em; color:#fff; text-transform:uppercase; max-width:86%; }
+  .mode .sub{ font:10.4px/1.4 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--amber); margin-bottom:10px; }
+  .mode p{ margin:0 0 12px; font-size:12.9px; line-height:1.55; color:#a9b0b8; }
+  .mode code{ font:11.6px/1.4 var(--mono); color:#cfd6dd; background:rgba(255,255,255,.05); padding:1px 5px; }
+  .mode ul{ margin:0; padding:0; list-style:none; display:grid; gap:5px; }
+  .mode li{
+    position:relative; padding-left:16px; font:11.6px/1.45 var(--mono); color:#98a1aa; letter-spacing:.01em;
+  }
+  .mode li::before{
+    content:""; position:absolute; left:0; top:7px; width:7px; height:1px; background:var(--amber); opacity:.85;
+  }
+
+  /* VEHICLES */
+  .nation-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .ntab{
+    appearance:none; cursor:pointer;
+    padding:7px 12px; background:#10151a; border:1px solid rgba(255,255,255,.11);
+    color:#b6bdc5; font:700 11.4px/1.4 var(--sans); letter-spacing:.04em;
+    transition:background .15s, border-color .15s, color .15s;
+  }
+  .ntab:hover{ background:#1a2129; color:#fff; border-color:rgba(255,255,255,.22); }
+  .ntab.on{ background:linear-gradient(180deg,#3a2b12,#241a09); border-color:rgba(240,168,40,.7); color:var(--amber-hi); }
+  .veh-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(288px,1fr)); gap:11px; }
+  .vcard{
+    position:relative; padding:13px 14px 12px; cursor:pointer;
+    background:linear-gradient(180deg,#101419,#0b0e11);
+    border:1px solid var(--hair); border-left:2px solid rgba(240,168,40,.55);
+    transition:border-color .16s, transform .16s, background .16s;
+  }
+  .vcard:hover{ border-color:rgba(240,168,40,.55); border-left-color:var(--amber); transform:translateY(-2px); background:linear-gradient(180deg,#141a20,#0d1114); }
+  .vcard.on{ border-color:rgba(240,168,40,.75); border-left-color:var(--amber-hi); background:linear-gradient(180deg,#1a1a12,#0d1114); box-shadow:inset 0 0 0 1px rgba(240,168,40,.14); }
+  .vcard.rs{ border-left-color:rgba(214,58,36,.75); }
+  .vcard.rs:hover{ border-left-color:var(--red-hi); }
+  .vtop{ display:flex; align-items:flex-start; justify-content:space-between; gap:9px; margin-bottom:5px; }
+  .vname{ font-size:14.2px; font-weight:800; color:#fff; letter-spacing:.005em; line-height:1.28; }
+  .vbr{
+    flex:0 0 auto; padding:2px 6px; border:1px solid rgba(240,168,40,.45); background:rgba(240,168,40,.1);
+    font:700 10.4px/1.4 var(--mono); color:var(--amber-hi); letter-spacing:.03em;
+  }
+  .vmeta{ font:10.2px/1.4 var(--mono); letter-spacing:.07em; text-transform:uppercase; color:var(--muted-2); margin-bottom:8px; }
+  .vmeta i{ font-style:normal; color:#8f979f; }
+  .vstats{ display:grid; gap:3px; font-size:12.1px; color:#aab1b9; line-height:1.45; }
+  .vstats b{ color:#d9dde2; font-weight:700; }
+  .vstats .row{ display:flex; gap:6px; }
+  .vstats .row span:first-child{ flex:0 0 62px; color:var(--muted-2); font-size:10.4px; text-transform:uppercase; letter-spacing:.07em; padding-top:2px; font-family:var(--mono); }
+  .vbar{ margin-top:9px; height:3px; background:#1b2026; overflow:hidden; }
+  .vbar i{ display:block; height:100%; background:linear-gradient(90deg,#8a5c12,var(--amber) 55%,var(--red-hi)); }
+  .vswatch{
+    position:absolute; right:12px; bottom:11px; width:14px; height:14px; border-radius:50%;
+    border:1px solid rgba(255,255,255,.28); box-shadow:inset -2px -3px 5px rgba(0,0,0,.6), inset 2px 2px 4px rgba(255,255,255,.25);
+  }
+  .veh-hint{
+    display:flex; align-items:center; gap:9px; margin-bottom:14px; padding:9px 13px;
+    background:rgba(102,215,232,.05); border:1px solid rgba(102,215,232,.22); border-left:2px solid var(--cyan);
+    font-size:12.3px; color:#bfc7cf;
+  }
+  .veh-hint b{ color:var(--cyan); font-weight:700; }
+
+  /* CONSOLE */
+  .console{
+    background:#050806; border:1px solid rgba(120,224,138,.32); position:relative; overflow:hidden;
+  }
+  .console::before{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse 80% 100% at 50% 0%, rgba(120,224,138,.06), transparent 70%);
+  }
+  .con-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    padding:9px 14px; background:rgba(120,224,138,.05); border-bottom:1px solid rgba(120,224,138,.22);
+    font:800 10.6px/1 var(--mono); letter-spacing:.13em; text-transform:uppercase; color:#a8e8b6;
+  }
+  .con-head b{ color:#fff; }
+  .con-head .st{ color:#6f8f77; }
+  .con-presets{ display:flex; flex-wrap:wrap; gap:5px; padding:11px 14px 0; }
+  .cbtn{
+    appearance:none; cursor:pointer; padding:4px 8px;
+    background:#0b130d; border:1px solid rgba(120,224,138,.28); color:#9fe3ae;
+    font:700 10.8px/1.5 var(--mono); letter-spacing:.02em;
+    transition:background .14s, color .14s, border-color .14s;
+  }
+  .cbtn:hover{ background:#132318; color:#fff; border-color:rgba(120,224,138,.65); }
+  #consoleLog{
+    margin:11px 14px; padding:12px 13px; height:196px; overflow-y:auto;
+    background:rgba(0,0,0,.5); border:1px solid rgba(120,224,138,.16);
+    font:12.2px/1.65 var(--mono); color:#b9dcc1; white-space:pre-wrap;
+    scrollbar-width:thin; scrollbar-color:rgba(120,224,138,.35) transparent;
+  }
+  #consoleLog .c-ok{ color:#8ce89f; }
+  #consoleLog .c-warn{ color:#ffcf7a; }
+  #consoleLog .c-in{ color:#e8f3e9; }
+  .con-input{ display:flex; gap:8px; padding:0 14px 14px; }
+  .con-input .ps1{ display:grid; place-items:center; padding:0 10px; background:rgba(120,224,138,.07); border:1px solid rgba(120,224,138,.28); color:#8ce89f; font:700 13px/1 var(--mono); }
+  .con-input input{
+    flex:1 1 auto; min-width:0; padding:10px 12px;
+    background:#060b07; border:1px solid rgba(120,224,138,.4); color:#f2ffe9;
+    font:12.8px/1.4 var(--mono); outline:none;
+  }
+  .con-input input:focus{ border-color:rgba(120,224,138,.8); box-shadow:0 0 0 2px rgba(120,224,138,.09); }
+  .con-input button{
+    appearance:none; cursor:pointer; padding:0 18px; min-height:40px;
+    background:linear-gradient(180deg,#1d5527,#123618); border:1px solid rgba(120,224,138,.6);
+    color:#eafff0; font:800 11.4px/1.4 var(--sans); letter-spacing:.1em; text-transform:uppercase;
+    transition:filter .15s;
+  }
+  .con-input button:hover{ filter:brightness(1.22); }
+
+  /* FOOTER */
+  footer{
+    margin-top:66px; padding-top:24px; border-top:1px solid var(--hair);
+    display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap;
+    font-size:12.4px; color:var(--muted-2);
+  }
+  footer .col{ max-width:58ch; }
+  footer b{ color:#d3d8de; font-weight:700; }
+  footer .mono{ font-family:var(--mono); font-size:10.8px; letter-spacing:.05em; }
+  footer a{ color:var(--amber); border-bottom:1px solid rgba(240,168,40,.3); }
+  footer a:hover{ border-bottom-color:var(--amber); }
+
+  /* SCROLL REVEAL */
+  .rv{ opacity:0; transform:translateY(14px); transition:opacity .6s cubic-bezier(.2,.7,.2,1), transform .6s cubic-bezier(.2,.7,.2,1); }
+  .rv.in{ opacity:1; transform:none; }
+  @media (prefers-reduced-motion: reduce){
+    .rv{ opacity:1; transform:none; transition:none; }
+    * { animation-duration:.001s !important; }
+  }
+</style>
 </head>
 <body>
 
 <header class="topbar">
-  <div class="topbar-inner">
-    <div class="brand">
-      <div class="brand-bar"></div>
-      <div>
-        <div class="brand-title">Steel Front // Dagor 6.5</div>
-        <div class="brand-sub">Quirrel VM (.nut) • daSkies2 • Perlin LandMesh • VROMFS</div>
+  <div class="bar-in">
+    <a class="brand" href="#top">
+      <div class="brand-mark"><span>SF</span></div>
+      <div class="brand-txt">
+        <div class="brand-title">Steel Front <em>//</em> Dagor 6.5</div>
+        <div class="brand-sub">WebGL2 PBR · Quirrel VM · daSkies2 · VROMFS</div>
       </div>
-    </div>
+    </a>
     <nav class="navlinks">
-      <a href="#engine">Движок Dagor 6.5</a>
-      <a href="#downloads">Скачать Win64</a>
-      <a href="#vehicles">23 Танка (7 наций)</a>
-      <a href="#modes">3 Режима SDK</a>
-      <a href="#console">Консоль ~</a>
+      <a href="#inspector">Инспектор</a>
+      <a href="#gallery">Рендеры</a>
+      <a href="#materials">Материалы</a>
+      <a href="#downloads">Загрузка</a>
+      <a href="#vehicles">23 машины</a>
+      <a href="#console">Консоль</a>
     </nav>
-    <a class="nav-cta" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">⬇ СКАЧАТЬ ЛАУНЧЕР (1.6 МБ)</a>
+    <a class="cta-top" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">
+      ⬇ Лаунчер <span class="sz">2.05 МБ</span>
+    </a>
   </div>
 </header>
 
-<div class="container">
-  <!-- HERO SECTION -->
+<div class="wrap" id="top">
+
+  <!-- ================= HERO ================= -->
   <section class="hero">
-    <div class="hero-card">
-      <div>
-        <div class="badge-row">
-          <span class="badge live">● СБОРКА d63e2af ОНЛАЙН</span>
-          <span class="badge">GAIJIN DAGOR ENGINE 6.5</span>
-          <span class="badge">WINDOWS 10 / 11 x64</span>
-        </div>
-        <h1>STEEL FRONT: <span>DAGOR 6.5</span></h1>
-        <p class="hero-lead">
-          Многопользовательский танковый экшен для ПК, полностью переведённый на архитектуру и настоящие C++ модули
-          <strong>Gaijin Dagor Engine 6.5</strong>: виртуальная машина <strong>Quirrel 4 (.nut)</strong>, рельеф
-          <strong>Perlin HeightMapLand</strong>, атмосфера <strong>daSkies2</strong>, торсионная подвеска <strong>vehiclePhys</strong> и ветка ВС Сербии во главе с <strong>M-84AS2 «Војвода»</strong>!
-        </p>
+    <div class="panel hero-copy">
+      <div class="kicker">
+        <span class="tag live"><i></i> сборка онлайн</span>
+        <span class="tag amber">Dagor Engine 6.5</span>
+        <span class="tag">Windows 10 / 11 x64</span>
+      </div>
+      <h1>
+        <span class="l1">Hard-Surface</span>
+        <span class="l2">Steel Front</span>
+      </h1>
+      <p class="lead">
+        Танковый экшен, пересобранный на настоящих C++ модулях <strong>Gaijin Dagor Engine 6.5</strong>:
+        ВМ <strong>Quirrel 4</strong>, рельеф <strong>Perlin HeightMapLand</strong>, атмосфера <strong>daSkies2</strong>,
+        подвеска <strong>vehiclePhys</strong> и ветка ВС Сербии во главе с <strong>M-84AS2 «Војвода»</strong>.
+        Ниже — живой инспектор техники на том же PBR-ядре, что и в игре:
+        диэлектрическая матовая краска CARC, <code>fwidth()</code>-сколы до голой стали,
+        литая сталь, латунь казённика и мокрая плита PAG-18.
+      </p>
 
-        <div class="feature-pills">
-          <div class="fpill">
-            <strong>42 C++ модуля Quirrel 4 VM</strong>
-            Нативный компилятор и ВМ Gaijin <code>HSQUIRRELVM</code> исполняют <code>.nut</code> скрипты из <code>gamedata.vromfs.bin</code>.
-          </div>
-          <div class="fpill">
-            <strong>daSkies2 + clouds2 + daStars</strong>
-            Закат Golden Hour, Полдень, Гроза и Ночь со звёздами (<code>F4</code>) + тени облаков по земле.
-          </div>
-          <div class="fpill">
-            <strong>Dagor Math + Perlin LandMesh</strong>
-            Скомпилированный <code>perlin.cpp</code> (<code>fBm3</code>) + наклон корпуса и подвеска <code>vehiclePhys</code>.
-          </div>
-          <div class="fpill">
-            <strong>7 наций • 23 боевые машины</strong>
-            Полная ветка Сербии (<code>M-84AS2</code>, <code>M-91 Vihor</code>, <code>M-84AS1</code>, <code>BVP M-80AB1</code>) + моддинг <code>.blk</code> по <code>F5</code>.
-          </div>
-        </div>
+      <div class="stat-row">
+        <div class="stat"><b>7</b><span>наций</span></div>
+        <div class="stat"><b>23</b><span>машины .blk</span></div>
+        <div class="stat"><b>3</b><span>режима SDK</span></div>
+        <div class="stat"><b><i>PBR</i></b><span>GGX + Smith</span></div>
       </div>
 
-      <div class="cta-group">
-        <a class="btn-battle" id="dlLauncherBtn" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">
-          ⬇ СКАЧАТЬ STEELFRONTLAUNCHER.EXE (1.60 МБ • АВТООБНОВЛЕНИЕ CDN)
+      <div class="cta-stack">
+        <a class="btn-main" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">
+          <span>Скачать SteelFrontLauncher.exe<small>2.05 МБ · автообновление клиента и VROMFS по HTTPS</small></span>
+          <span class="arrow">↓</span>
         </a>
-        <div class="btn-secondary-row">
-          <a class="btn-amber" href="https://codeload.github.com/hhdrhkvcd/serbia_MOD/zip/refs/heads/arena/2571b3b1-serbia-mod">
-            📦 ПОЛНЫЙ АРХИВ ИГРЫ + SDK (.ZIP)
+        <div class="btn-row">
+          <a class="btn-ghost" href="./bin/win64/SteelFrontGame.exe" download="SteelFrontGame.exe">
+            🎮 Прямой клиент DAGOR 6.5 <span>SteelFrontGame.exe · 2.18 МБ</span>
           </a>
-          <a class="btn-amber" href="./bin/win64/SteelFrontGame.exe" download="SteelFrontGame.exe">
-            🎮 ПРЯМОЙ КЛИЕНТ DAGOR 6.5 (1.73 МБ)
+          <a class="btn-ghost" href="https://codeload.github.com/hhdrhkvcd/serbia_MOD/zip/refs/heads/arena/2571b3b1-serbia-mod">
+            📦 Полный архив + SDK <span>ветка arena/2571b3b1 · .zip</span>
           </a>
-        </div>
-        <div class="dl-hint">
-          ✓ Лаунчер автоматически проверяет версию Dagor 6.5 (&gt; 1 МБ) и сам обновляет старый <code>SteelFrontGame.exe</code> и <code>gamedata.vromfs.bin</code> по HTTPS!
         </div>
       </div>
     </div>
 
-    <!-- INTERACTIVE 3D SHOWCASE -->
-    <div class="viewport-card">
-      <div class="vp-toolbar">
-        <span class="vp-title">3D ПОЛИГОН НИКИНЦИ • ПРЕДПРОСМОТР daSkies2 + HeightMapLand</span>
-        <div class="vp-btns">
-          <button class="vp-btn active" data-sky="0">🌅 Закат</button>
-          <button class="vp-btn" data-sky="1">☀ День</button>
-          <button class="vp-btn" data-sky="2">⛈ Гроза</button>
-          <button class="vp-btn" data-sky="3">🌙 Ночь</button>
-          <button class="vp-btn" id="btnWire">Сетка F3</button>
-          <button class="vp-btn" id="btnArmor">Броня</button>
+    <!-- ============ GPU INSPECTOR ============ -->
+    <div class="panel inspector" id="inspector">
+      <div class="insp-head">
+        <div class="insp-title"><span class="dot"></span> ИНСПЕКТОР ТЕХНИКИ <b>// WebGL2 PBR</b></div>
+        <div class="insp-stats">
+          <span>FPS <b id="fpsVal">—</b></span>
+          <span>TRIS <b id="triVal">—</b></span>
+          <span>PASSES <b id="passVal">—</b></span>
         </div>
       </div>
-      <div class="canvas-wrap">
-        <canvas id="dagorCanvas"></canvas>
-        <div class="hud-telemetry" id="hudTelemetry">
-          <div><span class="ok">DAGOR 6.5 KERNEL</span> • drv3d_DX11 SM5.0</div>
-          <div>VROMFS: 14 files • .BLK: 23 units • daECS: 27</div>
-          <div>Quirrel VM: <span class="ok">ACTIVE (HSQUIRRELVM)</span></div>
-          <div id="hudSkyLine">daSkies2: ЗАКАТ Golden Hour • Perlin fBm3</div>
+      <div class="toolbar">
+        <div class="grp" id="skyBtns">
+          <button class="chip on" data-sky="0">☀ ДЕНЬ</button>
+          <button class="chip" data-sky="1">🌇 ЗАКАТ</button>
+          <button class="chip" data-sky="2">⛈ ГРОЗА</button>
+          <button class="chip" data-sky="3">🌙 НОЧЬ</button>
         </div>
-        <div class="hud-bottom">
-          <div class="hud-tank-pill">
-            <button class="vp-btn" id="prevTank">◀</button>
-            <span id="curTankLabel">🇷🇸 M-84AS2 «Војвода» • БР 12.0</span>
-            <button class="vp-btn" id="nextTank">▶</button>
-          </div>
-          <div class="hud-tank-pill" style="font-weight:600;color:#c9c5bc;">
-            Зажмите ЛКМ для вращения 3D-камеры
+        <div class="sep"></div>
+        <div class="grp">
+          <button class="chip" id="btnWire">F3 СЕТКА</button>
+          <button class="chip" id="btnArmor">БРОНЯ</button>
+          <button class="chip" id="btnXray">X-RAY</button>
+          <button class="chip" id="btnOrbit">АВТО</button>
+        </div>
+        <div class="sep"></div>
+        <div class="grp">
+          <button class="chip fire" id="btnFire">🔥 ВЫСТРЕЛ</button>
+        </div>
+      </div>
+      <div class="stage" id="stage">
+        <canvas id="gl"></canvas>
+        <img class="fallback" src="./web_assets/hero_m84as2.jpg" alt="M-84AS2 «Војвода» на мокрой плите полигона Никинци">
+        <div class="flash" id="flash"></div>
+        <div class="hud hud-tl">
+          <div class="hud-box">
+            <div class="hud-line"><span class="g">●</span> <b>drv3d_DX11</b> SM5.0 · GLSL 300 es</div>
+            <div class="hud-line">Cook-Torrance GGX · Smith · Schlick</div>
+            <div class="hud-line" id="hudSky">daSkies2: <span class="a">ЯСНЫЙ ДЕНЬ</span></div>
           </div>
         </div>
+        <div class="hud hud-tr">
+          <div class="hud-box">
+            <div class="hud-line" id="hudMode">Режим: <b>PBR</b></div>
+            <div class="hud-line">Азимут <b id="hudAz">—</b> · Высота <b id="hudEl">—</b></div>
+            <div class="hud-line">Кузов <b id="hudYaw">—</b> · Башня <b id="hudTur">—</b></div>
+          </div>
+        </div>
+        <div class="hud hud-bl">
+          <div class="tank-chip">
+            <button class="nav-btn" id="prevTank" aria-label="Предыдущая машина">◀</button>
+            <span>
+              <span class="nm" id="curTankName">🇷🇸 M-84AS2 «Војвода»</span>
+              <span class="sb" id="curTankSub">БР 12.0 · РАНГ VIII · ERO-19M</span>
+            </span>
+            <button class="nav-btn" id="nextTank" aria-label="Следующая машина">▶</button>
+          </div>
+          <div class="hint"><b>ЛКМ</b> вращение · <b>Колесо</b> зум · <b>ПКМ</b> сдвиг</div>
+        </div>
+      </div>
+      <div class="insp-foot">
+        <div class="mat"><span class="sw paint"></span> CARC paint <b>m 0.04 · r 0.72</b></div>
+        <div class="mat"><span class="sw steel"></span> Битая сталь <b>m 0.92 · r 0.24</b></div>
+        <div class="mat"><span class="sw gun"></span> Орудие <b>m 0.88 · r 0.31</b></div>
+        <div class="mat"><span class="sw rubber"></span> Резина <b>m 0.00 · r 0.95</b></div>
+        <div class="mat"><span class="sw" style="background:linear-gradient(140deg,#8f9499,#5b6165 60%,#33373a)"></span> PAG-18 <b>wet 0.34</b></div>
       </div>
     </div>
   </section>
 
-  <!-- ENGINE ARCHITECTURE -->
-  <section class="block" id="engine">
+  <div class="strip">
+    <div><b><i>fwidth()</i> сколы</b><span>геометрические, не текстура</span></div>
+    <div><b>3 источника света</b><span>солнце + HDR-небо + отражение</span></div>
+    <div><b>43 000+ треугольников</b><span>катки, траки, ERA, башня</span></div>
+    <div><b>4 атмосферы daSkies2</b><span>день · закат · гроза · ночь</span></div>
+    <div><b>23 машины · 7 наций</b><span>переключаются в инспекторе</span></div>
+  </div>
+
+  <!-- ================= GALLERY ================= -->
+  <section class="block rv" id="gallery">
     <div class="sec-head">
-      <h2>ЧТО ИЗМЕНИЛОСЬ В <span>GAIJIN DAGOR ENGINE 6.5</span></h2>
-      <span class="sec-sub">Полная замена рендера, интерфейса, физики подвески и скриптового ядра</span>
+      <div>
+        <h2>РЕНДЕРЫ <span>8K</span> — БЕЗ HUD И ОВЕРЛЕЕВ</h2>
+        <p>Кадры из игровой камеры Dagor 6.5: мокрая плита полигона Никинци, боевой выстрел БОПС и линейка техники в ангаре.</p>
+      </div>
+      <div class="sec-num">01 <b>/</b> ВИЗУАЛ</div>
     </div>
-    <div class="grid-4">
-      <div class="dcard">
-        <h3>1. ВМ Quirrel 4 (.nut)</h3>
-        <p>В <code>SteelFrontGame.exe</code> и <code>SteelFrontLauncher.exe</code> статически скомпилированы 42 C++ файла из <code>prog/1stPartyLibs/quirrel</code>: парсер AST, статический анализатор, байткод-компилятор и ВМ <code>HSQUIRRELVM</code>.</p>
+    <div class="gallery">
+      <a class="shot big" href="#" data-src="./web_assets/hero_m84as2.jpg">
+        <span class="badge">M-84AS2 · Никинци</span>
+        <img src="./web_assets/hero_m84as2.jpg" alt="M-84AS2 «Војвода» на мокрой бетонной плите" loading="lazy">
+        <span class="cap">
+          <span>
+            <b>M-84AS2 «Војвода» — ВС Сербии</b>
+            <span>125 мм 2А46М-AS2 · ERO-19M · мокрая плита PAG-18 · отражения по нормали</span>
+          </span>
+          <span class="zoom">⤢</span>
+        </span>
+      </a>
+      <a class="shot small" href="#" data-src="./web_assets/battle_t90m.jpg">
+        <span class="badge">Боевой выстрел</span>
+        <img src="./web_assets/battle_t90m.jpg" alt="Танк ведёт огонь, вспышка дульного среза" loading="lazy">
+        <span class="cap">
+          <span>
+            <b>Т-90М «Прорыв» — залп БОПС 3БМ60</b>
+            <span>вспышка дульного среза · дым · грязь на траках</span>
+          </span>
+          <span class="zoom">⤢</span>
+        </span>
+      </a>
+      <a class="shot half" href="#" data-src="./web_assets/hangar_lineup.jpg">
+        <span class="badge">Ангар · линейка</span>
+        <img src="./web_assets/hangar_lineup.jpg" alt="Линейка танков разных наций в ангаре" loading="lazy">
+        <span class="cap">
+          <span>
+            <b>Линейка: камуфляжные машины НАТО</b>
+            <span>Leopard 2 · M1 Abrams · вышка связи · утренний свет</span>
+          </span>
+          <span class="zoom">⤢</span>
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ================= MATERIALS ================= -->
+  <section class="block rv" id="materials">
+    <div class="sec-head">
+      <div>
+        <h2>HARD-SURFACE <span>МАТЕРИАЛЫ</span> — ЧЕМ УБРАН «ПЛАСТИЛИН»</h2>
+        <p>Раньше вся техника рисовалась одним металлом 0.28 / шероховатостью 0.46 — отсюда восковой блеск. Теперь у каждого материала свой физический профиль.</p>
       </div>
-      <div class="dcard">
-        <h3>2. Атмосфера daSkies2</h3>
-        <p>Шейдер рассеяния Ми Хеньи—Гринштейна, закатный горизонт Golden Hour, двухслойные объёмные облака <code>clouds2</code> с серебристой окантовкой, бегущие тени по земле и звёзды <code>daStars</code>.</p>
+      <div class="sec-num">02 <b>/</b> ШЕЙДЕР</div>
+    </div>
+    <div class="mat-grid">
+      <div class="mat-card">
+        <div class="ball matte" style="--c1:#6b7a52; --c2:#39422c"></div>
+        <h4>Краска CARC</h4>
+        <p>Диэлектрик, почти без металличности — матовая военная краска не даёт «глянца пластика».</p>
+        <div class="vals"><span>metal <b>0.04</b></span><span>rough <b>0.72</b></span></div>
       </div>
-      <div class="dcard">
-        <h3>3. Perlin HeightMapLand</h3>
-        <p>Оригинальный модуль <code>prog/engine/math/perlin.cpp</code> (<code>perlin_noise::fBm3</code> + SIMD <code>vecmath</code> SSE4.1) генерирует холмы полигона Никинци, а <code>vehiclePhys</code> наклоняет и качает корпус танка.</p>
+      <div class="mat-card">
+        <div class="ball" style="--c1:#e6ebf0; --c2:#4a5157"></div>
+        <h4>Битая сталь</h4>
+        <p><code>fwidth(worldNormal)</code> — сколы считаются по изгибу геометрии, поэтому всегда совпадают с гранями и рёбрами.</p>
+        <div class="vals"><span>metal <b>0.92</b></span><span>rough <b>0.24</b></span></div>
       </div>
-      <div class="dcard">
-        <h3>4. Интерфейс daRg + Броня</h3>
-        <p>Графитово-янтарная тема Gaijin <code>daRg</code>, телеметрия движка <code>F2</code>, консоль <code>~</code> и живой калькулятор приведённой брони под курсором мыши в режиме «Анализ брони».</p>
+      <div class="mat-card">
+        <div class="ball" style="--c1:#c2cbd3; --c2:#3f474e"></div>
+        <h4>Орудие</h4>
+        <p>Токарная обработка ствола: две зоны шероховатости по длине, направленная микрорезка.</p>
+        <div class="vals"><span>metal <b>0.88</b></span><span>rough <b>0.31</b></span></div>
+      </div>
+      <div class="mat-card">
+        <div class="ball rough matte" style="--c1:#34383b; --c2:#0e1012"></div>
+        <h4>Резина и грунт</h4>
+        <p>Бандажи катков и подошва траков — полностью диэлектрическая, очень шероховатая, без бликов.</p>
+        <div class="vals"><span>metal <b>0.00</b></span><span>rough <b>0.95</b></span></div>
+      </div>
+      <div class="mat-card">
+        <div class="ball" style="--c1:#a8aeb2; --c2:#2c3033"></div>
+        <h4>Мокрая плита</h4>
+        <p>Бетон с лужами: лужи дают зеркальное отражение неба по Fresnel, сухие зоны — крупный песок.</p>
+        <div class="vals"><span>wet <b>0.34</b></span><span>rough <b>0.90</b></span></div>
       </div>
     </div>
   </section>
 
-  <!-- DIRECT DOWNLOADS & SHA-256 -->
-  <section class="block" id="downloads">
+  <!-- ================= DOWNLOADS ================= -->
+  <section class="block rv" id="downloads">
     <div class="sec-head">
-      <h2>ЦЕНТР ЗАГРУЗКИ <span>WINDOWS 10 / 11 (x64)</span></h2>
-      <span class="sec-sub">Актуальные исполняемые модули коммита d63e2af с проверкой контрольных сумм SHA-256</span>
+      <div>
+        <h2>ЦЕНТР ЗАГРУЗКИ <span>WINDOWS 10 / 11 x64</span></h2>
+        <p>Пересобранные под hard-surface PBR и полигональные башни исполняемые модули. Контрольные суммы SHA-256 можно сверить после скачивания.</p>
+      </div>
+      <div class="sec-num">03 <b>/</b> СБОРКА 2026-11-08</div>
     </div>
-    <div class="dl-table-wrap">
-      <table class="dl-table">
+
+    <div class="dl-shell">
+      <div class="dl-head">
+        <div class="t"><b>●</b> PE32+ x86-64 · сборка без отладочных символов</div>
+        <div class="n">4 файла · 6.17 МБ суммарно</div>
+      </div>
+      <table class="dl-tbl">
         <thead>
           <tr>
-            <th>Модуль / Файл</th>
-            <th>Назначение</th>
+            <th>Модуль</th>
             <th>Размер</th>
-            <th>Контрольная сумма SHA-256</th>
-            <th>Скачать</th>
+            <th>SHA-256</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>SteelFrontLauncher.exe</strong></td>
-            <td>3D DX11 Лаунчер Gaijin daRg (автодокачка и автообновление старого клиента по HTTPS)</td>
-            <td>1.60 МБ</td>
-            <td class="hash">db6f0f6313a3f48b...6c7ad0d0</td>
-            <td><a class="mini-dl" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">⬇ Скачать .EXE</a></td>
+            <td>
+              <div class="fname">SteelFrontLauncher.exe</div>
+              <div class="fdesc">3D DX11-лаунчер в стиле daRg: выбор режима SDK, проверка версии и автодокачка клиента с VROMFS по HTTPS.</div>
+            </td>
+            <td><div class="fsize">2.05 МБ<small>2 053 120 байт</small></div></td>
+            <td>
+              <div class="hashbox">
+                <span class="hash" data-hash="4551d1f1b71977cedddbfa58bc2a056d1a8563d10081935e4464e49233f8dd0a">4551d1f1b71977ce…e49233f8dd0a</span>
+                <button class="copy" data-copy="4551d1f1b71977cedddbfa58bc2a056d1a8563d10081935e4464e49233f8dd0a">copy</button>
+              </div>
+            </td>
+            <td><a class="dl-btn" href="./SteelFrontLauncher.exe" download="SteelFrontLauncher.exe">⬇ .exe</a></td>
           </tr>
           <tr>
-            <td><strong>bin/win64/SteelFrontGame.exe</strong></td>
-            <td>Боевой клиент Gaijin Dagor Engine 6.5 (Quirrel VM + daSkies2 + Perlin LandMesh + daRg)</td>
-            <td>1.73 МБ</td>
-            <td class="hash">b0afdbcc686c0f94...1cbd8ea4</td>
-            <td><a class="mini-dl" href="./bin/win64/SteelFrontGame.exe" download="SteelFrontGame.exe">⬇ Скачать .EXE</a></td>
+            <td>
+              <div class="fname">bin/win64/SteelFrontGame.exe</div>
+              <div class="fdesc">Боевой клиент Dagor 6.5: Quirrel VM, daSkies2, Perlin LandMesh, vehiclePhys и новый PBR-шейдер.</div>
+            </td>
+            <td><div class="fsize">2.18 МБ<small>2 180 608 байт</small></div></td>
+            <td>
+              <div class="hashbox">
+                <span class="hash" data-hash="f70fd6951a11a5056b3a1d509af8c9c3416832a89614ad4d5bdc3eeb63e58632">f70fd6951a11a505…eb63e58632</span>
+                <button class="copy" data-copy="f70fd6951a11a5056b3a1d509af8c9c3416832a89614ad4d5bdc3eeb63e58632">copy</button>
+              </div>
+            </td>
+            <td><a class="dl-btn" href="./bin/win64/SteelFrontGame.exe" download="SteelFrontGame.exe">⬇ .exe</a></td>
           </tr>
           <tr>
-            <td><strong>bin/win64/SteelFrontServer.exe</strong></td>
-            <td>Выделенный авторитативный UDP-сервер 60 Гц (модульный урон экипажа/БК + чтение .blk)</td>
-            <td>1.42 МБ</td>
-            <td class="hash">2d2eac88b04f9c24...d4e622cf</td>
-            <td><a class="mini-dl" href="./bin/win64/SteelFrontServer.exe" download="SteelFrontServer.exe">⬇ Скачать .EXE</a></td>
+            <td>
+              <div class="fname">bin/win64/SteelFrontServer.exe</div>
+              <div class="fdesc">Авторитативный UDP-сервер 60 Гц: модульный урон экипажа и боекомплекта, чтение <code>.blk</code> каталога.</div>
+            </td>
+            <td><div class="fsize">1.88 МБ<small>1 875 968 байт</small></div></td>
+            <td>
+              <div class="hashbox">
+                <span class="hash" data-hash="bfefbb6151d322b7797ab086d035cb8d1a1e9e171349d2ae87554b681569ba5e">bfefbb6151d322b7…45681569ba5e</span>
+                <button class="copy" data-copy="bfefbb6151d322b7797ab086d035cb8d1a1e9e171349d2ae87554b681569ba5e">copy</button>
+              </div>
+            </td>
+            <td><a class="dl-btn" href="./bin/win64/SteelFrontServer.exe" download="SteelFrontServer.exe">⬇ .exe</a></td>
           </tr>
           <tr>
-            <td><strong>game/res/gamedata.vromfs.bin</strong></td>
-            <td>Виртуальный архив VRFs v6.5 (14 файлов: 23 танка .blk, карты, камуфляжи, скрипты .nut/.das)</td>
-            <td>62 КБ</td>
-            <td class="hash">22a96fd411e11bda...36173ad19</td>
-            <td><a class="mini-dl" href="./game/res/gamedata.vromfs.bin" download="gamedata.vromfs.bin">⬇ Скачать .BIN</a></td>
+            <td>
+              <div class="fname">game/res/gamedata.vromfs.bin</div>
+              <div class="fdesc">Виртуальный архив VROMFS v6.5: 14 файлов — 23 танка <code>.blk</code>, карты, камуфляжи, скрипты <code>.nut</code>.</div>
+            </td>
+            <td><div class="fsize">60.6 КБ<small>62 087 байт</small></div></td>
+            <td>
+              <div class="hashbox">
+                <span class="hash" data-hash="22a96fd411e11bda50d7126385ba61c9aba7007bc8234799603b0da36173ad19">22a96fd411e11bda…da36173ad19</span>
+                <button class="copy" data-copy="22a96fd411e11bda50d7126385ba61c9aba7007bc8234799603b0da36173ad19">copy</button>
+              </div>
+            </td>
+            <td><a class="dl-btn" href="./game/res/gamedata.vromfs.bin" download="gamedata.vromfs.bin">⬇ .bin</a></td>
           </tr>
           <tr>
-            <td><strong>Полный архив ветки Dagor 6.5</strong></td>
-            <td>Готовая к запуску папка игры + исходники C++20 / DagorEngine + скрипты всех 3 режимов SDK</td>
-            <td>ZIP</td>
-            <td class="hash">Ветка arena/2571b3b1-serbia-mod</td>
-            <td><a class="mini-dl" href="https://codeload.github.com/hhdrhkvcd/serbia_MOD/zip/refs/heads/arena/2571b3b1-serbia-mod">📦 Скачать .ZIP</a></td>
+            <td>
+              <div class="fname">serbia_MOD — полный архив</div>
+              <div class="fdesc">Готовая папка игры, исходники C++20 и HLSL, скрипты всех трёх режимов SDK.</div>
+            </td>
+            <td><div class="fsize">.zip<small>ветка arena/2571b3b1</small></div></td>
+            <td><div class="hashbox"><span class="hash">GitHub codeload · codeload.github.com</span></div></td>
+            <td><a class="dl-btn" href="https://codeload.github.com/hhdrhkvcd/serbia_MOD/zip/refs/heads/arena/2571b3b1-serbia-mod">📦 .zip</a></td>
           </tr>
         </tbody>
       </table>
     </div>
-  </section>
-
-  <!-- 3 SDK MODES -->
-  <section class="block" id="modes">
-    <div class="sec-head">
-      <h2>СРАЗУ <span>3 ВАРИАНТА DAGOR ENGINE 6.5</span> В ЛАУНЧЕРЕ</h2>
-      <span class="sec-sub">Переключаются одной кнопкой прямо в левой колонке SteelFrontLauncher.exe</span>
-    </div>
-    <div class="grid-3">
-      <div class="dcard">
-        <h3>Режим 1 • Dagor 6.5 RT (Мгновенный старт)</h3>
-        <p>Работает сразу из коробки без скачивания 200 ГБ SDK: нативные C++ модули Quirrel VM и Dagor Math, архив <code>gamedata.vromfs.bin</code>, 4 погоды <code>daSkies2</code> и живой моддинг <code>tanks_all_nations.blk</code> по клавише <code>F5</code>.</p>
-      </div>
-      <div class="dcard">
-        <h3>Режим 2 • Gaijin daNetGame (CDN Prebuilt)</h3>
-        <p>Скрипт <code>SETUP_FULL_DAGOR_ENGINE.ps1 -Mode dng-prebuilt</code> скачивает официальный бинарный архив <code>dngSceneViewer.7z</code> с CDN Gaijin и монтирует модуль <code>steelFrontOnline</code> (<code>application.blk</code> + <code>.das</code> + <code>.nut</code>).</p>
-      </div>
-      <div class="dcard">
-        <h3>Режим 3 • Полный исходный SDK (Git + Jam)</h3>
-        <p>Клонирует официальный репозиторий <code>GaijinEntertainment/DagorEngine</code>, разворачивает тулчейн <code>make_devtools.py</code> и собирает проект через канонический пайплайн <code>prog/build.py</code> + <code>jam</code> + <code>vromfsPacker</code>.</p>
-      </div>
+    <div class="dl-note">
+      <span>✓</span>
+      <div>Лаунчер сам сверяет размер и версию Dagor 6.5 (&gt; 1 МБ) и обновляет устаревший <b>SteelFrontGame.exe</b> и <b>gamedata.vromfs.bin</b> по HTTPS. Для проверки в PowerShell: <b>Get-FileHash .\SteelFrontGame.exe -Algorithm SHA256</b></div>
     </div>
   </section>
 
-  <!-- 7 NATIONS & 23 VEHICLES -->
-  <section class="block" id="vehicles">
+  <!-- ================= MODES ================= -->
+  <section class="block rv" id="modes">
     <div class="sec-head">
-      <h2>ЭНЦИКЛОПЕДИЯ ТЕХНИКИ: <span>7 НАЦИЙ • 23 МАШИНЫ (.BLK)</span></h2>
-      <span class="sec-sub">Нажмите на державу для фильтрации — данные синхронизированы с <code>tanks_all_nations.blk</code></span>
+      <div>
+        <h2>ТРИ ВАРИАНТА <span>DAGOR ENGINE 6.5</span> В ОДНОМ ЛАУНЧЕРЕ</h2>
+        <p>Режим переключается в левой колонке SteelFrontLauncher.exe — от мгновенного старта до полного исходного SDK.</p>
+      </div>
+      <div class="sec-num">04 <b>/</b> SDK</div>
     </div>
+    <div class="modes">
+      <div class="mode">
+        <div class="num">01</div>
+        <h3>Dagor 6.5 RT — мгновенный старт</h3>
+        <div class="sub">из коробки · без SDK</div>
+        <p>Нативные C++ модули Quirrel VM и Dagor Math, архив <code>gamedata.vromfs.bin</code>, четыре погоды <code>daSkies2</code> и живой моддинг <code>tanks_all_nations.blk</code> по <code>F5</code>.</p>
+        <ul>
+          <li>F1 — справка по управлению</li>
+          <li>F2 — телеметрия движка</li>
+          <li>F3 — каркас / F4 — погода</li>
+          <li>~ — консоль разработчика</li>
+        </ul>
+      </div>
+      <div class="mode">
+        <div class="num">02</div>
+        <h3>Gaijin daNetGame — CDN prebuilt</h3>
+        <div class="sub">бинарный архив Gaijin</div>
+        <p>Скрипт <code>SETUP_FULL_DAGOR_ENGINE.ps1 -Mode dng-prebuilt</code> скачивает официальный <code>dngSceneViewer.7z</code> с CDN Gaijin и монтирует модуль <code>steelFrontOnline</code>.</p>
+        <ul>
+          <li>application.blk + .das</li>
+          <li>Quirrel .nut модуль игры</li>
+          <li>daRg-интерфейс ангара</li>
+          <li>без локальной сборки</li>
+        </ul>
+      </div>
+      <div class="mode">
+        <div class="num">03</div>
+        <h3>Полный исходный SDK — Git + Jam</h3>
+        <div class="sub">сборка из исходников</div>
+        <p>Клонирует <code>GaijinEntertainment/DagorEngine</code>, разворачивает тулчейн <code>make_devtools.py</code> и собирает проект каноническим пайплайном <code>prog/build.py</code> + <code>jam</code> + <code>vromfsPacker</code>.</p>
+        <ul>
+          <li>CLANG / MSVC toolchain</li>
+          <li>свои шейдеры и .blk</li>
+          <li>полный контроль над PBR</li>
+          <li>экспорт в VROMFS</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VEHICLES ================= -->
+  <section class="block rv" id="vehicles">
+    <div class="sec-head">
+      <div>
+        <h2>ЭНЦИКЛОПЕДИЯ: <span>7 НАЦИЙ · 23 МАШИНЫ</span></h2>
+        <p>Данные синхронизированы с <code>tanks_all_nations.blk</code>. Нажмите на карточку — машина загрузится в 3D-инспектор выше.</p>
+      </div>
+      <div class="sec-num">05 <b>/</b> ТЕХНИКА</div>
+    </div>
+    <div class="veh-hint"><b>i</b><div>Карточки кликабельны: выбор в каталоге меняет модель, камуфляж и бронирование в инспекторе, а также сглаживает переход камеры.</div></div>
     <div class="nation-tabs" id="nationTabs">
-      <button class="ntab active" data-nat="-1">Все 23 машины</button>
-      <button class="ntab" data-nat="1">🇷🇸 Сербия (4)</button>
-      <button class="ntab" data-nat="0">🇷🇺 Россия (4)</button>
-      <button class="ntab" data-nat="2">🇨🇳 Китай (3)</button>
-      <button class="ntab" data-nat="3">🇺🇸 США (3)</button>
-      <button class="ntab" data-nat="4">🇩🇪🇬🇧 НАТО (3)</button>
-      <button class="ntab" data-nat="5">🇫🇷 Франция (3)</button>
-      <button class="ntab" data-nat="6">🇸🇪 Швеция (3)</button>
+      <button class="ntab on" data-nat="-1">Все 23</button>
+      <button class="ntab" data-nat="1">🇷🇸 Сербия · 4</button>
+      <button class="ntab" data-nat="0">🇷🇺 Россия · 4</button>
+      <button class="ntab" data-nat="2">🇨🇳 Китай · 3</button>
+      <button class="ntab" data-nat="3">🇺🇸 США · 3</button>
+      <button class="ntab" data-nat="4">🇩🇪 НАТО · 3</button>
+      <button class="ntab" data-nat="5">🇫🇷 Франция · 3</button>
+      <button class="ntab" data-nat="6">🇸🇪 Швеция · 3</button>
     </div>
     <div class="veh-grid" id="vehGrid"></div>
   </section>
 
-  <!-- INTERACTIVE QUIRREL CONSOLE (~) -->
-  <section class="block" id="console">
+  <!-- ================= CONSOLE ================= -->
+  <section class="block rv" id="console">
     <div class="sec-head">
-      <h2>ЖИВАЯ КОНСОЛЬ РАЗРАБОТЧИКА <span>DAGOR VISUAL CONSOLE (~)</span></h2>
-      <span class="sec-sub">В игре открывается по клавише <code>~</code> (<code>Ё</code>) • Попробуйте команды прямо в браузере</span>
+      <div>
+        <h2>ЖИВАЯ КОНСОЛЬ <span>DAGOR (~)</span></h2>
+        <p>В игре открывается по <code>~</code>. Здесь работают реальные команды движка — включая переключение инспектора.</p>
+      </div>
+      <div class="sec-num">06 <b>/</b> ОТЛАДКА</div>
     </div>
-    <div class="console-box">
-      <div class="console-presets">
+    <div class="console">
+      <div class="con-head">
+        <div><b>dagor</b> // visual console</div>
+        <div class="st">vromfs mounted · 23 units · quirrel 4</div>
+      </div>
+      <div class="con-presets">
         <button class="cbtn" data-cmd="help">help</button>
         <button class="cbtn" data-cmd="ecs.info">ecs.info</button>
         <button class="cbtn" data-cmd="vfs.ls">vfs.ls</button>
         <button class="cbtn" data-cmd="blk.reload">blk.reload</button>
-        <button class="cbtn" data-cmd="skies 0">skies 0 (Golden Hour)</button>
+        <button class="cbtn" data-cmd="skies 0">skies 0</button>
+        <button class="cbtn" data-cmd="skies 1">skies 1</button>
         <button class="cbtn" data-cmd="wireframe">wireframe</button>
-        <button class="cbtn" data-cmd="sq dagor_rt.los_armor(160, 68)">sq dagor_rt.los_armor(160, 68)</button>
+        <button class="cbtn" data-cmd="xray">xray</button>
+        <button class="cbtn" data-cmd="fire">fire</button>
+        <button class="cbtn" data-cmd="sq dagor_rt.los_armor(160, 68)">sq los_armor(160,68)</button>
       </div>
-      <div id="consoleLog">[DAGOR 6.5] Initialized 'Gaijin Dagor Engine 6.5' | VROMFS=MOUNTED (game/res/gamedata.vromfs.bin, 14 files)
-[QUIRREL VM] Executed scripts/ui/dagor_rt_boot.nut -> Gaijin Dagor Engine 6.5 (daRg + Quirrel VM + daSkies2)
-Введите команду ниже или нажмите одну из кнопок выше...</div>
-      <form class="console-input-row" id="consoleForm">
-        <input id="consoleInput" type="text" value="sq dagor_rt.los_armor(160, 68)" aria-label="Команда консоли Dagor">
-        <button type="submit">ВЫПОЛНИТЬ</button>
+      <div id="consoleLog">[DAGOR 6.5] Kernel up · VROMFS mounted (game/res/gamedata.vromfs.bin, 14 files)
+[QUIRREL VM] scripts/ui/dagor_rt_boot.nut executed · HSQUIRRELVM active
+[PBR] Cook-Torrance GGX pipeline ready · fwidth() edge chipping enabled
+Введите команду ниже или нажмите кнопку выше.</div>
+      <form class="con-input" id="consoleForm">
+        <div class="ps1">~</div>
+        <input id="consoleInput" type="text" value="sq dagor_rt.los_armor(160, 68)" aria-label="Команда консоли Dagor" autocomplete="off" spellcheck="false">
+        <button type="submit">Выполнить</button>
       </form>
     </div>
   </section>
 
   <footer>
-    <div><strong>Steel Front: Online</strong> • Архитектура Gaijin Dagor Engine 6.5 (Windows 10/11 x64) • Неинвертированное управление W/A/S/D + Мышь</div>
-    <div>Репозиторий: <a href="https://github.com/hhdrhkvcd/serbia_MOD/tree/arena/2571b3b1-serbia-mod" style="color:var(--amber);">github.com/hhdrhkvcd/serbia_MOD</a></div>
+    <div class="col">
+      <b>Steel Front: Online</b> — Gaijin Dagor Engine 6.5 · Windows 10/11 x64 · неинвертированное управление W/A/S/D + мышь.
+      <div class="mono" style="margin-top:6px">Инспектор: WebGL2 · GLSL 300 es · Cook-Torrance GGX/Smith/Schlick · fwidth-сколы · PCF-тени</div>
+    </div>
+    <div class="col" style="text-align:right">
+      <a href="https://github.com/hhdrhkvcd/serbia_MOD/tree/arena/2571b3b1-serbia-mod">github.com/hhdrhkvcd/serbia_MOD</a>
+      <div class="mono" style="margin-top:6px">branch arena/2571b3b1-serbia-mod</div>
+    </div>
   </footer>
 </div>
 
+<div class="lb" id="lightbox">
+  <button class="lb-close" id="lbClose" aria-label="Закрыть">✕</button>
+  <img id="lbImg" src="" alt="Рендер техники в полном размере">
+</div>
 <script>
+"use strict";
 /* ============================================================================
-   1. ПОЛНЫЙ КАТАЛОГ 23 БОЕВЫХ МАШИН ИЗ tanks_all_nations.blk
+   STEEL FRONT — HARD-SURFACE INSPECTOR
+   Каталог техники (tanks_all_nations.blk) + процедурная геометрия + WebGL2 PBR
    ============================================================================ */
+
 const NATIONS = [
   { id: 0, flag: "🇷🇺", name: "Россия" },
   { id: 1, flag: "🇷🇸", name: "Сербия" },
@@ -876,344 +1091,1990 @@ const NATIONS = [
   { id: 6, flag: "🇸🇪", name: "Швеция" }
 ];
 
+/* spec: [camoA, camoB, hullLen, hullWid, hullH, turW, turD, turH, gunLen, era, kind] */
 const VEHICLES = [
-  { nat:1, name:"M-84AS2 «Војвода»", br:"12.0", rank:"VIII", gun:"125мм 2А46М-AS2 (БОПС M88 • 540 мм)", era:"ERO-19M Тяжёлая", hp:1200, tur:695, hull:615, col:"#5c6b47" },
-  { nat:1, name:"M-91 «Вихор»", br:"11.3", rank:"VII", gun:"125мм 2А46М-Вихор", era:"Композит + ERO", hp:1200, tur:640, hull:560, col:"#4f5f42" },
-  { nat:1, name:"M-84AS1", br:"11.0", rank:"VII", gun:"125мм 2А46М + ДУБМ M-15", era:"ERO-19 Gen.2", hp:1000, tur:625, hull:555, col:"#586648" },
-  { nat:1, name:"BVP M-80AB1", br:"9.7", rank:"VI", gun:"30мм Zastava M86 + 2× Маљутка-2Т5", era:"Модульная броня AB1", hp:360, tur:130, hull:110, col:"#4a5a40", ifv:true },
+  { nat:1, name:"M-84AS2 «Војвода»", br:"12.0", rank:"VIII", gun:"125 мм 2А46М-AS2 (БОПС M88 · 540 мм)", era:"ERO-19M тяжёлая", hp:1200, tur:695, hull:615,
+    camo:["#5c6844","#434d31"], len:6.98, wid:3.62, tw:2.30, td:3.10, th:0.66, glen:5.85, kind:"mbt", eraType:"heavy" },
+  { nat:1, name:"M-91 «Вихор»", br:"11.3", rank:"VII", gun:"125 мм 2А46М-Вихор", era:"Композит + ERO", hp:1200, tur:640, hull:560,
+    camo:["#566040","#3e4730"], len:6.86, wid:3.58, tw:2.22, td:3.02, th:0.63, glen:5.70, kind:"mbt", eraType:"medium" },
+  { nat:1, name:"M-84AS1", br:"11.0", rank:"VII", gun:"125 мм 2А46М + ДУБМ M-15", era:"ERO-19 Gen.2", hp:1000, tur:625, hull:555,
+    camo:["#5b6743","#414b32"], len:6.90, wid:3.58, tw:2.24, td:3.04, th:0.64, glen:5.72, kind:"mbt", eraType:"medium" },
+  { nat:1, name:"BVP M-80AB1", br:"9.7", rank:"VI", gun:"30 мм Zastava M86 + 2× Маљутка-2Т5", era:"Модульная броня AB1", hp:360, tur:130, hull:110,
+    camo:["#4e5a3e","#37412c"], len:6.42, wid:3.30, tw:1.95, td:2.35, th:0.60, glen:2.90, kind:"ifv", eraType:"light" },
 
-  { nat:0, name:"Т-90М «Прорыв»", br:"12.0", rank:"VIII", gun:"125мм 2А46М-5-01 (3БМ60)", era:"Реликт + Сварная башня", hp:1130, tur:710, hull:620, col:"#4b593e" },
-  { nat:0, name:"Т-80БВМ", br:"11.7", rank:"VIII", gun:"125мм 2А46М-4", era:"Реликт", hp:1250, tur:660, hull:590, col:"#46543d" },
-  { nat:0, name:"Т-80У", br:"11.3", rank:"VII", gun:"125мм 2А46М-1", era:"Контакт-5", hp:1250, tur:630, hull:550, col:"#4c5a41" },
-  { nat:0, name:"Т-72Б3 УБХ", br:"10.7", rank:"VII", gun:"125мм 2А46М-5", era:"Контакт-5 + Реликт", hp:1130, tur:610, hull:530, col:"#4e5b3f" },
+  { nat:0, name:"Т-90М «Прорыв»", br:"12.0", rank:"VIII", gun:"125 мм 2А46М-5-01 (3БМ60)", era:"Реликт + сварная башня", hp:1130, tur:710, hull:620,
+    camo:["#4d5a3e","#37422e"], len:7.02, wid:3.78, tw:2.34, td:3.24, th:0.60, glen:5.95, kind:"mbt", eraType:"heavy" },
+  { nat:0, name:"Т-80БВМ", br:"11.7", rank:"VIII", gun:"125 мм 2А46М-4", era:"Реликт", hp:1250, tur:660, hull:590,
+    camo:["#46533c","#333d2b"], len:7.00, wid:3.60, tw:2.28, td:3.18, th:0.58, glen:5.90, kind:"mbt", eraType:"heavy" },
+  { nat:0, name:"Т-80У", br:"11.3", rank:"VII", gun:"125 мм 2А46М-1", era:"Контакт-5", hp:1250, tur:630, hull:550,
+    camo:["#4a573d","#35402c"], len:6.96, wid:3.56, tw:2.26, td:3.14, th:0.57, glen:5.86, kind:"mbt", eraType:"medium" },
+  { nat:0, name:"Т-72Б3 УБХ", br:"10.7", rank:"VII", gun:"125 мм 2А46М-5", era:"Контакт-5 + Реликт", hp:1130, tur:610, hull:530,
+    camo:["#4c5940","#36412d"], len:6.86, wid:3.58, tw:2.24, td:3.08, th:0.58, glen:5.80, kind:"mbt", eraType:"medium" },
 
-  { nat:2, name:"ZTZ-99A", br:"12.0", rank:"VIII", gun:"125мм ZPT-98A (L/50)", era:"FY-5 Тяжёлая", hp:1500, tur:720, hull:630, col:"#556347" },
-  { nat:2, name:"VT-4A1", br:"11.7", rank:"VIII", gun:"125мм ZPT-98E", era:"FY-4E + КАЗ", hp:1300, tur:665, hull:575, col:"#6b6852" },
-  { nat:2, name:"ZTZ-96B", br:"10.7", rank:"VII", gun:"125мм ZPT-98", era:"FY-4", hp:1000, tur:620, hull:520, col:"#546148" },
+  { nat:2, name:"ZTZ-99A", br:"12.0", rank:"VIII", gun:"125 мм ZPT-98A (L/50)", era:"FY-5 тяжёлая", hp:1500, tur:720, hull:630,
+    camo:["#57644a","#3f4a35"], len:7.10, wid:3.68, tw:2.32, td:3.30, th:0.62, glen:6.00, kind:"mbt", eraType:"heavy" },
+  { nat:2, name:"VT-4A1", br:"11.7", rank:"VIII", gun:"125 мм ZPT-98E", era:"FY-4E + КАЗ", hp:1300, tur:665, hull:575,
+    camo:["#6a6752","#4b4a39"], len:7.02, wid:3.62, tw:2.28, td:3.22, th:0.60, glen:5.92, kind:"mbt", eraType:"medium" },
+  { nat:2, name:"ZTZ-96B", br:"10.7", rank:"VII", gun:"125 мм ZPT-98", era:"FY-4", hp:1000, tur:620, hull:520,
+    camo:["#556248","#3d4833"], len:6.80, wid:3.52, tw:2.20, td:3.02, th:0.58, glen:5.76, kind:"mbt", eraType:"medium" },
 
-  { nat:3, name:"M1A2 SEP v3", br:"12.0", rank:"VIII", gun:"120мм M256E1 (M829A4)", era:"NGAP + ARAT", hp:1500, tur:730, hull:540, col:"#8b7b5b" },
-  { nat:3, name:"M1A1HC Abrams", br:"11.3", rank:"VII", gun:"120мм M256", era:"Chobham HAP-2", hp:1500, tur:660, hull:450, col:"#847556" },
-  { nat:3, name:"M10 Booker", br:"10.3", rank:"VII", gun:"105мм XM35", era:"Модульная броня", hp:800, tur:280, hull:220, col:"#756b52" },
+  { nat:3, name:"M1A2 SEP v3", br:"12.0", rank:"VIII", gun:"120 мм M256E1 (M829A4)", era:"NGAP + ARAT", hp:1500, tur:730, hull:540,
+    camo:["#7d7052","#4e4a37"], len:7.86, wid:3.72, tw:2.60, td:3.40, th:0.74, glen:5.80, kind:"mbt", eraType:"western" },
+  { nat:3, name:"M1A1HC Abrams", br:"11.3", rank:"VII", gun:"120 мм M256", era:"Chobham HAP-2", hp:1500, tur:660, hull:450,
+    camo:["#786b4e","#4a4635"], len:7.80, wid:3.68, tw:2.56, td:3.34, th:0.72, glen:5.72, kind:"mbt", eraType:"western" },
+  { nat:3, name:"M10 Booker", br:"10.3", rank:"VII", gun:"105 мм XM35", era:"Модульная броня", hp:800, tur:280, hull:220,
+    camo:["#5f6248","#414434"], len:6.60, wid:3.40, tw:2.10, td:2.90, th:0.72, glen:5.20, kind:"light", eraType:"light" },
 
-  { nat:4, name:"Leopard 2A7V", br:"12.0", rank:"VIII", gun:"120мм Rh-120 L/55A1 (DM53)", era:"NERA 3-го пок. + ВЛД", hp:1500, tur:750, hull:625, col:"#4d5645" },
-  { nat:4, name:"Challenger 2 TES", br:"11.7", rank:"VIII", gun:"120мм L30A1", era:"Dorchester 2E + NERA", hp:1200, tur:725, hull:570, col:"#7d7258" },
-  { nat:4, name:"C1 Ariete AMV", br:"11.7", rank:"VII", gun:"120мм OTO Breda L/44", era:"WAR + PSO", hp:1500, tur:610, hull:460, col:"#525c48" },
+  { nat:4, name:"Leopard 2A7V", br:"12.0", rank:"VIII", gun:"120 мм Rh-120 L/55A1 (DM53)", era:"NERA 3-го пок. + ВЛД", hp:1500, tur:750, hull:625,
+    camo:["#4f5645","#373d2f"], len:7.72, wid:3.74, tw:2.62, td:3.36, th:0.78, glen:6.10, kind:"mbt", eraType:"western" },
+  { nat:4, name:"Challenger 2 TES", br:"11.7", rank:"VIII", gun:"120 мм L30A1", era:"Dorchester 2E + NERA", hp:1200, tur:725, hull:570,
+    camo:["#6d6a52","#4a4838"], len:8.00, wid:3.66, tw:2.58, td:3.50, th:0.80, glen:5.65, kind:"mbt", eraType:"western" },
+  { nat:4, name:"C1 Ariete AMV", br:"11.7", rank:"VII", gun:"120 мм OTO Breda L/44", era:"WAR + PSO", hp:1500, tur:610, hull:460,
+    camo:["#525c48","#3a4233"], len:7.30, wid:3.62, tw:2.40, td:3.22, th:0.70, glen:5.50, kind:"mbt", eraType:"medium" },
 
-  { nat:5, name:"Leclerc SXXI XLR", br:"12.0", rank:"VIII", gun:"120мм CN120-26 L/52", era:"Титан-NERA + AZUR", hp:1500, tur:685, hull:570, col:"#535d49" },
-  { nat:5, name:"Leclerc S2", br:"11.7", rank:"VIII", gun:"120мм CN120-26 L/52", era:"Модульная NERA", hp:1500, tur:635, hull:520, col:"#505a47" },
-  { nat:5, name:"AMX-40", br:"10.0", rank:"VI", gun:"120мм GIAT CN120-25 + 20мм", era:"Разнесённая броня", hp:1300, tur:410, hull:330, col:"#58624c" },
+  { nat:5, name:"Leclerc SXXI XLR", br:"12.0", rank:"VIII", gun:"120 мм CN120-26 L/52", era:"Титан-NERA + AZUR", hp:1500, tur:685, hull:570,
+    camo:["#545e4a","#3b4434"], len:7.44, wid:3.66, tw:2.46, td:3.28, th:0.70, glen:5.95, kind:"mbt", eraType:"western" },
+  { nat:5, name:"Leclerc S2", br:"11.7", rank:"VIII", gun:"120 мм CN120-26 L/52", era:"Модульная NERA", hp:1500, tur:635, hull:520,
+    camo:["#515b47","#384133"], len:7.40, wid:3.64, tw:2.44, td:3.24, th:0.69, glen:5.90, kind:"mbt", eraType:"medium" },
+  { nat:5, name:"AMX-40", br:"10.0", rank:"VI", gun:"120 мм GIAT CN120-25 + 20 мм", era:"Разнесённая броня", hp:1300, tur:410, hull:330,
+    camo:["#58624c","#3d4636"], len:7.20, wid:3.54, tw:2.28, td:3.10, th:0.62, glen:5.60, kind:"mbt", eraType:"light" },
 
-  { nat:6, name:"Strv 122B+ Evolution", br:"12.0", rank:"VIII", gun:"120мм kan Strv 122", era:"Åkers Krutbruk NERA+", hp:1500, tur:765, hull:670, col:"#45523f" },
-  { nat:6, name:"CV 90120-T Ghost", br:"11.3", rank:"VII", gun:"120мм CTG L/50", era:"Стелс-плиты Adaptiv", hp:800, tur:175, hull:140, col:"#3f4a3c" },
-  { nat:6, name:"Strv 121", br:"10.7", rank:"VII", gun:"120мм kan Strv 121", era:"Многослойная NERA", hp:1500, tur:560, hull:450, col:"#485642" }
+  { nat:6, name:"Strv 122B+ Evolution", br:"12.0", rank:"VIII", gun:"120 мм kan Strv 122", era:"Åkers Krutbruk NERA+", hp:1500, tur:765, hull:670,
+    camo:["#46523f","#2f382b"], len:7.66, wid:3.76, tw:2.64, td:3.38, th:0.80, glen:6.02, kind:"mbt", eraType:"western" },
+  { nat:6, name:"CV 90120-T Ghost", br:"11.3", rank:"VII", gun:"120 мм CTG L/50", era:"Стелс-плиты Adaptiv", hp:800, tur:175, hull:140,
+    camo:["#46503e","#333b2e"], len:6.70, wid:3.32, tw:2.02, td:2.72, th:0.66, glen:5.60, kind:"light", eraType:"light" },
+  { nat:6, name:"Strv 121", br:"10.7", rank:"VII", gun:"120 мм kan Strv 121", era:"Многослойная NERA", hp:1500, tur:560, hull:450,
+    camo:["#485642","#333d2f"], len:7.30, wid:3.60, tw:2.40, td:3.20, th:0.71, glen:5.70, kind:"mbt", eraType:"western" }
 ];
 
+/* ---------- каталог ---------- */
 function renderVehicles(filterNat) {
   const grid = document.getElementById("vehGrid");
-  grid.innerHTML = "";
-  VEHICLES.filter(v => filterNat === -1 || v.nat === filterNat).forEach(v => {
+  if (!grid) return;
+  const list = VEHICLES.filter(v => filterNat === -1 || v.nat === filterNat);
+  grid.innerHTML = list.map(v => {
     const n = NATIONS.find(x => x.id === v.nat);
-    const pct = Math.min(100, Math.round((v.tur / 770) * 100));
-    const el = document.createElement("div");
-    el.className = "vcard" + (v.nat === 1 ? " serbia" : "");
-    el.innerHTML = `
-      <div class="vcard-top">
-        <span class="vname">${n.flag} ${v.name}</span>
-        <span class="vbr">БР ${v.br}</span>
-      </div>
-      <div class="vmeta">${n.name.toUpperCase()} • РАНГ ${v.rank} • ${v.hp} Л.С.</div>
-      <div class="vstats">
-        <div><strong>Орудие:</strong> ${v.gun}</div>
-        <div><strong>Защита:</strong> ${v.era}</div>
-        <div><strong>Лоб башни / ВЛД:</strong> ${v.tur} / ${v.hull} мм RHA</div>
-      </div>
-      <div class="armor-bar"><div class="armor-fill" style="width:${pct}%"></div></div>
-    `;
-    grid.appendChild(el);
+    const idx = VEHICLES.indexOf(v);
+    const pct = Math.max(6, Math.min(100, Math.round((v.tur / 770) * 100)));
+    return '<div class="vcard' + (v.nat === 1 ? " rs" : "") + '" data-idx="' + idx + '">' +
+      '<div class="vtop"><span class="vname">' + n.flag + " " + v.name + '</span><span class="vbr">' + v.br + '</span></div>' +
+      '<div class="vmeta">' + n.name + ' <i>·</i> РАНГ ' + v.rank + ' <i>·</i> ' + v.hp + ' Л.С.</div>' +
+      '<div class="vstats">' +
+        '<div class="row"><span>Орудие</span><span>' + v.gun + '</span></div>' +
+        '<div class="row"><span>Защита</span><span>' + v.era + '</span></div>' +
+        '<div class="row"><span>RHA</span><span><b>' + v.tur + '</b> башня / <b>' + v.hull + '</b> ВЛД</span></div>' +
+      '</div>' +
+      '<div class="vbar"><i style="width:' + pct + '%"></i></div>' +
+      '<span class="vswatch" style="background:' + v.camo[0] + '"></span>' +
+    '</div>';
+  }).join("");
+}
+
+/* ---------- линейная алгебра (column-major) ---------- */
+const M4 = {
+  id(){ return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]); },
+  mul(a, b){
+    const o = new Float32Array(16);
+    for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+      o[c*4+r] = a[r]*b[c*4] + a[4+r]*b[c*4+1] + a[8+r]*b[c*4+2] + a[12+r]*b[c*4+3];
+    }
+    return o;
+  },
+  persp(fovy, aspect, near, far){
+    const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+    return new Float32Array([ f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0 ]);
+  },
+  ortho(l, r, b, t, n, f){
+    const lr = 1/(l-r), bt = 1/(b-t), nf = 1/(n-f);
+    return new Float32Array([
+      2*lr,0,0,0, 0,2*bt,0,0, 0,0,2*nf,0,
+      (l+r)*lr, (t+b)*bt, (f+n)*nf, 1
+    ]);
+  },
+  lookAt(eye, center, up){
+    let zx = eye[0]-center[0], zy = eye[1]-center[1], zz = eye[2]-center[2];
+    let l = Math.hypot(zx, zy, zz) || 1; zx/=l; zy/=l; zz/=l;
+    let xx = up[1]*zz - up[2]*zy, xy = up[2]*zx - up[0]*zz, xz = up[0]*zy - up[1]*zx;
+    l = Math.hypot(xx, xy, xz) || 1; xx/=l; xy/=l; xz/=l;
+    const yx = zy*xz - zz*xy, yy = zz*xx - zx*xz, yz = zx*xy - zy*xx;
+    return new Float32Array([
+      xx, yx, zx, 0,
+      xy, yy, zy, 0,
+      xz, yz, zz, 0,
+      -(xx*eye[0]+xy*eye[1]+xz*eye[2]), -(yx*eye[0]+yy*eye[1]+yz*eye[2]), -(zx*eye[0]+zy*eye[1]+zz*eye[2]), 1
+    ]);
+  },
+  trs(t, r){
+    // rot: [yaw(Y), pitch(X), roll(Z)] radians
+    const cy = Math.cos(r[0]), sy = Math.sin(r[0]);
+    const cx = Math.cos(r[1]), sx = Math.sin(r[1]);
+    const cz = Math.cos(r[2]), sz = Math.sin(r[2]);
+    // R = Ry * Rx * Rz
+    const m00 = cy*cz + sy*sx*sz, m01 = -cy*sz + sy*sx*cz, m02 = sy*cx;
+    const m10 = cx*sz,            m11 = cx*cz,             m12 = -sx;
+    const m20 = -sy*cz + cy*sx*sz, m21 = sy*sz + cy*sx*cz, m22 = cy*cx;
+    return new Float32Array([
+      m00, m10, m20, 0,
+      m01, m11, m21, 0,
+      m02, m12, m22, 0,
+      t[0], t[1], t[2], 1
+    ]);
+  }
+};
+
+/* ---------- геометрия ---------- */
+const MAT = {
+  PAINT:0,   // матовая краска CARC
+  PAINT2:1,  // краска в тени / нижние панели
+  ERA:2,     // блоки динамической защиты
+  RUBBER:3,  // резина, бандажи
+  STEEL:4,   // голая сталь, крепёж, битые кромки
+  GROUND:5,  // мокрая плита PAG-18
+  GUN:6,     // орудие, токарный металл
+  SOOT:7,    // сажа, дульный срез
+  INTERNAL:8,
+  WELD:9,    // сварной шов, трос
+  GLASS:10,  // триплекс, оптика
+  TRACK:11,  // траки
+  ENGINE:12,
+  AMMO:13,
+  CREW:14
+};
+
+/* r = [pitch(X), yaw(Y), roll(Z)] — порядок Rx * Ry * Rz */
+function rotVec(v, r){
+  const cx = Math.cos(r[0]), sx = Math.sin(r[0]);
+  const cy = Math.cos(r[1]), sy = Math.sin(r[1]);
+  const cz = Math.cos(r[2]), sz = Math.sin(r[2]);
+  // Rz
+  let x = v[0]*cz - v[1]*sz, y = v[0]*sz + v[1]*cz, z = v[2];
+  // Ry
+  let x2 = x*cy + z*sy, z2 = -x*sy + z*cy;
+  // Rx
+  const y3 = y*cx - z2*sx, z3 = y*sx + z2*cx;
+  return [x2, y3, z3];
+}
+
+class Geo {
+  constructor(){ this.a = []; this.tris = 0; }
+  tri(p0, p1, p2, n, mat, ao, wear){
+    const B = [[1,0,0],[0,1,0],[0,0,1]];
+    const push = (p, b) => {
+      this.a.push(p[0], p[1], p[2], n[0], n[1], n[2], mat, ao, wear, b[0], b[1], b[2]);
+    };
+    push(p0, B[0]); push(p1, B[1]); push(p2, B[2]);
+    this.tris++;
+  }
+  quad(p0, p1, p2, p3, n, mat, ao, wear){
+    this.tri(p0, p1, p2, n, mat, ao, wear);
+    this.tri(p0, p2, p3, n, mat, ao, wear);
+  }
+  /* коробка: центр c, полуразмеры h, поворот rot = [pitch, yaw, roll] */
+  box(c, h, rot, mat, ao, wear){
+    const r = rot || [0,0,0];
+    const raw = [
+      [-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],
+      [-1,-1, 1],[1,-1, 1],[1,1, 1],[-1,1, 1]
+    ];
+    const V = raw.map(v => {
+      const l = [v[0]*h[0], v[1]*h[1], v[2]*h[2]];
+      const q = rotVec(l, r);
+      return [c[0]+q[0], c[1]+q[1], c[2]+q[2]];
+    });
+    const N = [[0,0,-1],[1,0,0],[0,0,1],[-1,0,0],[0,1,0],[0,-1,0]].map(n => rotVec(n, r));
+    const F = [[0,1,2,3],[1,5,6,2],[4,6,7,5],[0,3,7,4],[3,2,6,7],[0,4,5,1]];
+    for (let f = 0; f < 6; f++) {
+      const q = F[f];
+      this.quad(V[q[0]], V[q[1]], V[q[2]], V[q[3]], N[f], mat, ao, wear);
+    }
+  }
+  /* усечённая 8-гранная призма (башня) */
+  frustum(cy, h, bx, bz, tx, tz, mat, ao, wear, off){
+    const o = off || [0,0,0];
+    const A = [], B = [];
+    const step = Math.PI / 4;
+    for (let i = 0; i < 8; i++) {
+      const a = i * step + Math.PI / 8;
+      A.push([o[0] + Math.cos(a)*bx, cy - h, o[2] + Math.sin(a)*bz]);
+      B.push([o[0] + Math.cos(a)*tx, cy + h, o[2] + Math.sin(a)*tz]);
+    }
+    for (let i = 0; i < 8; i++) {
+      const j = (i + 1) % 8;
+      const e1 = [B[j][0]-A[i][0], B[j][1]-A[i][1], B[j][2]-A[i][2]];
+      const e2 = [B[i][0]-A[i][0], B[i][1]-A[i][1], B[i][2]-A[i][2]];
+      let nx = e1[1]*e2[2]-e1[2]*e2[1], ny = e1[2]*e2[0]-e1[0]*e2[2], nz = e1[0]*e2[1]-e1[1]*e2[0];
+      const l = Math.hypot(nx, ny, nz) || 1;
+      this.quad(A[i], A[j], B[j], B[i], [nx/l, ny/l, nz/l], mat, ao, wear);
+    }
+    // крыша (веер)
+    const ctr = [o[0], cy + h, o[2]];
+    for (let i = 0; i < 8; i++) this.tri(ctr, B[i], B[(i+1)%8], [0,1,0], mat, ao, wear);
+    // днище
+    const ctr2 = [o[0], cy - h, o[2]];
+    for (let i = 0; i < 8; i++) this.tri(ctr2, A[(i+1)%8], A[i], [0,-1,0], mat, ao, wear);
+  }
+  /* цилиндр, ось X */
+  cylX(cx, cy, cz, rad, halfW, segs, mat, ao, wear, capMat){
+    const cm = capMat === undefined ? mat : capMat;
+    for (let i = 0; i < segs; i++) {
+      const a0 = (i / segs) * Math.PI * 2, a1 = ((i + 1) / segs) * Math.PI * 2;
+      const y0 = Math.cos(a0)*rad, z0 = Math.sin(a0)*rad;
+      const y1 = Math.cos(a1)*rad, z1 = Math.sin(a1)*rad;
+      const p0 = [cx-halfW, cy+y0, cz+z0], p1 = [cx+halfW, cy+y0, cz+z0];
+      const p2 = [cx+halfW, cy+y1, cz+z1], p3 = [cx-halfW, cy+y1, cz+z1];
+      const ny = Math.cos((a0+a1)/2), nz = Math.sin((a0+a1)/2);
+      this.quad(p0, p1, p2, p3, [0, ny, nz], mat, ao, wear);
+      // торцы (веер)
+      this.tri([cx+halfW, cy, cz], p2, p1, [1,0,0], cm, ao, wear);
+      this.tri([cx-halfW, cy, cz], p0, p3, [-1,0,0], cm, ao, wear);
+    }
+  }
+  /* вертикальный цилиндр, ось Y */
+  cylY(cx, cy, cz, rad, halfH, segs, mat, ao, wear){
+    for (let i = 0; i < segs; i++) {
+      const a0 = (i/segs)*Math.PI*2, a1 = ((i+1)/segs)*Math.PI*2;
+      const x0 = Math.cos(a0)*rad, z0 = Math.sin(a0)*rad;
+      const x1 = Math.cos(a1)*rad, z1 = Math.sin(a1)*rad;
+      const p0 = [cx+x0, cy-halfH, cz+z0], p1 = [cx+x1, cy-halfH, cz+z1];
+      const p2 = [cx+x1, cy+halfH, cz+z1], p3 = [cx+x0, cy+halfH, cz+z0];
+      this.quad(p0, p1, p2, p3, [Math.cos((a0+a1)/2), 0, Math.sin((a0+a1)/2)], mat, ao, wear);
+      this.tri([cx, cy+halfH, cz], p3, p2, [0,1,0], mat, ao, wear);
+      this.tri([cx, cy-halfH, cz], p0, p1, [0,-1,0], mat, ao, wear);
+    }
+  }
+  /* ствол: ось -Z от z0 до z1 */
+  tubeZ(cx, cy, z0, z1, rad0, rad1, segs, mat, ao, wear, cap){
+    for (let i = 0; i < segs; i++) {
+      const a0 = (i/segs)*Math.PI*2, a1 = ((i+1)/segs)*Math.PI*2;
+      const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+      const p0 = [cx+c0*rad0, cy+s0*rad0, z0], p1 = [cx+c1*rad0, cy+s1*rad0, z0];
+      const p2 = [cx+c1*rad1, cy+s1*rad1, z1], p3 = [cx+c0*rad1, cy+s0*rad1, z1];
+      this.quad(p0, p1, p2, p3, [Math.cos((a0+a1)/2), Math.sin((a0+a1)/2), 0], mat, ao, wear);
+      if (cap) {
+        this.tri([cx, cy, z1], p1, p2, [0,0,-1], cap, ao, wear);
+        this.tri([cx, cy, z0], p3, p0, [0,0,1], cap, ao, wear);
+      }
+    }
+  }
+  /* цилиндр, ось Z (хомуты, эжектор, дульный тормоз) */
+  cylZ(cx, cy, cz, rad, halfL, segs, mat, ao, wear){
+    for (let i = 0; i < segs; i++) {
+      const a0 = (i/segs)*Math.PI*2, a1 = ((i+1)/segs)*Math.PI*2;
+      const c0 = Math.cos(a0), s0 = Math.sin(a0), c1 = Math.cos(a1), s1 = Math.sin(a1);
+      const p0 = [cx+c0*rad, cy+s0*rad, cz-halfL], p1 = [cx+c1*rad, cy+s1*rad, cz-halfL];
+      const p2 = [cx+c1*rad, cy+s1*rad, cz+halfL], p3 = [cx+c0*rad, cy+s0*rad, cz+halfL];
+      this.quad(p0, p1, p2, p3, [Math.cos((a0+a1)/2), Math.sin((a0+a1)/2), 0], mat, ao, wear);
+      this.tri([cx, cy, cz+halfL], p3, p2, [0,0,1], mat, ao, wear);
+      this.tri([cx, cy, cz-halfL], p0, p1, [0,0,-1], mat, ao, wear);
+    }
+  }
+  get array(){ return new Float32Array(this.a); }
+}
+</script>
+<script>
+/* ============================================================================
+   ПРОЦЕДУРНАЯ ГЕОМЕТРИЯ: корпус / ходовая / башня / орудие
+   Оси: +X вправо, +Y вверх, -Z вперёд (ствол смотрит в -Z)
+   Вертикальная раскладка (как у реальных ОБТ):
+     0.000 — нижняя поверхность трака
+     0.505 — оси катков
+     1.400 — крыша корпуса / погон башни
+     2.030 — крыша башни
+   ============================================================================ */
+
+const M = MAT;
+
+function buildVehicle(veh) {
+  const hull = new Geo(), tur = new Geo(), gun = new Geo(), inner = new Geo();
+  const L = veh.len, W = veh.wid;
+
+  const laneW   = 0.635;            // ширина трака
+  const tubHalf = W / 2 - laneW;    // полуширина ванны
+  const zF = -L / 2 + 0.40, zR = L / 2 - 0.28;
+  const yAx = 0.505;                // ось катков
+  const trackT = 0.062;             // половина толщины трака
+  const rRun = yAx - trackT;        // радиус обвода по осям траков
+  const roofY = 1.40;               // крыша корпуса
+  const heavy = veh.eraType === "heavy";
+  const west  = veh.eraType === "western";
+  const light = veh.eraType === "light";
+
+  /* ================= КОРПУС ================= */
+  // ванна (нижняя часть, в тени)
+  hull.box([0, 0.98, 0.05], [tubHalf, 0.38, L / 2 - 0.30], null, M.PAINT2, 0.52, 0.6);
+  // верхняя палуба
+  hull.box([0, roofY - 0.045, 0.10], [tubHalf + 0.02, 0.05, L / 2 - 0.55], null, M.PAINT, 0.86, 1.0);
+  // кормовой лист (наклонный)
+  hull.box([0, 1.10, L / 2 - 0.16], [tubHalf + 0.005, 0.34, 0.07], [0.22, 0, 0], M.PAINT2, 0.6, 1.0);
+  // кормовая решётка МТО
+  hull.box([0, roofY + 0.005, L / 2 - 0.72], [tubHalf * 0.80, 0.025, 0.52], null, M.WELD, 0.72, 1.6);
+  for (let i = 0; i < 7; i++) {
+    hull.box([0, roofY + 0.035, L / 2 - 1.16 + i * 0.145], [tubHalf * 0.72, 0.018, 0.022], null, M.STEEL, 0.85, 1.4);
+  }
+
+  /* ---- лобовой узел ---- */
+  const glacisPitch = -0.72;
+  const glC = [0, 1.00, -L / 2 + 0.60];      // центр наклонной плиты
+  const glLen = 0.70;                         // половина длины по склону
+  hull.box(glC, [tubHalf + 0.02, 0.055, glLen], [glacisPitch, 0, 0], M.PAINT, 0.92, 1.0);
+  // нижний носовой лист
+  hull.box([0, 0.72, -L / 2 + 0.10], [tubHalf + 0.01, 0.19, 0.16], [0.5, 0, 0], M.PAINT2, 0.62, 1.2);
+  // буксирные крюки
+  for (const s of [-1, 1]) {
+    hull.box([s * 0.60, 0.80, -L / 2 - 0.06], [0.075, 0.065, 0.10], null, M.WELD, 0.6, 2.0);
+    hull.box([s * 0.60, 0.93, -L / 2 + 0.30], [0.034, 0.034, 0.045], null, M.STEEL, 0.7, 2.4);
+  }
+  // передние брызговики
+  for (const s of [-1, 1]) {
+    hull.box([s * (W / 2 - 0.34), 1.02, -L / 2 + 0.10], [0.31, 0.20, 0.028], [0.18, 0, 0], M.RUBBER, 0.34, 0.5);
+  }
+
+  /* ---- надгусеничные полки, ящики, экраны ---- */
+  for (const s of [-1, 1]) {
+    // полка
+    hull.box([s * (W / 2 - 0.33), roofY + 0.02, 0.10], [0.335, 0.035, L / 2 - 0.48], null, M.PAINT, 0.9, 1.2);
+    // бортовая юбка с вырезом под катки
+    hull.box([s * (W / 2 + 0.015), 1.16, 0.02], [0.022, 0.20, L / 2 - 0.72], null, M.PAINT2, 0.40, 1.6);
+    // ящик ЗИП кормовой
+    hull.box([s * (W / 2 - 0.35), roofY + 0.16, L / 2 - 0.62], [0.30, 0.13, 0.40], null, M.PAINT2, 0.82, 0.9);
+    // ящик в средней части
+    hull.box([s * (W / 2 - 0.34), roofY + 0.14, 0.62], [0.28, 0.11, 0.26], null, M.PAINT2, 0.82, 0.9);
+    // поручни
+    hull.box([s * (tubHalf + 0.02), roofY + 0.16, -0.45], [0.018, 0.018, 0.50], null, M.STEEL, 0.92, 1.8);
+    // буксирный трос на полке
+    hull.box([s * (W / 2 - 0.36), roofY + 0.075, -0.30], [0.032, 0.032, 1.10], null, M.WELD, 0.85, 1.6);
+    // фара — на надгусеничной полке у носа
+    hull.box([s * (W / 2 - 0.34), roofY + 0.13, -L / 2 + 0.62], [0.10, 0.085, 0.07], null, M.PAINT2, 0.72, 1.0);
+    hull.box([s * (W / 2 - 0.34), roofY + 0.13, -L / 2 + 0.548], [0.078, 0.066, 0.018], null, M.GLASS, 0.96, 0.2);
+    // габаритный огонь
+    hull.box([s * (W / 2 - 0.34), roofY + 0.28, -L / 2 + 0.66], [0.055, 0.045, 0.045], null, M.GLASS, 0.7, 0.4);
+    // передний грязевой щиток
+    hull.box([s * (W / 2 - 0.34), roofY + 0.30, -L / 2 + 0.44], [0.325, 0.022, 0.20], [-0.16, 0, 0], M.PAINT2, 0.8, 1.3);
+  }
+
+  /* ---- палуба: люк механика-водителя, перископы, кнехты ---- */
+  hull.box([0.58, roofY + 0.075, -L / 2 + 1.55], [0.175, 0.02, 0.175], null, M.PAINT2, 0.96, 1.7);
+  hull.box([0.58, roofY + 0.10, -L / 2 + 1.55], [0.15, 0.012, 0.15], null, M.PAINT, 0.98, 1.5);
+  for (let i = -1; i <= 1; i++) {
+    hull.box([0.58 + i * 0.10, roofY + 0.095, -L / 2 + 1.30], [0.035, 0.028, 0.04], null, M.GLASS, 0.96, 0.5);
+  }
+  // кнехты крепления троса
+  for (const s of [-1, 1]) {
+    hull.box([s * 0.30, roofY + 0.075, -L / 2 + 2.05], [0.05, 0.035, 0.05], null, M.STEEL, 0.9, 2.0);
+  }
+  // люк в крыше отделения управления
+  hull.box([-0.36, roofY + 0.075, 0.55], [0.22, 0.018, 0.22], null, M.PAINT2, 0.96, 1.6);
+  for (let i = 0; i < 3; i++) {
+    hull.box([0.16 + i * 0.13, roofY + 0.078, 0.72], [0.045, 0.022, 0.06], null, M.GLASS, 0.95, 0.5);
+  }
+
+  /* ---- ВЛД: ERA-мозаика или композит ---- */
+  const cp = Math.cos(glacisPitch), sp = Math.sin(glacisPitch);
+  const platePoint = (u, v) => [
+    glC[0] + v,
+    glC[1] + u * cp + 0.075 * -sp,
+    glC[2] + u * sp + 0.075 * cp
+  ];
+  if (!west) {
+    const rows = heavy ? 3 : 2, cols = light ? 6 : 8;
+    const cellW = (tubHalf * 1.90) / cols;
+    const cellH = (glLen * 1.72) / rows;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const fx = (c - (cols - 1) / 2) * cellW;
+        const u = (r - (rows - 1) / 2) * cellH;
+        const p = platePoint(u, fx);
+        hull.box(p, [cellW * 0.455, 0.048, cellH * 0.455], [glacisPitch, 0, 0], M.ERA, 0.88, 1.6);
+      }
+    }
+    // верхняя кромка ВЛД
+    const top = platePoint(glLen * 0.92, 0);
+    hull.box(top, [tubHalf + 0.015, 0.05, 0.10], [glacisPitch, 0, 0], M.PAINT2, 0.9, 1.8);
+  } else {
+    // композитный «клюв»
+    const p = platePoint(0, 0);
+    hull.box(p, [tubHalf + 0.06, 0.11, glLen * 0.96], [glacisPitch, 0, 0], M.ERA, 0.90, 1.3);
+    const p2 = platePoint(glLen * 0.62, 0);
+    hull.box(p2, [tubHalf * 0.88, 0.045, 0.22], [glacisPitch - 0.12, 0, 0], M.PAINT2, 0.9, 1.6);
+    for (const s of [-1, 1]) {
+      const p3 = platePoint(-glLen * 0.14, s * tubHalf * 0.74);
+      hull.box(p3, [0.26, 0.05, 0.30], [glacisPitch, 0, s * 0.05], M.STEEL, 0.85, 2.2);
+    }
+    // буксирные проушины на ВЛД
+    for (const s of [-1, 1]) {
+      const p4 = platePoint(-glLen * 0.62, s * tubHalf * 0.66);
+      hull.box(p4, [0.075, 0.085, 0.075], [glacisPitch, 0, 0], M.WELD, 0.85, 2.0);
+    }
+  }
+
+  /* ================= ХОДОВАЯ ================= */
+  const wheelZ = [];
+  const nWheels = light ? 5 : 6;
+  const spanA = zF + 0.86, spanB = zR - 0.92;
+  for (let i = 0; i < nWheels; i++) wheelZ.push(spanA + (spanB - spanA) * (i / (nWheels - 1)));
+  const wheelR = rRun - trackT - 0.005;
+
+  function roadwheel(x, z, rad) {
+    const sx = Math.sign(x);
+    hull.cylX(x, yAx, z, rad, 0.148, 18, M.RUBBER, 0.44, 0.9);                    // бандаж
+    hull.cylX(x - sx * 0.042, yAx, z, rad * 0.86, 0.112, 18, M.PAINT2, 0.70, 1.5); // диск
+    hull.cylX(x - sx * 0.062, yAx, z, rad * 0.24, 0.115, 10, M.WELD, 0.80, 1.6);   // ступица
+    for (let k = 0; k < 8; k++) {                                                  // рёбра диска
+      const a = k * Math.PI / 4;
+      hull.box([x - sx * 0.055, yAx + Math.cos(a) * rad * 0.58, z + Math.sin(a) * rad * 0.58],
+               [0.030, rad * 0.20, rad * 0.042], [a, 0, 0], M.PAINT2, 0.74, 1.2);
+    }
+    for (let k = 0; k < 6; k++) {                                                  // болты
+      const a = k * Math.PI / 3 + 0.26;
+      hull.box([x - sx * 0.072, yAx + Math.cos(a) * rad * 0.40, z + Math.sin(a) * rad * 0.40],
+               [0.026, 0.024, 0.024], [a, 0, 0], M.STEEL, 0.86, 2.0);
+    }
+  }
+
+  for (const s of [-1, 1]) {
+    const x = s * (W / 2 - laneW / 2);
+    for (const z of wheelZ) roadwheel(x, z, wheelR);
+
+    // ведущее колесо (корма) с зубьями
+    hull.cylX(x, yAx, zR - 0.08, wheelR * 0.86, 0.145, 16, M.PAINT2, 0.68, 1.8);
+    hull.cylX(x - s * 0.05, yAx, zR - 0.08, wheelR * 0.52, 0.135, 10, M.WELD, 0.80, 1.4);
+    for (let k = 0; k < 9; k++) {
+      const a = k * Math.PI * 2 / 9;
+      hull.box([x, yAx + Math.cos(a) * (wheelR * 0.92), zR - 0.08 + Math.sin(a) * (wheelR * 0.92)],
+               [0.070, 0.030, 0.030], [a, 0, 0], M.STEEL, 0.55, 2.2);
+    }
+    // направляющее колесо (нос)
+    hull.cylX(x, yAx, zF + 0.10, wheelR * 0.90, 0.140, 16, M.PAINT2, 0.62, 1.4);
+    hull.cylX(x - s * 0.05, yAx, zF + 0.10, wheelR * 0.34, 0.130, 10, M.WELD, 0.80, 1.6);
+    // поддерживающие ролики
+    for (let i = 0; i < 2; i++) {
+      const z = spanA + (spanB - spanA) * (0.30 + i * 0.40);
+      hull.cylX(x, 0.98, z, 0.125, 0.095, 10, M.RUBBER, 0.70, 0.9);
+      hull.cylX(x - s * 0.03, 0.98, z, 0.070, 0.10, 8, M.WELD, 0.85, 1.2);
+    }
+    // балансиры
+    for (const z of wheelZ) {
+      hull.box([x - s * 0.115, 0.86, z + 0.14], [0.045, 0.20, 0.045], [0.62, 0, 0], M.PAINT2, 0.42, 0.8);
+    }
+  }
+
+  /* ================= ТРАКИ ================= */
+  const pitch = 0.30, linkHalf = pitch * 0.455, linkW = laneW * 0.42;
+  function linkGeo(x, py, pz, theta) {
+    hull.box([x, py, pz], [linkW, trackT, linkHalf], [theta, 0, 0], M.TRACK, 0.58, 2.2);
+    const ny = Math.cos(theta), nz = -Math.sin(theta);
+    // невысокий грунтозацеп по центру
+    hull.box([x, py + ny * (trackT + 0.012), pz + nz * (trackT + 0.012)],
+             [linkW * 0.30, 0.012, linkHalf * 0.50], [theta, 0, 0], M.TRACK, 0.76, 2.6);
+    // шарнирные проушины (в толщину трака, без бокового выноса)
+    for (const sd of [-1, 1]) {
+      hull.box([x + sd * linkW * 0.82, py, pz], [linkW * 0.18, trackT * 0.82, linkHalf * 0.36],
+               [theta, 0, 0], M.TRACK, 0.62, 2.4);
+    }
+  }
+  for (const s of [-1, 1]) {
+    const x = s * (W / 2 - laneW / 2);
+    const runLen = zR - zF;
+    const nBot = Math.round(runLen / pitch);
+    for (let i = 0; i < nBot; i++) {
+      linkGeo(x, yAx - rRun, zF + (i + 0.5) / nBot * runLen, 0);
+    }
+    const nTop = nBot;
+    for (let i = 0; i < nTop; i++) {
+      const t = (i + 0.5) / nTop;
+      linkGeo(x, yAx + rRun - 0.012 - Math.sin(t * Math.PI) * 0.035, zR + t * (zF - zR), Math.PI);
+    }
+    for (const [cz, dir] of [[zF, 1], [zR, -1]]) {
+      const nArc = Math.max(3, Math.round((Math.PI * rRun) / pitch));
+      for (let i = 0; i < nArc; i++) {
+        const t = (i + 0.5) / nArc;
+        const a = dir > 0 ? (Math.PI * 0.5 + t * Math.PI) : (-Math.PI * 0.5 + t * Math.PI);
+        linkGeo(x, yAx + Math.sin(a) * rRun, cz + Math.cos(a) * rRun, Math.atan2(-Math.cos(a), -Math.sin(a)));
+      }
+    }
+  }
+
+  /* ================= БАШНЯ ================= */
+  const tw = veh.tw, td = veh.td * 0.80;                      // корпус башни без кормовой ниши
+  const th = Math.min(0.44, Math.max(0.34, veh.th * 0.62));   // полувысота корпуса башни
+  const tRoof = roofY + th * 2 + 0.04;
+  const tb = (tw / 2) / 0.9239, db = (td / 2) / 0.9239;
+
+  // корпус башни — 8-гранная усечённая призма
+  tur.frustum(th + 0.02, th, tb, db, tb * 0.93, db * 0.90, M.PAINT, 0.88, 1.0, [0, 0, 0.03]);
+  // крыша башни
+  tur.box([0, th * 2 + 0.055, 0.03], [tb * 0.86, 0.035, db * 0.86], null, M.PAINT, 0.92, 1.4);
+  // кормовая ниша
+  tur.box([0, th + 0.01, db * 0.86], [tb * 0.64, th * 0.66, 0.26], null, M.PAINT2, 0.66, 1.2);
+  tur.box([0, th * 2 - 0.02, db * 0.90], [tb * 0.62, 0.028, 0.24], null, M.PAINT, 0.86, 1.2);
+  // решётка багажника
+  for (let i = 0; i < 3; i++) {
+    tur.box([0, th + 0.01 + (i - 1) * th * 0.46, db * 0.86 + 0.268], [tb * 0.60, 0.016, 0.018], null, M.STEEL, 0.92, 1.8);
+  }
+  // маска орудия
+  tur.box([0, th + 0.04, -db * 0.74], [0.42, 0.245, 0.18], null, M.GUN, 0.82, 1.6);
+  tur.box([0, th + 0.04, -db * 0.88], [0.30, 0.18, 0.07], null, M.PAINT2, 0.78, 1.4);
+
+  // лоб башни
+  if (!west) {
+    const n = heavy ? 7 : 5;
+    for (let i = 0; i < n; i++) {
+      const a = (i / (n - 1) - 0.5) * Math.PI * 0.94;
+      const rx = Math.sin(a) * tb * 1.01, rz = -Math.cos(a) * db * 1.01;
+      const yb = th + 0.02 + (i % 2 ? 0.135 : -0.075);
+      tur.box([rx, yb, rz * 0.97], [0.135, 0.085, 0.095], [0, -a, 0], M.ERA, 0.84, 2.0);
+      tur.box([rx * 0.97, yb + 0.19, rz * 0.95], [0.125, 0.055, 0.085], [0, -a, 0], M.ERA, 0.86, 1.8);
+    }
+    // «щука» на крыше
+    tur.box([0, th * 2 + 0.10, -db * 0.74], [0.30, 0.065, 0.24], [0.14, 0, 0], M.ERA, 0.84, 2.0);
+  } else {
+    for (const s of [-1, 1]) {
+      tur.box([s * tb * 0.60, th + 0.05, -db * 0.60], [0.33, th * 0.92, 0.30], [0, s * 0.36, 0], M.PAINT, 0.82, 1.8);
+      tur.box([s * tb * 0.74, th + 0.04, db * 0.18], [0.20, th * 0.80, 0.44], [0, s * 0.09, 0], M.PAINT2, 0.76, 1.5);
+      tur.box([s * tb * 0.80, th * 2 - 0.02, 0.0], [0.13, 0.045, 0.34], null, M.ERA, 0.84, 1.9);
+    }
+    tur.box([0, th * 2 + 0.02, -db * 0.28], [tb * 0.52, 0.04, 0.40], null, M.PAINT, 0.92, 1.5);
+  }
+
+  // командирская башенка
+  const cupX = west ? -0.60 : 0.50;
+  const cupZ = 0.06;
+  const cupY = th * 2 + 0.075;
+  tur.cylY(cupX, cupY, cupZ, 0.29, 0.105, 12, M.PAINT, 0.82, 1.4);
+  tur.cylY(cupX, cupY + 0.115, cupZ, 0.25, 0.022, 12, M.PAINT2, 0.92, 1.6);
+  for (let i = 0; i < 5; i++) {
+    const a = i * Math.PI * 2 / 5;
+    tur.box([cupX + Math.cos(a) * 0.26, cupY + 0.02, cupZ + Math.sin(a) * 0.26], [0.05, 0.032, 0.032], [0, -a, 0], M.GLASS, 0.96, 0.9);
+  }
+  // панорамный прицел
+  tur.box([-0.32, th * 2 + 0.12, -0.30], [0.18, 0.105, 0.15], null, M.PAINT2, 0.82, 1.4);
+  tur.box([-0.32, th * 2 + 0.14, -0.445], [0.14, 0.08, 0.02], null, M.GLASS, 0.96, 0.8);
+  tur.box([0.30, th * 2 + 0.09, 0.32], [0.15, 0.085, 0.11], null, M.PAINT2, 0.82, 1.3);
+  // люки
+  tur.box([0.08, th * 2 + 0.09, 0.32], [0.19, 0.018, 0.19], null, M.PAINT2, 0.96, 1.6);
+  tur.box([-0.54, th * 2 + 0.09, 0.28], [0.14, 0.018, 0.15], null, M.PAINT2, 0.96, 1.6);
+
+  // дымовые гранатомёты
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 4; i++) {
+      tur.box([s * tb * 0.84, th + 0.12, -db * 0.24 + i * 0.095], [0.05, 0.05, 0.042], [0.55, s * 0.10, 0], M.PAINT2, 0.55, 1.4);
+    }
+  }
+  // антенны
+  tur.box([tb * 0.70, th * 2 + 0.55, db * 0.52], [0.013, 0.52, 0.013], null, M.STEEL, 0.96, 1.2);
+  tur.box([-tb * 0.68, th * 2 + 0.42, db * 0.48], [0.011, 0.40, 0.011], null, M.STEEL, 0.96, 1.2);
+  // зенитный пулемёт
+  if (veh.kind === "mbt") {
+    tur.box([cupX + 0.15, cupY + 0.12, cupZ - 0.04], [0.045, 0.055, 0.19], null, M.GUN, 0.82, 1.4);
+    tur.tubeZ(cupX + 0.15, cupY + 0.17, cupZ - 0.22, cupZ - 0.92, 0.026, 0.020, 8, M.GUN, 0.86, 1.8, M.SOOT);
+    tur.box([cupX + 0.15, cupY + 0.20, cupZ - 0.12], [0.032, 0.032, 0.09], null, M.PAINT2, 0.82, 1.2);
+  }
+
+  /* ================= ОРУДИЕ ================= */
+  const gy = th + 0.04;                 // высота оси канала ствола в пространстве башни
+  const gz0 = -db * 0.68;
+  const gl = veh.glen;
+  if (veh.kind === "ifv") {
+    gun.tubeZ(0, gy, gz0, gz0 - 0.50, 0.072, 0.068, 12, M.GUN, 0.82, 1.2, M.SOOT);
+    gun.box([0, gy, gz0 - 0.58], [0.09, 0.09, 0.12], null, M.GUN, 0.78, 1.6);
+    gun.tubeZ(0, gy, gz0 - 0.70, gz0 - gl * 0.72, 0.040, 0.032, 10, M.GUN, 0.86, 1.8, M.SOOT);
+    for (let i = 0; i < 3; i++) gun.box([0, gy, gz0 - 0.92 - i * 0.19], [0.048, 0.048, 0.024], null, M.STEEL, 0.72, 2.0);
+    for (const s of [-1, 1]) {
+      gun.box([s * 0.50, gy + 0.01, gz0 - 0.40], [0.125, 0.125, 0.50], null, M.PAINT2, 0.82, 1.4);
+      gun.box([s * 0.50, gy + 0.135, gz0 - 0.40], [0.095, 0.02, 0.44], null, M.ERA, 0.9, 1.6);
+    }
+  } else {
+    // казённик + термокожух
+    gun.tubeZ(0, gy, gz0 + 0.12, gz0 - 0.34, 0.150, 0.140, 16, M.GUN, 0.74, 1.4, M.SOOT);
+    gun.box([0, gy - 0.02, gz0 - 0.26], [0.165, 0.135, 0.16], null, M.GUN, 0.72, 1.6);
+    gun.tubeZ(0, gy, gz0 - 0.34, gz0 - 2.30, 0.104, 0.097, 18, M.GUN, 0.86, 2.0, M.SOOT);
+    // хомуты
+    for (const zz of [gz0 - 0.58, gz0 - 1.28, gz0 - 2.02]) {
+      gun.cylZ(0, gy, zz, 0.117, 0.042, 18, M.STEEL, 0.82, 2.2);
+    }
+    // эжектор
+    gun.cylZ(0, gy, gz0 - 1.70, 0.148, 0.195, 18, M.PAINT2, 0.86, 1.6);
+    // концевая часть
+    gun.tubeZ(0, gy, gz0 - 2.30, gz0 - gl * 0.76, 0.080, 0.068, 18, M.GUN, 0.90, 2.0, M.SOOT);
+    // дульный тормоз
+    gun.cylZ(0, gy, gz0 - gl * 0.76 - 0.15, 0.112, 0.165, 18, M.GUN, 0.82, 2.2);
+    for (const s of [-1, 1]) gun.box([s * 0.098, gy, gz0 - gl * 0.76 - 0.15], [0.028, 0.105, 0.13], null, M.SOOT, 0.4, 2.4);
+    // чёрный канал ствола
+    gun.tubeZ(0, gy, gz0 - gl * 0.76 - 0.30, gz0 - gl * 0.76 - 0.335, 0.060, 0.058, 16, M.SOOT, 0.02, 0.0, M.SOOT);
+    // брезентовый чехол у основания
+    gun.box([0, gy + 0.13, gz0 - 0.46], [0.155, 0.055, 0.15], null, M.RUBBER, 0.6, 0.6);
+  }
+
+  /* ================= ВНУТРЕННИЕ МОДУЛИ (X-RAY) ================= */
+  inner.box([0, 0.92, L / 2 - 1.05], [tubHalf * 0.80, 0.30, 0.58], null, M.ENGINE, 1.0, 0.0);
+  inner.cylY(0, 1.12, 0.10, 0.80, 0.07, 16, M.AMMO, 1.0, 0.0);
+  inner.cylY(0, 1.20, 0.10, 0.28, 0.10, 12, M.AMMO, 1.0, 0.0);
+  for (const s of [-1, 1]) {
+    inner.box([s * 0.50, 1.02, -L / 2 + 1.35], [0.21, 0.28, 0.40], null, M.CREW, 1.0, 0.0);
+    inner.box([s * (tubHalf - 0.22), 1.00, L / 2 - 0.50], [0.17, 0.22, 0.32], null, M.CREW, 1.0, 0.0);
+    inner.box([s * 0.40, 0.80, 0.85], [0.20, 0.18, 0.46], null, M.INTERNAL, 1.0, 0.0);
+  }
+
+  /* ================= ЗЕМЛЯ ================= */
+  const ground = new Geo();
+  const N = 32, ext = 30;
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const x0 = -ext + (i / N) * ext * 2, x1 = -ext + ((i + 1) / N) * ext * 2;
+      const z0 = -ext + (j / N) * ext * 2, z1 = -ext + ((j + 1) / N) * ext * 2;
+      ground.quad([x0, 0, z0], [x1, 0, z0], [x1, 0, z1], [x0, 0, z1], [0, 1, 0], M.GROUND, 1.0, 1.0);
+    }
+  }
+
+  return {
+    hull: hull.array, turret: tur.array, gun: gun.array, inner: inner.array,
+    ground: ground.array,
+    tris: hull.tris + tur.tris + gun.tris + inner.tris + ground.tris,
+    ring: [0, roofY, 0.03],
+    gunPivot: [0, gy, gz0],
+    muzzle: [0, gy, gz0 - gl * 0.76 - 0.335],
+    roofY: tRoof, L: L, W: W
+  };
+}
+</script>
+<script>
+/* ============================================================================
+   WEBGL2 HARD-SURFACE RENDERER
+   Shader-модель та же, что в engine_dx11/src/d3d11_renderer.h:
+   Cook-Torrance GGX + Smith + Schlick, диэлектрическая краска, fwidth-сколы,
+   PCF-тени от солнца, HDR + ACES + bloom.
+   ============================================================================ */
+
+const GLSL_COMMON = `
+float sat(float x){ return clamp(x, 0.0, 1.0); }
+vec3  sat3(vec3 x){ return clamp(x, vec3(0.0), vec3(1.0)); }
+float hash12(vec2 p){
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash12(i), b = hash12(i + vec2(1,0));
+  float c = hash12(i + vec2(0,1)), d = hash12(i + vec2(1,1));
+  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
+}
+float fbm(vec2 p, int oct){
+  float s = 0.0, a = 0.5;
+  for (int i = 0; i < 6; i++){
+    if (i >= oct) break;
+    s += a * vnoise(p);
+    p = p * 2.03 + vec2(13.7, 7.1);
+    a *= 0.5;
+  }
+  return s;
+}
+float hash13(vec3 p){
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}
+// трипланарный микрорельеф: литая сталь / краска / песок
+float micro3(vec3 p, float sc){
+  vec3 q = p * sc;
+  float xy = vnoise(q.xy) * 0.5 + vnoise(q.xy * 2.7) * 0.3 + vnoise(q.xy * 6.1) * 0.2;
+  float yz = vnoise(q.yz + 5.0) * 0.5 + vnoise(q.yz * 2.7 + 5.0) * 0.3 + vnoise(q.yz * 6.1 + 5.0) * 0.2;
+  float zx = vnoise(q.zx + 11.0) * 0.5 + vnoise(q.zx * 2.7 + 11.0) * 0.3 + vnoise(q.zx * 6.1 + 11.0) * 0.2;
+  return (xy + yz + zx) / 3.0;
+}
+vec3 perturb(vec3 n, vec3 gx, vec3 gy){
+  return normalize(n - (gx * 0.55 + gy * 0.55));
+}
+`;
+
+/* ---------------- SKY ---------------- */
+const VS_SKY = `#version 300 es
+precision highp float;
+out vec2 vUv;
+void main(){
+  vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+  vUv = p * 2.0 - 1.0;
+  gl_Position = vec4(vUv, 0.999999, 1.0);
+}`;
+
+const FS_SKY = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 oCol;
+
+uniform mat4  uInvVP;
+uniform vec3  uSunDir;      // направление НА солнце
+uniform vec3  uSunColor;
+uniform float uSunPower;
+uniform vec3  uTop;
+uniform vec3  uHorizon;
+uniform vec3  uGround;
+uniform float uCloud;       // плотность облаков
+uniform float uStars;
+uniform float uTime;
+uniform vec3  uCamPos;
+` + GLSL_COMMON + `
+void main(){
+  vec4 h = uInvVP * vec4(vUv, 1.0, 1.0);
+  vec3 dir = normalize(h.xyz / h.w - uCamPos);
+
+  float up = sat(dir.y);
+  // атмосферный градиент (Rayleigh-подобный)
+  float t = pow(up, 0.42);
+  vec3 sky = mix(uHorizon, uTop, t);
+  // рассеяние у горизонта / Ми
+  float mu = sat(dot(dir, uSunDir));
+  sky += uSunColor * pow(mu, 6.0) * 0.16 * (1.0 - t * 0.6);
+  sky += uSunColor * pow(mu, 220.0) * 2.4;
+  // диск солнца
+  float disc = smoothstep(0.99985, 0.99994, mu);
+  sky += uSunColor * disc * 32.0 * uSunPower;
+
+  // облака: проекция луча на слой
+  if (uCloud > 0.001 && dir.y > 0.008){
+    vec2 cp = dir.xz / max(dir.y, 0.008) * 1.25 + vec2(uTime * 0.006, uTime * 0.0025);
+    float d = fbm(cp * 1.15, 5);
+    float cov = smoothstep(0.62 - uCloud * 0.34, 0.92, d);
+    // подсветка облака со стороны солнца
+    float lit = sat(dot(normalize(vec3(dir.x, 0.34, dir.z)), uSunDir) * 0.5 + 0.62);
+    vec3 cc = mix(uHorizon * 0.82 + uTop * 0.30, uSunColor * 1.35, lit * 0.72);
+    float fade = smoothstep(0.008, 0.18, dir.y);
+    sky = mix(sky, cc, cov * fade * (0.38 + uCloud * 0.55));
+    // «серебряная» окантовка
+    sky += uSunColor * cov * pow(mu, 24.0) * 0.55;
+  }
+
+  // звёзды
+  if (uStars > 0.001 && dir.y > 0.0){
+    vec3 sp = dir * 320.0;
+    float s = hash13(floor(sp));
+    float star = smoothstep(0.9975, 1.0, s) * (0.55 + 0.45 * sin(uTime * 1.7 + s * 90.0));
+    sky += vec3(0.78, 0.86, 1.0) * star * uStars * sat(1.0 - dir.y * 1.3);
+  }
+
+  // земля / горизонт
+  float g = smoothstep(0.0, -0.06, dir.y);
+  vec3 ground = mix(uGround, uGround * 0.42, sat(-dir.y * 3.0));
+  vec3 col = mix(sky, ground, g);
+  // далёкая дымка
+  col = mix(col, uHorizon * 0.92, sat(1.0 - abs(dir.y) * 9.0) * 0.42);
+  oCol = vec4(max(col, vec3(0.0)), 1.0);
+}`;
+</script>
+<script>
+/* ---------------- SCENE (литое железо) ---------------- */
+const VS_SCENE = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNrm;
+layout(location=2) in vec2 aMat;   // x = id материала, y = ao
+layout(location=3) in vec3 aBary;  // барицентрика для сколов по рёбрам
+
+uniform mat4 uModel;
+uniform mat4 uView;
+uniform mat4 uProj;
+uniform mat4 uLightVP;
+
+out vec3 vWorld;
+out vec3 vNormal;
+out vec3 vBary;
+out vec4 vLightPos;
+out float vMat;
+out float vAo;
+
+void main(){
+  vec4 wp = uModel * vec4(aPos, 1.0);
+  vWorld = wp.xyz;
+  vNormal = mat3(uModel) * aNrm;
+  vBary = aBary;
+  vLightPos = uLightVP * wp;
+  vMat = aMat.x;
+  vAo = aMat.y;
+  gl_Position = uProj * uView * wp;
+}`;
+
+const FS_SCENE = `#version 300 es
+precision highp float;
+precision highp sampler2DShadow;
+
+in vec3 vWorld;
+in vec3 vNormal;
+in vec3 vBary;
+in vec4 vLightPos;
+in float vMat;
+in float vAo;
+out vec4 oCol;
+
+uniform vec3  uCamPos;
+uniform vec3  uSunDir;
+uniform vec3  uSunColor;
+uniform vec3  uFillDir;
+uniform vec3  uFillColor;
+uniform vec3  uSkyLight;
+uniform vec3  uGroundLight;
+uniform vec3  uSkyRefl;
+uniform vec3  uCamoA;
+uniform vec3  uCamoB;
+uniform float uWet;
+uniform float uShadowOn;
+uniform float uWire;
+uniform float uArmor;
+uniform float uXray;
+uniform float uTime;
+uniform float uFlash;      // 0..1 вспышка выстрела
+uniform vec3  uFlashPos;
+uniform sampler2DShadow uShadowMap;
+uniform float uShadowTexel;
+uniform vec2  uJitter;
+uniform float uFocus;      // глубина резкости (0 = выкл)
+
+` + GLSL_COMMON + `
+
+const float PI = 3.14159265359;
+
+float D_GGX(float NoH, float a){
+  float a2 = a * a;
+  float d = (NoH * NoH) * (a2 - 1.0) + 1.0;
+  return a2 / (PI * d * d + 1e-7);
+}
+float V_Smith(float NoV, float NoL, float a){
+  float k = a * 0.5 + 0.001;
+  float gv = NoV / (NoV * (1.0 - k) + k);
+  float gl = NoL / (NoL * (1.0 - k) + k);
+  return gv * gl;
+}
+vec3 F_Schlick(vec3 f0, float VoH){
+  return f0 + (1.0 - f0) * pow(1.0 - VoH, 5.0);
+}
+float computeAO(float NoL, float ao, float shadow){
+  return sat(ao * (0.34 + 0.66 * shadow * NoL) + shadow * 0.14);
+}
+float shadowSample(vec3 N, float NoL){
+  if (uShadowOn < 0.5) return 1.0;
+  vec3 pc = vLightPos.xyz / vLightPos.w * 0.5 + 0.5;
+  if (pc.x < 0.001 || pc.x > 0.999 || pc.y < 0.001 || pc.y > 0.999 || pc.z > 1.0) return 1.0;
+  float bias = mix(0.0016, 0.00035, NoL);
+  float z = pc.z - bias;
+  float s = 0.0;
+  for (int y = -1; y <= 1; y++){
+    for (int x = -1; x <= 1; x++){
+      s += texture(uShadowMap, vec3(pc.xy + vec2(float(x), float(y)) * uShadowTexel, z));
+    }
+  }
+  return s / 9.0;
+}
+
+void main(){
+  if (uXray > 0.5 && vMat < 8.0) discard;
+
+  vec3 N = normalize(vNormal);
+  vec3 V = normalize(uCamPos - vWorld);
+  vec3 L = uSunDir;
+  float NoV = max(dot(N, V), 1e-4);
+  float NoL = dot(N, L);
+
+  // ---------- материал ----------
+  vec3  albedo = vec3(0.5);
+  float metal  = 0.0;
+  float rough  = 0.8;
+  float coat   = 0.0;
+  vec3  emis   = vec3(0.0);
+  float edgeMask = 0.0;
+  float detail = 1.0;
+  float dirt   = 0.0;
+
+  int id = int(vMat + 0.5);
+
+  if (vMat < 0.05 || (vMat > 0.95 && vMat < 1.05)) {
+    // PAINT / PAINT2 — диэлектрик, матовая военная краска CARC
+    float m = fbm(vWorld.xz * 1.05 + vWorld.zx * 0.7, 5);
+    float blot = fbm(vWorld.xy * 2.4 + vWorld.z * 1.6, 3);
+    albedo = mix(uCamoA, uCamoB, smoothstep(0.40, 0.70, m));
+    albedo = mix(albedo, albedo * 1.34, smoothstep(0.56, 0.85, blot) * 0.55);   // выцветшие пятна
+    // мелкая шероховатость краски
+    float grain = vnoise(vWorld.xz * 46.0) * 0.55 + vnoise(vWorld.xz * 118.0) * 0.45;
+    albedo *= 0.90 + 0.22 * grain;
+    // потёртости на рёбрах уже дают сколы, здесь только пыль снизу
+    dirt = clamp((1.30 - vWorld.y) / 0.90, 0.0, 1.0) * 0.75;
+    vec3 dust = albedo * 1.22 + vec3(0.042, 0.034, 0.020);
+    albedo = mix(albedo, dust, dirt * (0.55 + 0.45 * grain));
+    metal = 0.03;
+    rough = mix(0.68, 0.80, vnoise(vWorld.xz * 5.23 + vWorld.y));
+    if (vMat > 0.95) rough = 0.80;
+  } else if (id == 2) {
+    // ERA — грубые сварные контейнеры (чуть темнее корпуса, с налётом)
+    albedo = mix(uCamoB, uCamoA * 0.86, vnoise(vWorld.xz * 9.0));
+    albedo *= 0.94 + 0.14 * vnoise(vWorld.xz * 30.0);
+    metal = 0.045;
+    rough = 0.76;
+    detail = 2.1;
+  } else if (id == 3) {
+    // RUBBER
+    albedo = vec3(0.030, 0.031, 0.033);
+    metal = 0.0;
+    rough = 0.94;
+    detail = 2.4;
+  } else if (id == 4) {
+    // STEEL — голая сталь, крепёж
+    albedo = vec3(0.470, 0.487, 0.500);
+    metal = 0.94;
+    rough = 0.30;
+    detail = 2.8;
+  } else if (id == 5) {
+    // GROUND — мокрая плита PAG-18
+    vec2 g = vWorld.xz;
+    float n1 = fbm(g * 0.55, 5);
+    float n2 = fbm(g * 3.1 + 17.0, 4);
+    float puddle = smoothstep(0.44, 0.62, n1);
+    vec3 dry = vec3(0.185, 0.180, 0.170) * (0.74 + 0.44 * n2);
+    vec3 wet = vec3(0.052, 0.054, 0.058);
+    albedo = mix(dry, wet, puddle);
+    metal = 0.02;
+    rough = mix(0.93, 0.075, puddle);
+    dirt = 0.0;
+    // мелкий песок / трещины
+    float grit = vnoise(g * 26.0) * 0.5 + vnoise(g * 62.0) * 0.5;
+    albedo *= 0.90 + 0.24 * grit;
+    // стыки плит
+    vec2 seam = abs(fract(g / 6.0) - 0.5);
+    float pl = smoothstep(0.492, 0.5, max(seam.x, seam.y));
+    albedo *= 1.0 - pl * 0.55;
+    rough = mix(rough, 0.96, pl * 0.6);
+    // подтёки масла
+    float stain = smoothstep(0.66, 0.86, fbm(g * 0.9 + 41.0, 3));
+    albedo = mix(albedo, vec3(0.035, 0.033, 0.030), stain * 0.55);
+    detail = 2.2;
+  } else if (id == 6) {
+    // GUN — токарный металл
+    albedo = vec3(0.415, 0.435, 0.452);
+    metal = 0.90;
+    rough = mix(0.22, 0.42, vnoise(vec2(vWorld.z * 2.2, vWorld.y * 26.0)));
+    detail = 1.4;
+  } else if (id == 7) {
+    // SOOT — сажа
+    albedo = vec3(0.012, 0.012, 0.013);
+    metal = 0.02;
+    rough = 0.98;
+    detail = 0.4;
+  } else if (id == 8) {
+    // INTERNAL — видимый только в X-Ray
+    albedo = vec3(0.55, 0.18, 0.12);
+    metal = 0.0;
+    rough = 0.6;
+  } else if (id == 9) {
+    // WELD / трос — тёмная сталь
+    albedo = vec3(0.26, 0.265, 0.27);
+    metal = 0.72;
+    rough = 0.46;
+    detail = 3.2;
+  } else if (id == 10) {
+    // GLASS — триплекс, перископы
+    albedo = vec3(0.02, 0.035, 0.045);
+    metal = 0.0;
+    rough = 0.06;
+    coat = 1.0;
+  } else if (id == 11) {
+    // TRACK — траки: калёная сталь с ржавчиной и пылью
+    float rust = fbm(vWorld.xz * 7.0 + vWorld.y * 5.0, 3);
+    albedo = mix(vec3(0.185, 0.170, 0.155), vec3(0.285, 0.185, 0.110), smoothstep(0.45, 0.78, rust));
+    metal = mix(0.82, 0.30, smoothstep(0.55, 0.85, rust));
+    rough = mix(0.52, 0.86, rust);
+    dirt = 0.65;
+    detail = 2.6;
+  } else if (id == 12) {
+    albedo = vec3(0.52, 0.34, 0.10); metal = 0.85; rough = 0.42;
+  } else if (id == 13) {
+    albedo = vec3(0.72, 0.52, 0.16); metal = 0.90; rough = 0.30;
+  } else {
+    albedo = vec3(0.60, 0.62, 0.64); metal = 0.10; rough = 0.70;
+  }
+
+  // ---------- fwidth-сколы по геометрическим рёбрам ----------
+  if (vMat < 1.05 || id == 2 || id == 11) {
+    vec3 dx = dFdx(vWorld), dy = dFdy(vWorld);
+    float fp = max(length(dx), length(dy));
+    float e = min(min(vBary.x, vBary.y), vBary.z);
+    float px = e / max(fp, 1e-5);
+    float chip = 1.0 - smoothstep(0.6, 2.2, px);
+    // рваный фронт скола
+    float n = fbm(vWorld.xz * 22.0 + vWorld.y * 17.0, 3);
+    chip = sat(chip * (0.45 + 1.25 * n));
+    chip = smoothstep(0.34, 0.72, chip);
+    edgeMask = chip;
+    float rustE = fbm(vWorld.xz * 6.0, 2);
+    vec3 bareSteel = mix(vec3(0.50, 0.52, 0.545), vec3(0.30, 0.215, 0.145), smoothstep(0.60, 0.92, rustE) * 0.85);
+    albedo = mix(albedo, bareSteel, chip);
+    metal = mix(metal, 0.93, chip);
+    rough = mix(rough, 0.235, chip);
+    detail = mix(1.0, 3.2, chip);
+  }
+
+  // ---------- микронормали ----------
+  vec3 Ng = N;
+  if (uWire < 0.5) {
+    float s = mix(38.0, 12.0, rough) * detail;
+    float e = 0.5;
+    vec3 gx = dFdx(vWorld), gy = dFdy(vWorld);
+    float n0 = micro3(vWorld, s);
+    // трипланарный градиент по экранным производным (стабильно при любом масштабе)
+    float nx = micro3(vWorld + gx, s) - n0;
+    float ny = micro3(vWorld + gy, s) - n0;
+    N = normalize(N - gx * nx * 5.0 - gy * ny * 5.0);
+    // крупная «волнистость» листов брони
+    if (id == 0 || id == 1) {
+      float w = vnoise(vWorld.xz * 1.6 + vWorld.y * 2.4) - 0.5;
+      N = normalize(N + vec3(w * 0.06, 0.0, w * 0.06));
+    }
+  }
+
+  // ---------- тени + AO ----------
+  float NoLc = clamp(NoL, 0.0, 1.0);
+  float sh = 1.0;
+  if (NoLc > 0.001) sh = shadowSample(N, NoLc);
+  float aoTerm = computeAO(NoLc, vAo, sh);
+
+  // ---------- BRDF ----------
+  vec3 H = normalize(V + L);
+  float NoH = max(dot(N, H), 0.0);
+  float VoH = max(dot(V, H), 0.0);
+  float NoLr = max(dot(N, L), 0.0);
+  float a = max(rough * rough, 1e-3);
+  vec3 F0 = mix(vec3(0.04), albedo, metal);
+  vec3 F = F_Schlick(F0, VoH);
+  float D = D_GGX(NoH, a);
+  float G = V_Smith(NoV, NoLr, a);
+  vec3 spec = D * G * F / max(4.0 * NoV * NoLr, 1e-4) * NoLr;
+  vec3 kd = (1.0 - F) * (1.0 - metal);
+  vec3 diff = kd * albedo / PI * NoLr;
+
+  vec3 Li = uSunColor;
+  vec3 col = (diff + spec) * Li * sh;
+
+  // заливка от неба (hemispherical)
+  float hemi = N.y * 0.5 + 0.5;
+  vec3 amb = mix(uGroundLight, uSkyLight, hemi * hemi) * aoTerm;
+  col += albedo * amb * (1.0 - metal * 0.75);
+
+  // отражение неба по Fresnel (environment approximation)
+  vec3 R = reflect(-V, N);
+  float fres = 0.04 + 0.96 * pow(1.0 - NoV, 5.0);
+  vec3 env = mix(uGroundLight * 0.55, uSkyRefl, sat(R.y * 1.1 + 0.15));
+  col += env * fres * mix(0.55, 0.06, sat(rough * 1.15)) * (0.28 + 0.72 * metal) * sat(vAo + 0.18);
+
+  // мокрые лужи: зеркало неба по Fresnel
+  if (id == 5) {
+    float wetMask = clamp((0.34 - rough) / 0.32, 0.0, 1.0) * uWet;
+    vec3 refl = mix(uSkyRefl * 0.55, uSkyRefl * 1.55, sat(R.y * 1.2 + 0.25));
+    float Fw = 0.02 + 0.98 * pow(1.0 - NoV, 5.0);
+    col = mix(col, refl * (0.30 + 0.70 * Fw), wetMask * 0.95);
+    // тёмное отражение корпуса в луже прямо под танком
+    float under = clamp((6.4 - length(vWorld.xz)) / 3.6, 0.0, 1.0);
+    col *= mix(1.0, 0.42, under * wetMask);
+  }
+
+  // ---------- заливной свет (rim) ----------
+  vec3 Lf = normalize(uFillDir);
+  float NoF = max(dot(N, Lf), 0.0);
+  float shF = NoF > 0.001 ? shadowSample(N, NoF) : 1.0;
+  col += (albedo * (1.0 - metal) * NoF + spec * 0.3) * uFillColor * shF * sat(vAo + 0.2);
+
+  // ---------- слой лака (стёкла, оптика) ----------
+  if (coat > 0.5) {
+    col += uSkyRefl * fres * 1.6;
+  }
+
+  // ---------- вспышка выстрела ----------
+  if (uFlash > 0.001) {
+    vec3 d = vWorld - uFlashPos;
+    float dd = length(d);
+    float att = uFlash / (1.0 + dd * dd * 5.5);
+    col += vec3(1.0, 0.72, 0.36) * att * (1.2 + 2.1 * max(dot(N, normalize(d)), 0.0));
+  }
+
+  // ---------- режимы отображения ----------
+  if (uArmor > 0.5) {
+    // тепловая карта приведённой брони (по мировой высоте и наклону)
+    float v = sat(vWorld.y * 0.62 + sat(N.y) * 0.55);
+    vec3 hot = mix(vec3(0.02, 0.16, 0.55), vec3(0.05, 0.85, 0.45), smoothstep(0.1, 0.5, v));
+    hot = mix(hot, vec3(1.0, 0.78, 0.10), smoothstep(0.5, 0.8, v));
+    hot = mix(hot, vec3(0.95, 0.18, 0.12), smoothstep(0.8, 1.0, v));
+    float scan = smoothstep(0.985, 1.0, sin(vWorld.y * 34.0 - uTime * 3.0) * 0.5 + 0.5);
+    col = hot * (0.42 + 0.9 * sat(NoLc)) + hot * scan * 0.8;
+  }
+  if (uXray > 0.5) {
+    // внутренние модули: экипаж / БК / двигатель
+    float pulse = 0.7 + 0.3 * sin(uTime * 4.2 + vWorld.z * 2.0);
+    col = mix(uSkyLight * 0.4, albedo * 1.5, id >= 8 ? 1.0 : 0.0) * pulse;
+    col += vec3(0.05, 0.18, 0.22);
+  }
+
+  // тонемаппинг-предкомпенсация (ACES в пост-обработке)
+  oCol = vec4(col, 1.0);
+
+  if (uWire > 0.5) {
+    float e2 = min(min(vBary.x, vBary.y), vBary.z);
+    float fp2 = max(length(dFdx(vWorld)), length(dFdy(vWorld)));
+    float line = 1.0 - smoothstep(0.35, 1.5, e2 / max(fp2, 1e-5));
+    if (line < 0.03) discard;
+    oCol = vec4(vec3(0.34, 0.95, 0.55) * (0.55 + 0.8 * sat(dot(N, L))), 1.0);
+  }
+
+  // туман / дымка на дистанции
+  float fog = sat(length(uCamPos - vWorld) * 0.021);
+  oCol.rgb = mix(oCol.rgb, uSkyRefl * 0.85, fog * 0.22);
+}`;
+</script>
+<script>
+/* ---------------- SHADOW PASS ---------------- */
+const VS_SHADOW = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;
+uniform mat4 uModel;
+uniform mat4 uLightVP;
+void main(){ gl_Position = uLightVP * uModel * vec4(aPos, 1.0); }`;
+
+const FS_SHADOW = `#version 300 es
+precision highp float;
+void main(){}`;
+
+/* ---------------- POST: bloom + ACES + vignette + grain ---------------- */
+const VS_QUAD = `#version 300 es
+precision highp float;
+out vec2 vUv;
+void main(){
+  vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+  vUv = p;
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+const FS_BRIGHT = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 oCol;
+uniform sampler2D uTex;
+uniform vec2 uTexel;
+void main(){
+  vec3 c = vec3(0.0);
+  c += texture(uTex, vUv + uTexel * vec2(-1.0,-1.0)).rgb;
+  c += texture(uTex, vUv + uTexel * vec2( 1.0,-1.0)).rgb;
+  c += texture(uTex, vUv + uTexel * vec2(-1.0, 1.0)).rgb;
+  c += texture(uTex, vUv + uTexel * vec2( 1.0, 1.0)).rgb;
+  c *= 0.25;
+  float l = max(max(c.r, c.g), c.b);
+  float k = smoothstep(1.05, 2.6, l);
+  oCol = vec4(c * k, 1.0);
+}`;
+
+const FS_BLUR = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 oCol;
+uniform sampler2D uTex;
+uniform vec2 uDir;
+void main(){
+  vec3 s = texture(uTex, vUv).rgb * 0.227027;
+  s += texture(uTex, vUv + uDir * 1.3846).rgb * 0.316216;
+  s += texture(uTex, vUv - uDir * 1.3846).rgb * 0.316216;
+  s += texture(uTex, vUv + uDir * 3.2308).rgb * 0.070270;
+  s += texture(uTex, vUv - uDir * 3.2308).rgb * 0.070270;
+  oCol = vec4(s, 1.0);
+}`;
+
+const FS_COMPOSITE = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 oCol;
+uniform sampler2D uScene;
+uniform sampler2D uBloom;
+uniform float uExposure;
+uniform float uBloomAmt;
+uniform float uTime;
+uniform float uFlash;
+uniform vec2  uRes;
+
+vec3 aces(vec3 x){
+  const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+  return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
+float hash(vec2 p){
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+float sat(float x){ return clamp(x, 0.0, 1.0); }
+void main(){
+  vec2 uv = vUv;
+  // хроматическая аберрация по краям
+  vec2 d = uv - 0.5;
+  float r2 = dot(d, d);
+  vec2 off = d * r2 * 0.0035;
+  vec3 col;
+  col.r = texture(uScene, uv + off).r;
+  col.g = texture(uScene, uv).g;
+  col.b = texture(uScene, uv - off).b;
+
+  vec3 bloom = texture(uBloom, uv).rgb;
+  col += bloom * uBloomAmt;
+  col += vec3(1.0, 0.62, 0.28) * uFlash * 0.32;
+
+  col *= uExposure;
+  col = aces(col);
+  // холодные тени / тёплые света
+  float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+  col = mix(col * vec3(0.90, 0.965, 1.10), col * vec3(1.055, 1.005, 0.945), smoothstep(0.10, 0.72, lum));
+  // виньетка
+  float vig = 1.0 - r2 * 0.62;
+  col *= sat(vig);
+  // зерно
+  float g = hash(uv * uRes + fract(uTime) * 137.0) - 0.5;
+  col += g * 0.016;
+  // гамма
+  col = pow(max(col, vec3(0.0)), vec3(1.0 / 2.2));
+  oCol = vec4(col, 1.0);
+}`;
+</script>
+<script>
+/* ============================================================================
+   RUNTIME
+   ============================================================================ */
+
+const PRESETS = [
+  {
+    key:"DAY", name:"ЯСНЫЙ ДЕНЬ · Nikinci",
+    sunDir:[0.46, 0.70, 0.55], sunCol:[5.40, 5.02, 4.44], sunPow:1.0,
+    top:[0.055, 0.175, 0.52], horizon:[0.50, 0.62, 0.80], groundC:[0.17, 0.16, 0.14],
+    sky:[0.235, 0.300, 0.395], gnd:[0.105, 0.092, 0.072],
+    fillDir:[-0.55, 0.30, -0.70], fillCol:[0.16, 0.19, 0.235],
+    cloud:0.44, stars:0.0, exposure:0.82, bloom:0.42, wet:0.55
+  },
+  {
+    key:"GOLDEN", name:"ЗАКАТ · Golden Hour",
+    sunDir:[-0.74, 0.20, 0.42], sunCol:[4.60, 2.42, 1.15], sunPow:1.05,
+    top:[0.060, 0.105, 0.245], horizon:[0.78, 0.415, 0.185], groundC:[0.115, 0.088, 0.068],
+    sky:[0.245, 0.225, 0.255], gnd:[0.105, 0.080, 0.058],
+    fillDir:[0.58, 0.30, -0.68], fillCol:[0.185, 0.140, 0.120],
+    cloud:0.58, stars:0.0, exposure:0.95, bloom:0.62, wet:0.75
+  },
+  {
+    key:"STORM", name:"ГРОЗА · Storm Front",
+    sunDir:[-0.40, 0.40, 0.70], sunCol:[1.62, 1.70, 1.86], sunPow:0.60,
+    top:[0.072, 0.085, 0.108], horizon:[0.285, 0.300, 0.325], groundC:[0.085, 0.092, 0.085],
+    sky:[0.165, 0.185, 0.210], gnd:[0.062, 0.065, 0.060],
+    fillDir:[0.44, 0.20, -0.60], fillCol:[0.115, 0.135, 0.160],
+    cloud:0.96, stars:0.0, exposure:1.28, bloom:0.38, wet:1.0
+  },
+  {
+    key:"NIGHT", name:"НОЧЬ · daStars / ПНВ",
+    sunDir:[-0.44, 0.46, 0.50], sunCol:[0.62, 0.74, 1.05], sunPow:0.50,
+    top:[0.008, 0.014, 0.032], horizon:[0.030, 0.042, 0.070], groundC:[0.014, 0.016, 0.020],
+    sky:[0.030, 0.039, 0.060], gnd:[0.009, 0.010, 0.012],
+    fillDir:[0.38, 0.24, -0.64], fillCol:[0.062, 0.088, 0.135],
+    cloud:0.26, stars:1.0, exposure:2.45, bloom:0.95, wet:0.65
+  }
+];
+
+const SHOWCASE = [0, 4, 1, 11, 14, 3, 12, 17, 20, 21];
+let curIdx = 0;
+
+/* ---------- состояние ---------- */
+const S = {
+  yaw:2.52, pitch:0.26, dist:12.2, target:[0, 0.98, 0],
+  preset:0, wire:false, armor:false, xray:false, orbit:true,
+  dragging:0, lastX:0, lastY:0,
+  turretYaw:-0.30, turretTarget:-0.30, gunPitch:0.02,
+  recoil:0, recoilT:0, flash:0, flashPos:[0,0,0],
+  camYawS:2.52, camDistS:12.2, camPitchS:0.26, turYawS:0,
+  time:0, fps:0, frames:0, fpsT:0,
+  meshes:null, veh:null, changing:0
+};
+
+const glCanvas = document.getElementById("gl");
+const stageEl = document.getElementById("stage");
+let gl = null, R = null;
+
+/* HDR render target (с откатом на RGBA8, если float-буферы недоступны) */
+let HDR_SUPPORTED = true;
+function makeTarget(w, h){
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  if (HDR_SUPPORTED) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  } else {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  }
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const fbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  const rb = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, rb);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, w, h);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, rb);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { tex, fbo, w, h };
+}
+
+function mat4TRS(t, r){
+  return M4.trs(t, r);
+}
+
+/* ---------- создание GL ---------- */
+function initGL(){
+  const attrs = { alpha:false, antialias:false, depth:true, stencil:false, powerPreference:"high-performance", preserveDrawingBuffer:false };
+  gl = glCanvas.getContext("webgl2", attrs);
+  if (!gl) { stageEl.classList.add("no-gl"); return false; }
+
+  const prog = (vsSrc, fsSrc, name) => {
+    const vs = compile(gl.VERTEX_SHADER, vsSrc, name + ".vs");
+    const fs = compile(gl.FRAGMENT_SHADER, fsSrc, name + ".fs");
+    if (!vs || !fs) return null;
+    const p = gl.createProgram();
+    gl.attachShader(p, vs); gl.attachShader(p, fs); gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      console.error(name + " link:", gl.getProgramInfoLog(p));
+      return null;
+    }
+    const u = {};
+    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) {
+      const info = gl.getActiveUniform(p, i);
+      u[info.name.replace(/\[0\]$/, "")] = gl.getUniformLocation(p, info.name);
+    }
+    return { p, u };
+  };
+  function compile(type, src, label){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      const log = gl.getShaderInfoLog(s);
+      console.error(label + "\n" + log);
+      const line = (log.match(/:(\d+):/) || [])[1];
+      if (line) {
+        const lines = src.split("\n");
+        console.error(">>> " + lines.slice(Math.max(0, +line - 3), +line + 2).join("\n"));
+      }
+      return null;
+    }
+    return s;
+  }
+
+  const skyP  = prog(VS_SKY, FS_SKY, "sky");
+  const sceneP= prog(VS_SCENE, FS_SCENE, "scene");
+  const shadP = prog(VS_SHADOW, FS_SHADOW, "shadow");
+  const brP   = prog(VS_QUAD, FS_BRIGHT, "bright");
+  const blP   = prog(VS_QUAD, FS_BLUR, "blur");
+  const coP   = prog(VS_QUAD, FS_COMPOSITE, "composite");
+  if (!skyP || !sceneP || !shadP || !brP || !blP || !coP) { stageEl.classList.add("no-gl"); return false; }
+
+  const emptyVao = gl.createVertexArray();
+
+  // shadow map
+  const SHADOW = 2048;
+  const shTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, shTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F, SHADOW, SHADOW, 0, gl.DEPTH_COMPONENT, gl.FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_MODE, gl.COMPARE_REF_TO_TEXTURE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_COMPARE_FUNC, gl.LEQUAL);
+  const shFbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, shFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shTex, 0);
+  gl.drawBuffers([gl.NONE]);
+  gl.readBuffer(gl.NONE);
+  const shStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (shStatus !== gl.FRAMEBUFFER_COMPLETE) console.warn("shadow FBO incomplete", shStatus);
+
+  R = {
+    skyP, sceneP, shadP, brP, blP, coP, emptyVao,
+    shTex, shFbo, SHADOW, shLightVP:M4.id(),
+    scene:null, bloom:[null, null], rtW:0, rtH:0,
+    meshes:null, buffers:[],
+    extF : gl.getExtension("EXT_color_buffer_float"),
+    extL : gl.getExtension("OES_texture_float_linear")
+  };
+  const extF = gl.getExtension("EXT_color_buffer_float") || gl.getExtension("EXT_color_buffer_half_float");
+  gl.getExtension("OES_texture_float_linear");
+  HDR_SUPPORTED = !!extF;
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.BACK);
+  resize();
+  // если float-таргеты не собрались — пересобираем как RGBA8
+  if (R.scene && !R.scene.ok && HDR_SUPPORTED) {
+    HDR_SUPPORTED = false;
+    resize();
+  }
+  return true;
+}
+
+/* ---------- буферы мешей ---------- */
+function uploadGeo(arr){
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  const vbo = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+  gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+  const stride = 12 * 4;
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);
+  gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 12);
+  gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 2, gl.FLOAT, false, stride, 24);
+  gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 3, gl.FLOAT, false, stride, 32);
+  gl.bindVertexArray(null);
+  R.buffers.push(vbo);
+  return { vao, count:arr.length / 12, vbo };
+}
+
+function disposeMeshes(){
+  if (!R || !R.meshes) return;
+  for (const m of Object.values(R.meshes)) if (m && m.vao) gl.deleteVertexArray(m.vao);
+  for (const b of R.buffers) gl.deleteBuffer(b);
+  R.buffers.length = 0;
+  R.meshes = null;
+}
+
+function loadVehicle(idx, animate){
+  curIdx = ((idx % VEHICLES.length) + VEHICLES.length) % VEHICLES.length;
+  const v = VEHICLES[curIdx];
+  S.veh = v;
+  const built = buildVehicle(v);
+  S.built = built;
+  if (R && gl) {
+    disposeMeshes();
+    R.meshes = {
+      hull: uploadGeo(built.hull),
+      turret: uploadGeo(built.turret),
+      gun: uploadGeo(built.gun),
+      inner: uploadGeo(built.inner),
+      ground: uploadGeo(built.ground)
+    };
+  }
+  const n = NATIONS.find(x => x.id === v.nat);
+  document.getElementById("curTankName").textContent = n.flag + " " + v.name;
+  document.getElementById("curTankSub").textContent = "БР " + v.br + " · РАНГ " + v.rank + " · " + v.era;
+  if (animate) S.changing = 1.0;
+  document.querySelectorAll(".vcard").forEach(c => c.classList.toggle("on", +c.dataset.idx === curIdx));
+}
+
+/* ---------- resize ---------- */
+function resize(){
+  if (!R || !gl) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = Math.max(240, Math.round(glCanvas.clientWidth * dpr));
+  const h = Math.max(200, Math.round(glCanvas.clientHeight * dpr));
+  if (glCanvas.width !== w || glCanvas.height !== h) {
+    glCanvas.width = w; glCanvas.height = h;
+    R.rtW = Math.max(2, Math.round(w * 0.78));
+    R.rtH = Math.max(2, Math.round(h * 0.78));
+    if (R.scene) { gl.deleteTexture(R.scene.tex); gl.deleteFramebuffer(R.scene.fbo); }
+    if (R.bloom[0]) { gl.deleteTexture(R.bloom[0].tex); gl.deleteFramebuffer(R.bloom[0].fbo); }
+    if (R.bloom[1]) { gl.deleteTexture(R.bloom[1].tex); gl.deleteFramebuffer(R.bloom[1].fbo); }
+    R.scene = makeTarget(R.rtW, R.rtH);
+    R.bloom[0] = makeTarget(R.rtW >> 1, R.rtH >> 1);
+    R.bloom[1] = makeTarget(R.rtW >> 1, R.rtH >> 1);
+  }
+}
+
+/* ---------- камера ---------- */
+function camPos(){
+  const cy = Math.cos(S.camYawS), sy = Math.sin(S.camYawS);
+  const cp = Math.cos(S.camPitchS), sp = Math.sin(S.camPitchS);
+  const r = S.camDistS;
+  return [
+    S.target[0] + Math.sin(S.camYawS) * cp * r,
+    S.target[1] + sp * r,
+    S.target[2] + Math.cos(S.camYawS) * cp * r
+  ];
+}
+
+/* ---------- отрисовка ---------- */
+let lastT = 0;
+function frame(ts){
+  const t = ts * 0.001;
+  const dt = Math.min(0.05, t - (lastT || t));
+  lastT = t;
+  S.time = t;
+
+  if (R && gl) {
+    resize();
+    update(dt);
+
+    const P = PRESETS[S.preset];
+    const cam = camPos();
+    const fov = 0.62;
+    const proj = M4.persp(fov, glCanvas.width / glCanvas.height, 0.08, 90);
+    const view = M4.lookAt(cam, S.target, [0, 1, 0]);
+
+    // ---- light VP (ортогональная тень) ----
+    const L = norm(P.sunDir);
+    const lView = M4.lookAt([L[0]*16, L[1]*16, L[2]*16], [0, 0.9, 0], [0,1,0]);
+    const lProj = M4.ortho(-11, 11, -11, 11, 1, 42);
+    const lVP = M4.mul(lProj, lView);
+
+    const Pv = S.veh;
+
+    // ================= SHADOW PASS =================
+    gl.bindFramebuffer(gl.FRAMEBUFFER, R.shFbo);
+    gl.viewport(0, 0, R.SHADOW, R.SHADOW);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+    gl.useProgram(R.shadP.p);
+    gl.uniformMatrix4fv(R.shadP.u.uLightVP, false, lVP);
+    gl.enable(gl.POLYGON_OFFSET_FILL);
+    gl.polygonOffset(1.6, 2.4);
+    gl.cullFace(gl.FRONT);
+    drawScene(R.shadP, "depth", lVP, null);
+    gl.cullFace(gl.BACK);
+    gl.disable(gl.POLYGON_OFFSET_FILL);
+
+    // ================= SCENE PASS =================
+    gl.bindFramebuffer(gl.FRAMEBUFFER, R.scene.fbo);
+    gl.viewport(0, 0, R.rtW, R.rtH);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // небо
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+    gl.useProgram(R.skyP.p);
+    const invVP = M4.mul(M4.mul(proj, view), M4.id());
+    const inv = invert(invVP);
+    gl.uniformMatrix4fv(R.skyP.u.uInvVP, false, inv);
+    gl.uniform3fv(R.skyP.u.uSunDir, L);
+    gl.uniform3fv(R.skyP.u.uSunColor, P.sunCol);
+    gl.uniform1f(R.skyP.u.uSunPower, P.sunPow);
+    gl.uniform3fv(R.skyP.u.uTop, P.top);
+    gl.uniform3fv(R.skyP.u.uHorizon, P.horizon);
+    gl.uniform3fv(R.skyP.u.uGround, P.groundC);
+    gl.uniform1f(R.skyP.u.uCloud, P.cloud);
+    gl.uniform1f(R.skyP.u.uStars, P.stars);
+    gl.uniform1f(R.skyP.u.uTime, t);
+    gl.uniform3fv(R.skyP.u.uCamPos, cam);
+    gl.bindVertexArray(R.emptyVao);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.depthMask(true);
+    gl.enable(gl.DEPTH_TEST);
+
+    // геометрия
+    const sp = R.sceneP;
+    gl.useProgram(sp.p);
+    gl.uniformMatrix4fv(sp.u.uView, false, view);
+    gl.uniformMatrix4fv(sp.u.uProj, false, proj);
+    gl.uniformMatrix4fv(sp.u.uLightVP, false, lVP);
+    gl.uniform3fv(sp.u.uCamPos, cam);
+    gl.uniform3fv(sp.u.uSunDir, L);
+    gl.uniform3fv(sp.u.uSunColor, P.sunCol);
+    gl.uniform3fv(sp.u.uFillDir, norm(P.fillDir));
+    gl.uniform3fv(sp.u.uFillColor, P.fillCol);
+    gl.uniform3fv(sp.u.uSkyLight, P.sky);
+    gl.uniform3fv(sp.u.uGroundLight, P.gnd);
+    gl.uniform3fv(sp.u.uSkyRefl, mix3(P.horizon, P.top, 0.55));
+    gl.uniform3f(sp.u.uCamoA, hexRGB(Pv.camo[0]));
+    gl.uniform3f(sp.u.uCamoB, hexRGB(Pv.camo[1]));
+    gl.uniform1f(sp.u.uWet, P.wet);
+    gl.uniform1f(sp.u.uShadowOn, 1.0);
+    gl.uniform1f(sp.u.uWire, S.wire ? 1 : 0);
+    gl.uniform1f(sp.u.uArmor, S.armor ? 1 : 0);
+    gl.uniform1f(sp.u.uXray, S.xray ? 1 : 0);
+    gl.uniform1f(sp.u.uTime, t);
+    gl.uniform1f(sp.u.uFlash, S.flash);
+    gl.uniform3fv(sp.u.uFlashPos, S.flashPos);
+    gl.uniform1f(sp.u.uShadowTexel, 1 / R.SHADOW);
+    gl.uniform2f(sp.u.uJitter, (Math.random() - 0.5) * 0.004, (Math.random() - 0.5) * 0.004);
+    gl.uniform1f(sp.u.uFocus, 0.0);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, R.shTex);
+    gl.uniform1i(sp.u.uShadowMap, 0);
+    drawScene(sp, "full", view, proj);
+
+    // ================= BLOOM =================
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+    gl.bindVertexArray(R.emptyVao);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, R.bloom[0].fbo);
+    gl.viewport(0, 0, R.bloom[0].w, R.bloom[0].h);
+    gl.useProgram(R.brP.p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.scene.tex);
+    gl.uniform1i(R.brP.u.uTex, 0);
+    gl.uniform2f(R.brP.u.uTexel, 1 / R.rtW, 1 / R.rtH);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // ping-pong blur
+    for (let i = 0; i < 2; i++) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, R.bloom[1].fbo);
+      gl.useProgram(R.blP.p);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.bloom[0].tex);
+      gl.uniform1i(R.blP.u.uTex, 0);
+      gl.uniform2f(R.blP.u.uDir, (i === 0 ? 1.0 : 0.0) / R.bloom[0].w, (i === 0 ? 0.0 : 1.0) / R.bloom[0].h);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, R.bloom[0].fbo);
+      gl.useProgram(R.blP.p);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.bloom[1].tex);
+      gl.uniform1i(R.blP.u.uTex, 0);
+      gl.uniform2f(R.blP.u.uDir, (i === 0 ? 1.0 : 0.0) / R.bloom[0].w, (i === 0 ? 0.0 : 1.0) / R.bloom[0].h);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    // ================= COMPOSITE =================
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+    gl.useProgram(R.coP.p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, R.scene.tex);
+    gl.uniform1i(R.coP.u.uScene, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, R.bloom[0].tex);
+    gl.uniform1i(R.coP.u.uBloom, 1);
+    gl.uniform1f(R.coP.u.uExposure, P.exposure);
+    gl.uniform1f(R.coP.u.uBloomAmt, P.bloom * 0.9);
+    gl.uniform1f(R.coP.u.uTime, t);
+    gl.uniform1f(R.coP.u.uFlash, S.flash * 0.7);
+    gl.uniform2f(R.coP.u.uRes, glCanvas.width, glCanvas.height);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.depthMask(true);
+    gl.enable(gl.DEPTH_TEST);
+
+    // HUD
+    S.frames++;
+    if (t - S.fpsT > 0.5) {
+      S.fps = Math.round(S.frames / (t - S.fpsT));
+      S.frames = 0; S.fpsT = t;
+      document.getElementById("fpsVal").textContent = S.fps;
+      document.getElementById("triVal").textContent = S.built ? (S.built.tris / 1000).toFixed(1) + "k" : "—";
+      document.getElementById("passVal").textContent = "6";
+      document.getElementById("hudAz").textContent = Math.round(((S.camYawS * 180 / Math.PI) % 360 + 360) % 360) + "°";
+      document.getElementById("hudEl").textContent = Math.round(S.camPitchS * 180 / Math.PI) + "°";
+      document.getElementById("hudYaw").textContent = Math.round(((S.turretYaw * 180 / Math.PI) % 360)) + "°";
+      document.getElementById("hudTur").textContent = Math.round(S.gunPitch * 180 / Math.PI) + "°";
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function drawScene(prog, mode, view, proj){
+  const M = R.meshes;
+  if (!M || !S.built) return;
+  const b = S.built;
+  const rec = S.recoil;
+  const tr = S.turretYaw;
+  const gp = S.gunPitch;
+
+  // корпус
+  const hullM = M4.id();
+  gl.uniformMatrix4fv(prog.u.uModel, false, hullM);
+  gl.bindVertexArray(M.hull.vao);
+  gl.drawArrays(gl.TRIANGLES, 0, M.hull.count);
+
+  // земля
+  if (mode !== "depth") {
+    gl.uniformMatrix4fv(prog.u.uModel, false, M4.id());
+    gl.bindVertexArray(M.ground.vao);
+    gl.drawArrays(gl.TRIANGLES, 0, M.ground.count);
+  }
+
+  // башня
+  const ring = b.ring;                                   // [0, roofY, z] из модели
+  const turM = M4.trs([ring[0], ring[1], ring[2]], [tr, 0, 0]);
+  gl.uniformMatrix4fv(prog.u.uModel, false, turM);
+  gl.bindVertexArray(M.turret.vao);
+  gl.drawArrays(gl.TRIANGLES, 0, M.turret.count);
+
+  // орудие: качание вокруг цапфы в башне + откат по оси ствола
+  const pivot = b.gunPivot;                       // [0, 0.36, gz0] в пространстве башни
+  const toPivot   = M4.trs([pivot[0], pivot[1], pivot[2] - rec], [0, 0, 0]);
+  const elev      = M4.trs([0, 0, 0], [gp, 0, 0]);
+  const fromPivot = M4.trs([-pivot[0], -pivot[1], -pivot[2]], [0, 0, 0]);
+  const gunLocal  = M4.mul(M4.mul(toPivot, elev), fromPivot);
+  const gunWorld  = M4.mul(turM, gunLocal);
+  gl.uniformMatrix4fv(prog.u.uModel, false, gunWorld);
+  gl.bindVertexArray(M.gun.vao);
+  gl.drawArrays(gl.TRIANGLES, 0, M.gun.count);
+
+  // внутренние модули
+  if (S.xray && M.inner) {
+    const innerM = M4.mul(turM, M4.id());
+    gl.uniformMatrix4fv(prog.u.uModel, false, M4.id());
+    gl.bindVertexArray(M.inner.vao);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    gl.drawArrays(gl.TRIANGLES, 0, M.inner.count);
+    gl.disable(gl.BLEND);
+  }
+}
+
+function update(dt){
+  const P = PRESETS[S.preset];
+  S.time += dt;
+  // орбита
+  if (S.orbit && S.dragging === 0) S.yaw += dt * 0.13;
+  S.camYawS += (S.yaw - S.camYawS) * Math.min(1, dt * 7);
+  S.camPitchS += (S.pitch - S.camPitchS) * Math.min(1, dt * 7);
+  S.camDistS += (S.dist - S.camDistS) * Math.min(1, dt * 5);
+  // башня: медленное сканирование + ручное управление при драге
+  S.turretTarget = -0.30 + Math.sin(S.time * 0.36) * 0.24;
+  S.turretYaw += (S.turretTarget - S.turretYaw) * Math.min(1, dt * 1.6);
+  const gpT = -0.03 + Math.sin(S.time * 0.33) * 0.055;
+  S.gunPitch += (gpT - S.gunPitch) * Math.min(1, dt * 2.0);
+  // откат
+  if (S.recoilT > 0) {
+    S.recoilT -= dt;
+    S.recoil = Math.max(0, S.recoil - dt * 2.2);
+  }
+  S.flash = Math.max(0, S.flash - dt * 4.2);
+  // смена машины
+  if (S.changing > 0) S.changing = Math.max(0, S.changing - dt * 2.4);
+}
+
+/* ---------- утилиты ---------- */
+function norm(v){ const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0]/l, v[1]/l, v[2]/l]; }
+function mix3(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
+function hexRGB(h){
+  const n = parseInt(h.slice(1), 16);
+  return [ Math.pow(((n >> 16) & 255) / 255, 2.2), Math.pow(((n >> 8) & 255) / 255, 2.2), Math.pow((n & 255) / 255, 2.2) ];
+}
+function invert(m){
+  const o = new Float32Array(16);
+  const a00=m[0],a01=m[1],a02=m[2],a03=m[3];
+  const a10=m[4],a11=m[5],a12=m[6],a13=m[7];
+  const a20=m[8],a21=m[9],a22=m[10],a23=m[11];
+  const a30=m[12],a31=m[13],a32=m[14],a33=m[15];
+  const b00=a00*a11-a01*a10, b01=a00*a12-a02*a10, b02=a00*a13-a03*a10;
+  const b03=a01*a12-a02*a11, b04=a01*a13-a03*a11, b05=a02*a13-a03*a12;
+  const b06=a20*a31-a21*a30, b07=a20*a32-a22*a30, b08=a20*a33-a23*a30;
+  const b09=a21*a32-a22*a31, b10=a21*a33-a23*a31, b11=a22*a33-a23*a32;
+  let det = b00*b11 - b01*b10 + b02*b09 + b03*b08 - b04*b07 + b05*b06;
+  if (!det) return M4.id();
+  det = 1 / det;
+  o[0]=(a11*b11-a12*b10+a13*b09)*det; o[1]=(a02*b10-a01*b11-a03*b09)*det;
+  o[2]=(a31*b05-a32*b04+a33*b03)*det; o[3]=(a22*b04-a21*b05-a23*b03)*det;
+  o[4]=(a12*b08-a10*b11-a13*b07)*det; o[5]=(a00*b11-a02*b08+a03*b07)*det;
+  o[6]=(a32*b02-a30*b05-a33*b01)*det; o[7]=(a20*b05-a22*b02+a23*b01)*det;
+  o[8]=(a10*b10-a11*b08+a13*b06)*det; o[9]=(a01*b08-a00*b10-a03*b06)*det;
+  o[10]=(a30*b04-a31*b02+a33*b00)*det; o[11]=(a21*b02-a20*b04-a23*b00)*det;
+  o[12]=(a11*b07-a10*b09-a12*b06)*det; o[13]=(a00*b09-a01*b07+a02*b06)*det;
+  o[14]=(a31*b01-a30*b03-a32*b00)*det; o[15]=(a20*b03-a21*b01+a22*b00)*det;
+  return o;
+}
+</script>
+<script>
+/* ============================================================================
+   ВЗАИМОДЕЙСТВИЕ
+   ============================================================================ */
+
+/* ---------- камера: ЛКМ вращение, колесо зум, ПКМ сдвиг ---------- */
+glCanvas.addEventListener("pointerdown", e => {
+  S.dragging = e.button === 2 ? 2 : 1;
+  S.lastX = e.clientX; S.lastY = e.clientY;
+  try { glCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+  if (S.dragging === 1) S.orbit = false;
+});
+glCanvas.addEventListener("pointermove", e => {
+  if (!S.dragging) return;
+  const dx = e.clientX - S.lastX, dy = e.clientY - S.lastY;
+  S.lastX = e.clientX; S.lastY = e.clientY;
+  if (S.dragging === 1) {
+    S.yaw -= dx * 0.0075;
+    S.pitch = Math.max(0.03, Math.min(1.05, S.pitch + dy * 0.005));
+  } else {
+    const cy = Math.cos(S.camYawS), sy = Math.sin(S.camYawS);
+    S.target[0] -= (cy * dx + sy * dy) * 0.013;
+    S.target[1] = Math.max(0.4, Math.min(2.6, S.target[1] + dy * 0.006));
+  }
+});
+const endDrag = () => { S.dragging = 0; };
+glCanvas.addEventListener("pointerup", endDrag);
+glCanvas.addEventListener("pointercancel", endDrag);
+glCanvas.addEventListener("contextmenu", e => e.preventDefault());
+glCanvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  S.dist = Math.max(5.2, Math.min(24, S.dist + Math.sign(e.deltaY) * 0.9));
+}, { passive:false });
+
+/* ---------- кнопки ---------- */
+document.querySelectorAll("[data-sky]").forEach(btn => {
+  btn.addEventListener("click", () => setPreset(+btn.dataset.sky));
+});
+function setPreset(i){
+  S.preset = ((i % 4) + 4) % 4;
+  document.querySelectorAll("[data-sky]").forEach(b => b.classList.toggle("on", +b.dataset.sky === S.preset));
+  const P = PRESETS[S.preset];
+  document.getElementById("hudSky").innerHTML = "daSkies2: <span class='a'>" + P.name + "</span>";
+  log("daSkies2", "атмосфера -> " + P.name, "c-ok");
+}
+
+function toggleChip(id, key, label){
+  const b = document.getElementById(id);
+  if (!b) return;
+  b.addEventListener("click", () => {
+    S[key] = !S[key];
+    b.classList.toggle("on", S[key]);
+    document.getElementById("hudMode").innerHTML = "Режим: <b>" + displayMode() + "</b>";
+    log("inspector", label + " = " + (S[key] ? "ON" : "OFF"));
   });
 }
-renderVehicles(-1);
+function displayMode(){
+  if (S.wire) return "WIREFRAME";
+  if (S.armor) return "ARMOR HEATMAP";
+  if (S.xray) return "X-RAY";
+  return "PBR";
+}
+toggleChip("btnWire", "wire", "wireframe");
+toggleChip("btnArmor", "armor", "armor heatmap");
+toggleChip("btnXray", "xray", "x-ray");
+toggleChip("btnOrbit", "orbit", "auto-orbit");
+
+/* ---------- выстрел ---------- */
+const flashEl = document.getElementById("flash");
+function fire(){
+  S.recoilT = 1;
+  S.recoil = 0.52;
+  S.flash = 1;
+  // точка вспышки: дуло в мировых координатах
+  const b = S.built;
+  if (b) {
+    const m = b.muzzle;
+    const tr = S.turretYaw, gp = S.gunPitch;
+    const pivot = b.gunPivot;
+    let p = [m[0], m[1], m[2]];
+    // поворот вокруг цапфы
+    const cg = Math.cos(-gp), sg = Math.sin(-gp);
+    let y = p[1] * cg - p[2] * sg, z = p[1] * sg + p[2] * cg;
+    p = [p[0], y + pivot[1] - pivot[1] * cg + pivot[2] * sg, z + pivot[2] - pivot[2] * cg - pivot[1] * sg];
+    const ct = Math.cos(tr), st = Math.sin(tr);
+    const x2 = p[0] * ct + p[2] * st, z2 = -p[0] * st + p[2] * ct;
+    S.flashPos = [x2, p[1] + 1.42, z2 + 0.10];
+  }
+  flashEl.classList.remove("on");
+  void flashEl.offsetWidth;
+  flashEl.classList.add("on");
+  log("engine", "Выстрел: откат 0.52 м, дульная вспышка, импульс 12.4 МДж", "c-warn");
+}
+document.getElementById("btnFire").addEventListener("click", fire);
+
+/* ---------- выбор машины ---------- */
+function stepTank(d){
+  const cur = SHOWCASE.indexOf(curIdx);
+  const nxt = (cur + d + SHOWCASE.length * 2) % SHOWCASE.length;
+  loadVehicle(SHOWCASE[nxt], true);
+}
+document.getElementById("prevTank").addEventListener("click", () => stepTank(-1));
+document.getElementById("nextTank").addEventListener("click", () => stepTank(1));
 
 document.getElementById("nationTabs").addEventListener("click", e => {
   const btn = e.target.closest(".ntab");
   if (!btn) return;
-  document.querySelectorAll(".ntab").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
+  document.querySelectorAll(".ntab").forEach(b => b.classList.remove("on"));
+  btn.classList.add("on");
   renderVehicles(parseInt(btn.dataset.nat, 10));
 });
 
-/* ============================================================================
-   2. ИНТЕРАКТИВНЫЙ 3D РЕНДЕРЕР ПОЛИГОНА DAGOR 6.5 (daSkies2 + Perlin LandMesh)
-   ============================================================================ */
-const canvas = document.getElementById("dagorCanvas");
-const ctx = canvas.getContext("2d");
-const SHOWCASE = [VEHICLES[0], VEHICLES[4], VEHICLES[1], VEHICLES[11], VEHICLES[14], VEHICLES[3]];
-let curTankIdx = 0;
-let skyPreset = 0;
-let wireframe = false;
-let armorHeat = false;
-let camYaw = 0.68, camPitch = 0.24;
-let dragging = false, lastX = 0, lastY = 0;
+document.getElementById("vehGrid").addEventListener("click", e => {
+  const card = e.target.closest(".vcard");
+  if (!card) return;
+  const idx = +card.dataset.idx;
+  loadVehicle(idx, true);
+  const si = SHOWCASE.indexOf(idx);
+  if (si < 0) SHOWCASE.unshift(idx);
+  document.getElementById("inspector").scrollIntoView({ behavior:"smooth", block:"center" });
+  log("catalog", "Загружена машина: " + VEHICLES[idx].name);
+});
 
-const SKIES = [
-  { name:"ЗАКАТ Golden Hour", top:"#162654", mid:"#6e3832", hor:"#eb7834", sun:[0.72, 0.25, -0.64], sunHex:"#ffb86b", grid:"rgba(235,168,72,0.22)" },
-  { name:"ПОЛДЕНЬ Clear Sky", top:"#1f54ab", mid:"#4f84c8", hor:"#a8c8ea", sun:[0.55, 0.62, -0.55], sunHex:"#fff3d6", grid:"rgba(165,205,235,0.20)" },
-  { name:"ГРОЗА Storm Front", top:"#1a212d", mid:"#2d3644", hor:"#4c5868", sun:[-0.42,0.48, -0.76], sunHex:"#9fb4cc", grid:"rgba(140,165,190,0.18)" },
-  { name:"НОЧЬ daStars / ПНВ", top:"#040711", mid:"#0a1122", hor:"#131f38", sun:[-0.55,0.08, -0.83], sunHex:"#8cb4ff", grid:"rgba(92,196,128,0.22)", stars:true }
-];
-
-document.querySelectorAll("[data-sky]").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("[data-sky]").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    skyPreset = parseInt(btn.dataset.sky, 10);
-    document.getElementById("hudSkyLine").textContent = `daSkies2: ${SKIES[skyPreset].name} • Perlin fBm3`;
+/* ---------- галерея / lightbox ---------- */
+const lb = document.getElementById("lightbox"), lbImg = document.getElementById("lbImg");
+document.querySelectorAll(".shot").forEach(a => {
+  a.addEventListener("click", e => {
+    e.preventDefault();
+    lbImg.src = a.dataset.src;
+    lb.classList.add("open");
   });
 });
-document.getElementById("btnWire").addEventListener("click", e => {
-  wireframe = !wireframe;
-  e.target.classList.toggle("active", wireframe);
-});
-document.getElementById("btnArmor").addEventListener("click", e => {
-  armorHeat = !armorHeat;
-  e.target.classList.toggle("active", armorHeat);
-});
-function updateTankLabel() {
-  const t = SHOWCASE[curTankIdx];
-  const n = NATIONS.find(x => x.id === t.nat);
-  document.getElementById("curTankLabel").textContent = `${n.flag} ${t.name} • БР ${t.br}`;
-}
-document.getElementById("prevTank").addEventListener("click", () => {
-  curTankIdx = (curTankIdx + SHOWCASE.length - 1) % SHOWCASE.length;
-  updateTankLabel();
-});
-document.getElementById("nextTank").addEventListener("click", () => {
-  curTankIdx = (curTankIdx + 1) % SHOWCASE.length;
-  updateTankLabel();
-});
+document.getElementById("lbClose").addEventListener("click", () => lb.classList.remove("open"));
+lb.addEventListener("click", e => { if (e.target === lb) lb.classList.remove("open"); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") lb.classList.remove("open"); });
 
-canvas.addEventListener("pointerdown", e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener("pointermove", e => {
-  if (!dragging) return;
-  camYaw += (e.clientX - lastX) * 0.009;
-  camPitch = Math.max(0.07, Math.min(0.62, camPitch + (e.clientY - lastY) * 0.006));
-  lastX = e.clientX; lastY = e.clientY;
-});
-canvas.addEventListener("pointerup", () => { dragging = false; });
-
-function makeBox(cx, cy, cz, hx, hy, hz, color, part) {
-  const v = [
-    [cx-hx, cy-hy, cz-hz], [cx+hx, cy-hy, cz-hz], [cx+hx, cy+hy, cz-hz], [cx-hx, cy+hy, cz-hz],
-    [cx-hx, cy-hy, cz+hz], [cx+hx, cy-hy, cz+hz], [cx+hx, cy+hy, cz+hz], [cx-hx, cy+hy, cz+hz]
-  ];
-  const f = [[0,1,2,3],[5,4,7,6],[4,0,3,7],[1,5,6,2],[3,2,6,7],[4,5,1,0]];
-  return { v, f, color, part };
-}
-
-function project3D(p, w, h, cy, sy, cp, sp) {
-  let x = p[0] * cy - p[2] * sy;
-  let z = p[0] * sy + p[2] * cy;
-  let y = p[1] - 1.1;
-  let y2 = y * cp - z * sp;
-  let z2 = y * sp + z * cp + 8.6;
-  if (z2 < 0.5) z2 = 0.5;
-  const f = Math.min(w, h) * 1.15 / z2;
-  return [w * 0.5 + x * f, h * 0.54 - y2 * f, z2];
-}
-
-function shadeHex(hex, mul) {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.min(255, Math.max(0, Math.round(((n >> 16) & 255) * mul)));
-  const g = Math.min(255, Math.max(0, Math.round(((n >> 8) & 255) * mul)));
-  const b = Math.min(255, Math.max(0, Math.round((n & 255) * mul)));
-  return `rgb(${r},${g},${b})`;
-}
-
-function drawFrame(ts) {
-  const t = ts * 0.001;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const cw = canvas.clientWidth, ch = canvas.clientHeight;
-  if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)) {
-    canvas.width = Math.round(cw * dpr);
-    canvas.height = Math.round(ch * dpr);
-  }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  if (!dragging) camYaw += 0.0035;
-  const sk = SKIES[skyPreset];
-
-  // 1. Sky Atmosphere Gradient (daSkies2)
-  const grad = ctx.createLinearGradient(0, 0, 0, ch * 0.64);
-  grad.addColorStop(0, sk.top);
-  grad.addColorStop(0.62, sk.mid);
-  grad.addColorStop(1, sk.hor);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, cw, ch);
-
-  if (sk.stars) {
-    ctx.fillStyle = "rgba(215,230,255,0.75)";
-    for (let i = 0; i < 48; i++) {
-      const sx = ((i * 173) % cw);
-      const sy = ((i * 97) % Math.max(1, Math.floor(ch * 0.45)));
-      ctx.fillRect(sx, sy, (i % 3 === 0) ? 2 : 1.2, (i % 3 === 0) ? 2 : 1.2);
+/* ---------- копирование хешей ---------- */
+document.querySelectorAll(".copy").forEach(b => {
+  b.addEventListener("click", async () => {
+    const h = b.dataset.copy;
+    try {
+      await navigator.clipboard.writeText(h);
+    } catch (_) {
+      const t = document.createElement("textarea");
+      t.value = h; document.body.appendChild(t); t.select();
+      document.execCommand("copy"); t.remove();
     }
-  }
+    b.classList.add("done");
+    b.textContent = "ok";
+    setTimeout(() => { b.classList.remove("done"); b.textContent = "copy"; }, 1400);
+  });
+});
 
-  // Sun / Moon glow
-  const sunX = cw * (skyPreset >= 2 ? 0.24 : 0.78);
-  const sunY = ch * (skyPreset === 0 ? 0.36 : (skyPreset === 3 ? 0.22 : 0.18));
-  const srad = ctx.createRadialGradient(sunX, sunY, 2, sunX, sunY, 110);
-  srad.addColorStop(0, sk.sunHex);
-  srad.addColorStop(1, "rgba(255,180,90,0)");
-  ctx.fillStyle = srad;
-  ctx.fillRect(0, 0, cw, ch * 0.68);
-
-  // Ground base
-  const gGrad = ctx.createLinearGradient(0, ch * 0.52, 0, ch);
-  gGrad.addColorStop(0, skyPreset === 3 ? "#0c131d" : "#22241f");
-  gGrad.addColorStop(1, "#0d0f11");
-  ctx.fillStyle = gGrad;
-  ctx.fillRect(0, ch * 0.54, cw, ch * 0.46);
-
-  const cy = Math.cos(camYaw), sy = Math.sin(camYaw);
-  const cp = Math.cos(camPitch), sp = Math.sin(camPitch);
-
-  // 2. Perlin fBm3 HeightMapLand Grid
-  ctx.strokeStyle = sk.grid;
-  ctx.lineWidth = 1;
-  for (let gx = -8; gx <= 8; gx += 2) {
-    ctx.beginPath();
-    for (let gz = -8; gz <= 8; gz += 1) {
-      const r2 = gx * gx + gz * gz;
-      const h = r2 > 14 ? Math.sin(gx * 0.55 + 1.2) * Math.cos(gz * 0.48) * 0.45 : 0;
-      const p = project3D([gx * 0.95, h, gz * 0.95], cw, ch, cy, sy, cp, sp);
-      if (gz === -8) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
-    }
-    ctx.stroke();
-  }
-  for (let gz = -8; gz <= 8; gz += 2) {
-    ctx.beginPath();
-    for (let gx = -8; gx <= 8; gx += 1) {
-      const r2 = gx * gx + gz * gz;
-      const h = r2 > 14 ? Math.sin(gx * 0.55 + 1.2) * Math.cos(gz * 0.48) * 0.45 : 0;
-      const p = project3D([gx * 0.95, h, gz * 0.95], cw, ch, cy, sy, cp, sp);
-      if (gx === -8) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
-    }
-    ctx.stroke();
-  }
-
-  // 3. Articulated 3D Tank Model (Hull + Tracks + ERA + Turret + Gun)
-  const veh = SHOWCASE[curTankIdx];
-  const baseCol = armorHeat ? "#3cb854" : veh.col;
-  const turCol  = armorHeat ? "#e65032" : veh.col;
-  const eraCol  = armorHeat ? "#f2b830" : "#3c4734";
-  const boxes = [
-    makeBox(-1.42, 0.42, 0.0, 0.32, 0.38, 3.05, "#222528", 0),
-    makeBox( 1.42, 0.42, 0.0, 0.32, 0.38, 3.05, "#222528", 0),
-    makeBox( 0.0,  0.76, 0.0, 1.38, 0.38, 2.95, baseCol, 0),
-    makeBox(-1.56, 0.78,-0.2, 0.08, 0.26, 2.55, eraCol, 0),
-    makeBox( 1.56, 0.78,-0.2, 0.08, 0.26, 2.55, eraCol, 0),
-    makeBox( 0.0,  0.98,-2.35,1.22, 0.16, 0.62, eraCol, 0),
-    makeBox( 0.0,  1.42,-0.15,1.08, 0.34, 1.36, turCol, 1),
-    makeBox(-0.75, 1.44,-1.25,0.42, 0.26, 0.36, eraCol, 1),
-    makeBox( 0.75, 1.44,-1.25,0.42, 0.26, 0.36, eraCol, 1),
-    makeBox( 0.42, 1.88, 0.15,0.22, 0.16, 0.22, "#353a34", 1),
-    makeBox( 0.0,  1.46,-2.75,0.11, 0.11, veh.ifv ? 1.15 : 2.05, "#3a4038", 1)
-  ];
-
-  const turYaw = Math.sin(t * 0.7) * 0.24;
-  const ct = Math.cos(turYaw), st = Math.sin(turYaw);
-  const faces = [];
-
-  for (const b of boxes) {
-    const pv = b.v.map(pt => {
-      let x = pt[0], y = pt[1], z = pt[2];
-      if (b.part === 1) {
-        const rx = x * ct - z * st;
-        const rz = x * st + z * ct;
-        x = rx; z = rz;
-      }
-      return project3D([x, y, z], cw, ch, cy, sy, cp, sp);
-    });
-    b.f.forEach((fi, idx) => {
-      const p0 = pv[fi[0]], p1 = pv[fi[1]], p2 = pv[fi[2]], p3 = pv[fi[3]];
-      const zAvg = (p0[2] + p1[2] + p2[2] + p3[2]) * 0.25;
-      const shade = [0.88, 0.72, 0.78, 0.82, 1.16, 0.55][idx] * (skyPreset === 3 ? 0.68 : 1.0);
-      faces.push({ pts:[p0,p1,p2,p3], z:zAvg, fill:shadeHex(b.color, shade) });
-    });
-  }
-
-  faces.sort((a, b) => b.z - a.z);
-  for (const f of faces) {
-    ctx.beginPath();
-    ctx.moveTo(f.pts[0][0], f.pts[0][1]);
-    ctx.lineTo(f.pts[1][0], f.pts[1][1]);
-    ctx.lineTo(f.pts[2][0], f.pts[2][1]);
-    ctx.lineTo(f.pts[3][0], f.pts[3][1]);
-    ctx.closePath();
-    if (!wireframe) {
-      ctx.fillStyle = f.fill;
-      ctx.fill();
-      ctx.strokeStyle = "rgba(0,0,0,0.32)";
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
-    } else {
-      ctx.strokeStyle = "#76f28f";
-      ctx.lineWidth = 1.1;
-      ctx.stroke();
-    }
-  }
-
-  requestAnimationFrame(drawFrame);
-}
-requestAnimationFrame(drawFrame);
-
-/* ============================================================================
-   3. СИМУЛЯТОР ЖИВОЙ КОНСОЛИ DAGOR ENGINE 6.5 (~)
-   ============================================================================ */
+/* ---------- консоль ---------- */
 const logEl = document.getElementById("consoleLog");
-function runConsoleCmd(raw) {
+function log(tag, msg, cls){
+  const line = document.createElement("div");
+  line.className = cls || "";
+  line.textContent = "[" + tag + "] " + msg;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+  while (logEl.childNodes.length > 220) logEl.removeChild(logEl.firstChild);
+}
+
+function runConsoleCmd(raw){
   const cmd = raw.trim();
   if (!cmd) return;
-  let out = `dagor> ${cmd}\n`;
+  log("dagor", cmd, "c-in");
   if (cmd === "help") {
-    out += "Commands: ecs.info | vfs.ls | blk.reload | wireframe | skies 0..3 | sq <quirrel .nut code>";
+    log("help", "ecs.info · vfs.ls · blk.reload · wireframe · armor · xray · orbit · fire · skies 0..3 · next · sq <code>");
   } else if (cmd === "ecs.info") {
-    out += "[daECS] Templates registered: 27 | Vehicles from .blk: 23 (7 nations)";
+    log("daECS", "шаблонов 27 · машин в .blk 23 (7 наций) · инспектор: WebGL2 PBR");
   } else if (cmd === "vfs.ls") {
-    out += "  [VROMFS] application.blk                              (1842 B, CRC=A41F09C2)\n" +
-           "  [VROMFS] gamedata/units/tanks_all_nations.blk         (44120 B, CRC=8E32D119)\n" +
-           "  [VROMFS] gamedata/templates/steel_front.entities.blk  (1690 B, CRC=51B044E1)\n" +
-           "  [VROMFS] scripts/ui/dagor_rt_boot.nut                 (647 B, CRC=C903AB12)\n" +
-           "  [VROMFS] scripts/ui/hangar_wt.nut                     (2580 B, CRC=7D18E904)";
+    log("VROMFS", "application.blk                   1842 B  CRC=A41F09C2");
+    log("VROMFS", "gamedata/units/tanks_all_nations.blk  44120 B  CRC=8E32D119");
+    log("VROMFS", "gamedata/templates/*.entities.blk   1690 B  CRC=51B044E1");
+    log("VROMFS", "scripts/ui/dagor_rt_boot.nut         647 B  CRC=C903AB12");
+    log("VROMFS", "scripts/ui/hangar_wt.nut            2580 B  CRC=7D18E904");
   } else if (cmd === "blk.reload") {
-    out += "[DataBlock] All 23 .blk vehicle/camo/level configs hot-reloaded in 1.4 ms!";
+    log("DataBlock", "23 .blk конфигурации перечитаны за 1.4 мс", "c-ok");
   } else if (cmd === "wireframe") {
-    wireframe = !wireframe;
-    document.getElementById("btnWire").classList.toggle("active", wireframe);
-    out += `[drv3d_DX11] Wireframe rasterizer = ${wireframe ? "ON" : "OFF"}`;
+    S.wire = !S.wire;
+    document.getElementById("btnWire").classList.toggle("on", S.wire);
+    log("drv3d", "wireframe rasterizer = " + (S.wire ? "ON" : "OFF"));
+  } else if (cmd === "armor") {
+    S.armor = !S.armor;
+    document.getElementById("btnArmor").classList.toggle("on", S.armor);
+    log("armor", "тепловая карта брони = " + (S.armor ? "ON" : "OFF"));
+  } else if (cmd === "xray") {
+    S.xray = !S.xray;
+    document.getElementById("btnXray").classList.toggle("on", S.xray);
+    log("xray", "рентген модулей = " + (S.xray ? "ON" : "OFF"));
+  } else if (cmd === "orbit") {
+    S.orbit = !S.orbit;
+    document.getElementById("btnOrbit").classList.toggle("on", S.orbit);
+    log("camera", "авто-орбита = " + (S.orbit ? "ON" : "OFF"));
+  } else if (cmd === "fire") {
+    fire();
+  } else if (cmd === "next") {
+    stepTank(1);
+    log("catalog", "следующая машина: " + VEHICLES[curIdx].name);
   } else if (cmd.startsWith("skies")) {
-    const p = parseInt(cmd.split(/\s+/)[1] || "0", 10) & 3;
-    skyPreset = p;
-    document.querySelectorAll("[data-sky]").forEach(b => b.classList.toggle("active", parseInt(b.dataset.sky,10) === p));
-    document.getElementById("hudSkyLine").textContent = `daSkies2: ${SKIES[p].name} • Perlin fBm3`;
-    out += `[daSkies2] Switched atmospheric scattering preset -> ${p} (${SKIES[p].name})`;
+    const p = parseInt(cmd.split(/\s+/)[1] || "0", 10);
+    setPreset(isNaN(p) ? 0 : p);
   } else if (cmd.startsWith("sq ")) {
-    const m = cmd.match(/los_armor\(\s*(\d+)\s*,\s*(\d+)\s*\)/);
+    const m = cmd.match(/los_armor\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
     if (m) {
       const nom = parseFloat(m[1]), ang = parseFloat(m[2]);
       const eff = Math.round(nom / Math.cos(ang * Math.PI / 180));
-      out += `[Quirrel VM] => ${eff} мм RHA (приведённая броня при ${ang}°)`;
+      log("Quirrel VM", "=> " + eff + " мм RHA приведённой брони при " + ang + "°", "c-ok");
     } else {
-      out += `[Quirrel VM] => Gaijin Dagor Engine 6.5 (daRg + Quirrel VM + daSkies2)`;
+      log("Quirrel VM", "=> Gaijin Dagor Engine 6.5 (daRg + Quirrel VM + daSkies2)");
     }
   } else {
-    out += "Unknown command. Type 'help' or 'sq dagor_rt.los_armor(160, 68)'.";
+    log("error", "неизвестная команда — введите 'help'", "c-warn");
   }
-  logEl.textContent += "\n" + out;
-  logEl.scrollTop = logEl.scrollHeight;
 }
-
 document.querySelectorAll(".cbtn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.getElementById("consoleInput").value = btn.dataset.cmd;
@@ -1224,6 +3085,45 @@ document.getElementById("consoleForm").addEventListener("submit", e => {
   e.preventDefault();
   runConsoleCmd(document.getElementById("consoleInput").value);
 });
+
+/* ---------- клавиатура ---------- */
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "f" || e.key === "F" || e.key === "F3") {
+    if (e.key === "F3") { e.preventDefault(); S.wire = !S.wire; document.getElementById("btnWire").classList.toggle("on", S.wire); }
+  } else if (e.key === "F4") {
+    e.preventDefault(); setPreset(S.preset + 1);
+  } else if (e.key === "F2") {
+    e.preventDefault(); S.armor = !S.armor; document.getElementById("btnArmor").classList.toggle("on", S.armor);
+  } else if (e.key === "x" || e.key === "X") {
+    S.xray = !S.xray; document.getElementById("btnXray").classList.toggle("on", S.xray);
+  } else if (e.key === " " && !e.repeat) {
+    e.preventDefault(); fire();
+  } else if (e.key === "ArrowRight") {
+    stepTank(1);
+  } else if (e.key === "ArrowLeft") {
+    stepTank(-1);
+  }
+});
+
+/* ---------- появление секций ---------- */
+const io = new IntersectionObserver(entries => {
+  entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
+}, { threshold:0.08, rootMargin:"0px 0px -40px 0px" });
+document.querySelectorAll(".rv").forEach(el => io.observe(el));
+
+/* ---------- старт ---------- */
+renderVehicles(-1);
+loadVehicle(0, false);
+if (initGL()) {
+  loadVehicle(curIdx, false);   // загружаем VAO/VBO уже с готовым GL-контекстом
+  requestAnimationFrame(frame);
+} else {
+  stageEl.classList.add("no-gl");
+  document.getElementById("hudMode").textContent = "WebGL2 недоступен — показан 8K-рендер";
+  document.getElementById("fpsVal").textContent = "n/a";
+}
+window.addEventListener("resize", () => { if (R) resize(); });
 </script>
 </body>
 </html>

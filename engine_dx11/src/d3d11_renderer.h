@@ -510,27 +510,47 @@ float4 PSMain(PSIn pin) : SV_Target {
     }
 
     float3 albedo = srgbToLinear(srgbAlbedo);
+    float  geomEdge = saturate(length(fwidth(normalize(pin.worldNorm))) * 2.65);
 
     if (tag == 1 || tag == 7) {
-        // Рельеф катаной/литой броневой стали + сварные швы и металлический износ кромок
-        float grain = noise3D(pin.localPos * 32.0) * 0.10 - 0.05;
-        float weld  = smoothstep(0.92, 0.98, abs(sin(pin.localPos.z * 9.5))) * 0.06;
-        N = normalize(N + float3(grain, (grain - weld) * 0.6, -grain));
-        albedo *= (0.94 + grain * 1.2);
+        // Настоящая матовая военная эмаль CARC (диэлектрик metal=0.04, rough=0.73 — НИКАКОГО пластилинового полуметалла!)
+        metal = 0.04;
+        rough = (tag == 7) ? 0.69 : 0.74;
 
-        // Металлический блеск потёртых граней брони
-        float edgeWear = pow(max(0.0001, 1.0 - abs(dot(N, V))), 3.2) * noise3D(pin.localPos * 14.0);
-        albedo = lerp(albedo, float3(0.22, 0.23, 0.25), saturate(edgeWear * 0.42));
-        metal  = saturate(metal + edgeWear * 0.30);
-        rough  = lerp(rough, 0.34, saturate(edgeWear * 0.35));
+        // Микрорельеф катаной/литой броневой стали + антискользящее покрытие на крышах корпуса и башни
+        float castBumpX = (noise3D(pin.localPos * 46.0 + float3(1.7, 0.0, 0.0)) - 0.5);
+        float castBumpZ = (noise3D(pin.localPos * 46.0 + float3(0.0, 0.0, 3.1)) - 0.5);
+        float antiSlip  = (pin.worldNorm.y > 0.78) ? (noise3D(pin.localPos * 110.0) - 0.5) * 0.16 : 0.0;
+        N = normalize(N + float3(castBumpX * 0.11 + antiSlip, antiSlip * 0.4, castBumpZ * 0.11 - antiSlip));
+        albedo *= (0.95 + castBumpX * 0.14);
 
-        // Полевая пыль, брызги грунта и нагар у выхлопа
-        float mudMask = saturate((0.88 - pin.localPos.y) * 1.45) * (0.40 + 0.60 * fbm3(pin.localPos * 3.6));
-        albedo = lerp(albedo, srgbToLinear(float3(0.25, 0.21, 0.16)), mudMask * 0.52);
-        rough  = lerp(rough, 0.92, mudMask * 0.65);
+        // Тёмные технологические швы между бронеплитами, люками и блоками ДЗ + головки болтов
+        if (tag == 7) {
+            float seamZ = smoothstep(0.88, 0.98, abs(sin(pin.localPos.z * 10.5)));
+            float seamX = smoothstep(0.88, 0.98, abs(sin(pin.localPos.x * 10.5)));
+            float seam  = max(seamZ, seamX);
+            ao *= (1.0 - seam * 0.58);
+            rough = lerp(rough, 0.92, seam * 0.6);
+        } else {
+            float plateSeam = smoothstep(0.955, 0.995, abs(sin(pin.localPos.z * 2.8)));
+            ao *= (1.0 - plateSeam * 0.42);
+        }
 
-        // Контактное затенение днища и подкрылков
-        ao *= lerp(0.45, 1.0, saturate(pin.localPos.y * 0.95));
+        // Сколы краски до ХОЛОДНОЙ КАТАНОЙ СТАЛИ строго по реальным 3D-рёбрам геометрии (fwidth нормали)!
+        float chipNoise = smoothstep(0.32, 0.76, noise3D(pin.localPos * 24.0));
+        float steelChip = saturate(geomEdge * (0.45 + 0.85 * chipNoise));
+        albedo = lerp(albedo, float3(0.36, 0.38, 0.42), steelChip * 0.78);
+        metal  = lerp(metal,  0.92, steelChip * 0.88);
+        rough  = lerp(rough,  0.24, steelChip * 0.82);
+
+        // Сухая дорожная пыль и комья грязи снизу на бортах и НЛД
+        float mudMask = saturate((0.82 - pin.localPos.y) * 1.55) * smoothstep(0.35, 0.78, fbm3(pin.localPos * 4.2));
+        albedo = lerp(albedo, srgbToLinear(float3(0.24, 0.20, 0.15)), mudMask * 0.58);
+        rough  = lerp(rough, 0.94, mudMask * 0.75);
+        metal  = lerp(metal, 0.02, mudMask * 0.85);
+
+        // Глубокое контактное затенение днища, погона башни и подкрылков
+        ao *= lerp(0.32, 1.0, saturate(pin.localPos.y * 1.05));
 
         if (uArmorParams.w > 0.01) {
             albedo = lerp(albedo, float3(0.008, 0.007, 0.007), saturate(uArmorParams.w));
@@ -538,54 +558,83 @@ float4 PSMain(PSIn pin) : SV_Target {
             metal = 0.05;
         }
     }
+    else if (tag == 3) {
+        // Оружейная воронёная и точёная сталь (стволы, казённики, ЗПУ, звёздочки, буксирные крюки)
+        float lathe = sin(pin.localPos.z * 85.0) * 0.04;
+        albedo = max(albedo, float3(0.11, 0.12, 0.135)) * (1.0 + lathe);
+        albedo = lerp(albedo, float3(0.44, 0.46, 0.50), geomEdge * 0.65);
+        metal  = 0.88;
+        rough  = lerp(0.31, 0.19, geomEdge);
+    }
     else if (tag == 0) {
-        // Многослойный ландшафт Dagor: трава, сухая земля, колеи и скальные выходы на склонах
+        // Многослойный ландшафт Dagor HeightMapLand: дёрн, колеи, гравий и скальные выходы
         float macro  = fbm3(pin.worldPos * 0.045);
-        float detail = noise3D(pin.worldPos * 0.65);
-        float micro  = noise3D(pin.worldPos * 3.8);
-        N = normalize(N + float3((micro - 0.5) * 0.14, 0.0, (detail - 0.5) * 0.14));
+        float detail = noise3D(pin.worldPos * 0.85);
+        float micro  = noise3D(pin.worldPos * 5.6);
+        N = normalize(N + float3((micro - 0.5) * 0.22, 0.0, (detail - 0.5) * 0.22));
         float slope = 1.0 - saturate(N.y);
-        albedo *= (0.72 + macro * 0.56) * (0.86 + micro * 0.28);
-        float3 dryGrass = srgbToLinear(float3(0.38, 0.35, 0.20));
-        albedo = lerp(albedo, dryGrass, smoothstep(0.55, 0.78, macro) * 0.45);
-        float3 rockCol = srgbToLinear(float3(0.34, 0.33, 0.31)) * (0.75 + detail * 0.45);
-        albedo = lerp(albedo, rockCol, saturate((slope - 0.18) * 3.4));
-        rough = lerp(0.90, 0.72, saturate(slope * 2.0));
+        albedo *= (0.68 + macro * 0.58) * (0.82 + micro * 0.36);
+        float3 dryGrass = srgbToLinear(float3(0.36, 0.33, 0.19));
+        albedo = lerp(albedo, dryGrass, smoothstep(0.52, 0.78, macro) * 0.48);
+        float3 rockCol = srgbToLinear(float3(0.32, 0.31, 0.30)) * (0.72 + detail * 0.50);
+        albedo = lerp(albedo, rockCol, saturate((slope - 0.16) * 3.6));
+        rough = lerp(0.93, 0.74, saturate(slope * 2.0));
+        metal = 0.02;
     }
     else if (tag == 4) {
-        // Бетонный плац ангара / асфальт с температурными швами, следами гусениц и зеркальными лужами!
-        float concreteVar = fbm3(pin.worldPos * 0.34);
-        float microGrit   = noise3D(pin.worldPos * 6.5);
-        float seam = ( abs(frac(pin.worldPos.x * 0.1666) - 0.5) > 0.486 ||
-                       abs(frac(pin.worldPos.z * 0.1666) - 0.5) > 0.486 ) ? 0.38 : 1.0;
-        albedo *= (0.78 + concreteVar * 0.42) * (0.90 + microGrit * 0.20) * seam;
+        // Аэродромные бетонные плиты ПАГ-18 с гудроновыми швами, следами траков и зеркальными лужами!
+        float concreteVar = fbm3(pin.worldPos * 0.38);
+        float microGrit   = noise3D(pin.worldPos * 9.5);
+        float seamX = abs(frac(pin.worldPos.x * 0.1666) - 0.5);
+        float seamZ = abs(frac(pin.worldPos.z * 0.1666) - 0.5);
+        float seam  = (seamX > 0.485 || seamZ > 0.485) ? 0.26 : 1.0;
+        N = normalize(N + float3((microGrit - 0.5) * 0.12, 0.0, (concreteVar - 0.5) * 0.12));
+        albedo *= (0.76 + concreteVar * 0.44) * (0.88 + microGrit * 0.24) * seam;
+        rough = 0.86;
+        metal = 0.02;
 
-        // Контактная тень АО на бетонном плацу прямо под центральным танком в ангаре!
+        // Плотная контактная тень под гусеницами и днищем танка на плацу ангара
         if (abs(pin.worldPos.y) < 0.12) {
-            float2 d0 = pin.worldPos.xz / float2(2.15, 3.85);
-            float underTank = 1.0 - smoothstep(0.55, 1.25, length(d0));
-            ao *= (1.0 - underTank * 0.72);
+            float2 d0 = pin.worldPos.xz / float2(2.05, 3.75);
+            float underTank = 1.0 - smoothstep(0.50, 1.22, length(d0));
+            ao *= (1.0 - underTank * 0.80);
         }
 
         if (N.y > 0.92) {
-            float puddle = smoothstep(0.54, 0.67, fbm3(pin.worldPos * 0.15 + float3(3.1, 0.0, 5.7)));
-            albedo = lerp(albedo, albedo * 0.42, puddle * 0.80);
-            rough  = lerp(rough, 0.055, puddle * 0.92);
-            metal  = lerp(metal, 0.22, puddle * 0.55);
-            N      = lerp(N, float3(0, 1, 0), puddle * 0.90);
+            float puddle = smoothstep(0.56, 0.68, fbm3(pin.worldPos * 0.15 + float3(3.1, 0.0, 5.7)));
+            albedo = lerp(albedo, albedo * 0.38, puddle * 0.85);
+            rough  = lerp(rough, 0.045, puddle * 0.94);
+            metal  = lerp(metal, 0.18, puddle * 0.50);
+            N      = lerp(N, float3(0, 1, 0), puddle * 0.92);
         }
     }
     else if (tag == 2) {
-        // Стальные траки и резиновые бандажи
-        float tread = sin(pin.localPos.z * 34.0) * 0.12;
-        albedo *= (0.88 + tread);
-        ao *= 0.82;
+        // Стальные траки с полированными грунтозацепами и матовая резина бандажей катков
+        float cleat = smoothstep(0.35, 0.75, sin(pin.localPos.z * 48.0));
+        bool isTrack = (metal > 0.20);
+        if (isTrack) {
+            albedo = lerp(float3(0.018, 0.017, 0.016), float3(0.28, 0.30, 0.33), cleat * 0.75 + geomEdge * 0.4);
+            metal  = lerp(0.35, 0.88, cleat);
+            rough  = lerp(0.86, 0.28, cleat);
+            ao    *= lerp(0.45, 0.95, cleat);
+        } else {
+            // Матовая чёрная резина бандажей и экранов
+            float rubGrit = noise3D(pin.localPos * 38.0);
+            albedo *= (0.85 + rubGrit * 0.30);
+            metal = 0.02;
+            rough = 0.91;
+            ao   *= 0.78;
+        }
     }
     else if (tag == 5) {
-        // Хвоя и кора деревьев с вариацией листвы и самозатенением кроны
-        float leaf = noise3D(pin.worldPos * 2.8);
-        albedo *= (0.74 + leaf * 0.52);
-        ao *= (0.68 + 0.32 * saturate(N.y * 0.5 + 0.5));
+        // Хвоя и кора деревьев с микрорельефом ветвей
+        float leaf = noise3D(pin.worldPos * 4.5);
+        float twig = noise3D(pin.worldPos * 16.0);
+        N = normalize(N + float3((twig - 0.5) * 0.32, (leaf - 0.5) * 0.18, (leaf - 0.5) * 0.32));
+        albedo *= (0.66 + leaf * 0.55) * (0.82 + twig * 0.35);
+        rough = 0.92;
+        metal = 0.01;
+        ao *= (0.58 + 0.42 * saturate(N.y * 0.5 + 0.5));
     }
 
     // Режим ТВП (тепловизор 3-го поколения FLIR)

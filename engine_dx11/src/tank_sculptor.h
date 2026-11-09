@@ -191,33 +191,34 @@ inline void buildVehicleMeshes(ID3D11Device* dev, const VehicleSpec& v, VehicleG
             mb.addChamferBox({0,0,0}, {0.265f, 0.018f, 0.035f}, 0.004f, steelCol, 0.55f, 0.55f, 3.f, 0.8f, &cXf);
         }
 
-        // Опорные катки с резиновым бандажом, вогнутым штампованным диском, ступицей и балансиром
+        // Опорные катки с резиновым бандажом, вогнутым штампованным диском, 6 рёбрами жёсткости и ступицей
         for (int w = 0; w < numWheels; ++w) {
             float wz = zFirstW + (float(w) / (numWheels - 1)) * (zLastW - zFirstW);
             float rWheel = isIfv ? 0.30f : 0.35f;
             float wy = rWheel + 0.055f;
-            // Резиновый бандаж
-            mb.addCylinder({tx, wy, wz}, rWheel, rWheel, 0.46f, 20, 0, rubberCol, 0.88f, 0.06f, 2.f, 0.70f);
-            // Броневой диск катка и внутреннее углубление
-            mb.addCylinder({tx + side * 0.02f, wy, wz}, rWheel * 0.75f, rWheel * 0.70f, 0.48f, 18, 0, armorBase, 0.48f, 0.28f, 1.f, 0.84f);
-            mb.addCylinder({tx + side * 0.13f, wy, wz}, rWheel * 0.52f, rWheel * 0.48f, 0.28f, 16, 0, armorDark, 0.52f, 0.32f, 1.f, 0.68f);
-            // Центральный колпак ступицы и болты
-            mb.addCylinder({tx + side * 0.17f, wy, wz}, 0.105f, 0.088f, 0.28f, 12, 0, steelCol, 0.40f, 0.60f, 3.f, 0.92f);
+            mb.addCylinder({tx, wy, wz}, rWheel, rWheel, 0.46f, 20, 0, rubberCol, 0.90f, 0.03f, 2.f, 0.68f);
+            mb.addCylinder({tx + side * 0.02f, wy, wz}, rWheel * 0.76f, rWheel * 0.71f, 0.48f, 18, 0, armorBase, 0.72f, 0.06f, 1.f, 0.84f);
+            mb.addCylinder({tx + side * 0.13f, wy, wz}, rWheel * 0.54f, rWheel * 0.48f, 0.28f, 16, 0, armorDark, 0.74f, 0.08f, 1.f, 0.58f);
+            mb.addCylinder({tx + side * 0.17f, wy, wz}, 0.105f, 0.088f, 0.29f, 12, 0, steelCol, 0.28f, 0.88f, 3.f, 0.92f);
+            for (int sp = 0; sp < 3; ++sp) {
+                Mat4 spXf = Mat4::rotationX(sp * (PI / 3.f)) * Mat4::translation(tx + side * 0.245f, wy, wz);
+                mb.addChamferBox({0,0,0}, {0.015f, rWheel * 0.64f, 0.022f}, 0.004f, armorBase, 0.70f, 0.08f, 1.f, 0.88f, &spXf);
+            }
         }
 
         // Ступицы ленивца и зубчатого ведущего колеса
-        mb.addCylinder({tx + side * 0.04f, 0.56f, zIdler},  0.22f, 0.20f, 0.54f, 14, 0, armorDark, 0.48f, 0.35f, 1.f, 0.82f);
-        mb.addCylinder({tx + side * 0.04f, 0.57f, zSprock}, 0.24f, 0.22f, 0.55f, 14, 0, steelCol,  0.42f, 0.58f, 3.f, 0.82f);
+        mb.addCylinder({tx + side * 0.04f, 0.56f, zIdler},  0.22f, 0.20f, 0.54f, 14, 0, armorDark, 0.72f, 0.10f, 1.f, 0.82f);
+        mb.addCylinder({tx + side * 0.04f, 0.57f, zSprock}, 0.24f, 0.22f, 0.55f, 14, 0, steelCol,  0.28f, 0.88f, 3.f, 0.82f);
     }
 
-    // Плотная мозаика блоков ДЗ (Контакт-5 / Реликт / ERO-19) на ВЛД с тёмными швами
+    // Плотная 3-рядная мозаика блоков ДЗ (Контакт-5 / Реликт / ERO-19) на ВЛД с глубокими тёмными швами
     if (hasEra) {
-        Mat4 glacisXf = Mat4::rotationX(0.28f) * Mat4::translation(0.f, 1.07f, hullLenF + 0.72f);
-        for (int row = 0; row < 2; ++row) {
-            for (int col = -3; col <= 3; ++col) {
-                if (row == 1 && col == 0) continue; // смотровой канал мехвода
-                Mat4 tileXf = Mat4::translation(col * 0.31f, 0.032f, (row - 0.5f) * 0.33f) * glacisXf;
-                mb.addChamferBox({0,0,0}, {0.145f, 0.036f, 0.155f}, 0.014f, eraCol, 0.45f, 0.28f, 7.f, 0.96f, &tileXf);
+        Mat4 glacisXf = Mat4::rotationX(0.28f) * Mat4::translation(0.f, 1.07f, hullLenF + 0.74f);
+        for (int row = 0; row < 3; ++row) {
+            for (int col = -4; col <= 4; ++col) {
+                if (row == 2 && col == 0) continue; // смотровой канал мехвода
+                Mat4 tileXf = Mat4::translation(col * 0.245f, 0.034f, (row - 1.0f) * 0.255f) * glacisXf;
+                mb.addChamferBox({0,0,0}, {0.112f, 0.038f, 0.118f}, 0.012f, eraCol, 0.68f, 0.05f, 7.f, 0.96f, &tileXf);
             }
         }
     }
@@ -273,32 +274,55 @@ inline void buildVehicleMeshes(ID3D11Device* dev, const VehicleSpec& v, VehicleG
     mb.addCylinder({0.f, turBaseY + 0.03f, -0.06f}, 1.14f, 1.14f, 0.08f, 24, 1, wellDark, 0.85f, 0.2f, 2.f, 0.45f);
 
     if (isEast) {
-        // Приплюснутый литой/сварной купол Т-72Б3 / Т-80БВМ / Т-90М / M-84AS1 / M-84AS2 «Војвода»
-        mb.addCylinder({0.f, turBaseY + 0.12f, -0.08f}, 1.24f, 1.18f, 0.18f, 28, 1, armorBase, 0.48f, 0.26f, 1.f, 0.88f);
-        mb.addEllipsoid({0.f, turBaseY + 0.15f, -0.08f}, {1.32f, 0.54f, 1.40f}, 16, 28, true, armorBase, 0.46f, 0.28f, 1.f, 1.0f);
+        // Гранёная сварная/композитная башня Т-90М / M-84AS2 «Војвода» / M-91 Vihor / Т-80БВМ (БЕЗ пластилинового эллипсоида!)
+        Vec3 turFront[8] = {
+            {-0.86f, turBaseY + 0.02f, -1.24f}, { 0.86f, turBaseY + 0.02f, -1.24f},
+            { 1.26f, turBaseY + 0.02f, -0.22f}, {-1.26f, turBaseY + 0.02f, -0.22f},
+            {-0.72f, turBaseY + 0.54f, -1.04f}, { 0.72f, turBaseY + 0.54f, -1.04f},
+            { 1.08f, turBaseY + 0.54f, -0.18f}, {-1.08f, turBaseY + 0.54f, -0.18f}
+        };
+        Vec3 turMid[8] = {
+            {-1.26f, turBaseY + 0.02f, -0.22f}, { 1.26f, turBaseY + 0.02f, -0.22f},
+            { 1.12f, turBaseY + 0.02f,  0.96f}, {-1.12f, turBaseY + 0.02f,  0.96f},
+            {-1.08f, turBaseY + 0.54f, -0.18f}, { 1.08f, turBaseY + 0.54f, -0.18f},
+            { 0.96f, turBaseY + 0.54f,  0.88f}, {-0.96f, turBaseY + 0.54f,  0.88f}
+        };
+        mb.addPrism8(turFront, armorBase, 0.74f, 0.05f, 1.f, 0.98f);
+        mb.addPrism8(turMid,   armorBase, 0.74f, 0.05f, 1.f, 0.98f);
 
-        // Бортовые ящики ЗИП и труба ОПВТ на корме башни
+        // Накладные листы антинейтронного надбоя на крыше башни
+        mb.addChamferBox({0.f, turBaseY + 0.555f, -0.28f}, {0.78f, 0.022f, 0.52f}, 0.01f, armorDark, 0.78f, 0.04f, 1.f, 0.96f);
+
+        // Бортовые контейнеры ЗИП и забашенная ниша БК с противокумулятивной решёткой
         for (int side = -1; side <= 1; side += 2) {
-            mb.addChamferBox({side * 1.22f, turBaseY + 0.30f, 0.36f}, {0.14f, 0.18f, 0.42f}, 0.03f, armorDark, 0.52f, 0.24f, 1.f, 0.92f);
+            mb.addChamferBox({side * 1.23f, turBaseY + 0.30f, 0.36f}, {0.13f, 0.19f, 0.44f}, 0.02f, armorDark, 0.74f, 0.06f, 1.f, 0.92f);
         }
         if (v.hasBustle) {
-            mb.addChamferBox({0.f, turBaseY + 0.35f, 1.22f}, {0.94f, 0.25f, 0.48f}, 0.05f, armorBase, 0.48f, 0.26f, 1.f, 0.95f);
+            mb.addChamferBox({0.f, turBaseY + 0.34f, 1.32f}, {0.96f, 0.24f, 0.44f}, 0.03f, armorBase, 0.72f, 0.05f, 1.f, 0.95f);
+            for (int sb = 0; sb < 4; ++sb) {
+                mb.addChamferBox({0.f, turBaseY + 0.16f + sb * 0.11f, 1.82f}, {0.98f, 0.012f, 0.02f}, 0.003f, steelCol, 0.30f, 0.88f, 3.f, 0.9f);
+            }
         } else {
-            mb.addCylinder({0.f, turBaseY + 0.42f, 1.28f}, 0.11f, 0.11f, 1.75f, 14, 0, armorDark, 0.52f, 0.28f, 1.f, 0.90f);
+            mb.addCylinder({0.f, turBaseY + 0.42f, 1.18f}, 0.105f, 0.105f, 1.72f, 14, 0, armorDark, 0.72f, 0.08f, 1.f, 0.90f);
         }
 
-        // Плотный клиновидный шеврон ДЗ «Контакт-5» / «Реликт» / «ERO-19» с резиновыми фартуками
+        // Острый клиновидный шеврон ДЗ «Контакт-5» / «Реликт» / «ERO-19» на скулах и крыше башни
         if (hasEra) {
             for (int side = -1; side <= 1; side += 2) {
-                for (int k = 0; k < 5; ++k) {
-                    float ang = side * (0.24f + k * 0.21f);
-                    float rx = std::sin(ang) * 1.32f;
-                    float rz = -0.08f - std::cos(ang) * 1.36f;
-                    Mat4 wXf = Mat4::rotationY(-ang) * Mat4::translation(rx, turBaseY + 0.30f, rz);
-                    Mat4 upW = Mat4::rotationX(0.46f) * wXf;
-                    Mat4 dnW = Mat4::rotationX(-0.42f) * Mat4::translation(0.f, -0.14f, 0.f) * wXf;
-                    mb.addChamferBox({0,0,0}, {0.155f, 0.135f, 0.10f}, 0.02f, eraCol, 0.44f, 0.30f, 7.f, 0.98f, &upW);
-                    mb.addChamferBox({0,0,0}, {0.155f, 0.115f, 0.09f}, 0.02f, eraCol, 0.44f, 0.30f, 7.f, 0.92f, &dnW);
+                for (int k = 0; k < 6; ++k) {
+                    float ang = side * (0.20f + k * 0.185f);
+                    float rx = std::sin(ang) * 1.28f;
+                    float rz = -0.14f - std::cos(ang) * 1.28f;
+                    Mat4 wXf = Mat4::rotationY(-ang) * Mat4::translation(rx, turBaseY + 0.31f, rz);
+                    Mat4 upW = Mat4::rotationX(0.48f) * wXf;
+                    Mat4 dnW = Mat4::rotationX(-0.44f) * Mat4::translation(0.f, -0.15f, 0.f) * wXf;
+                    mb.addChamferBox({0,0,0}, {0.132f, 0.140f, 0.095f}, 0.014f, eraCol, 0.68f, 0.05f, 7.f, 0.98f, &upW);
+                    mb.addChamferBox({0,0,0}, {0.132f, 0.118f, 0.088f}, 0.014f, eraCol, 0.68f, 0.05f, 7.f, 0.90f, &dnW);
+                }
+                // Блоки ДЗ на крыше башни перед люками (как на M-84AS2 и Т-90М)
+                for (int rk = 0; rk < 3; ++rk) {
+                    mb.addChamferBox({side * (0.26f + rk * 0.24f), turBaseY + 0.58f, -0.72f + rk * 0.14f},
+                                     {0.105f, 0.028f, 0.135f}, 0.008f, eraCol, 0.68f, 0.05f, 7.f, 0.97f);
                 }
             }
         }
@@ -418,9 +442,9 @@ inline void buildVehicleMeshes(ID3D11Device* dev, const VehicleSpec& v, VehicleG
             mb.addCylinder({0.f, 0.f, bz}, gunR * 1.07f, gunR * 1.07f, 0.035f, 20, 2, clampCol, 0.35f, 0.68f, 3.f);
         }
     }
-    // Дульное утолщение, датчик УУИ и тёмный канал ствола
-    mb.addCylinder({0.f, 0.f, -0.72f - gunLen - 0.06f}, gunR * 1.12f, gunR * 1.08f, 0.14f, 20, 2, steelCol, 0.34f, 0.70f, 3.f);
-    mb.addCylinder({0.f, 0.f, -0.72f - gunLen - 0.135f}, gunR * 0.70f, gunR * 0.70f, 0.02f, 18, 2, Vec4(0.01f,0.01f,0.01f,1.f), 0.95f, 0.05f, 3.f);
+    // Дульное утолщение, датчик УУИ и глубокий чёрный канал ствола (копоть пороховых газов)
+    mb.addCylinder({0.f, 0.f, -0.72f - gunLen - 0.06f}, gunR * 1.15f, gunR * 1.10f, 0.15f, 22, 2, steelCol, 0.24f, 0.90f, 3.f);
+    mb.addCylinder({0.f, 0.f, -0.72f - gunLen - 0.138f}, gunR * 0.74f, gunR * 0.74f, 0.024f, 20, 2, Vec4(0.005f,0.005f,0.005f,1.f), 0.98f, 0.01f, 2.f, 0.04f);
     if (!isIfv && !isWw2) {
         mb.addChamferBox({0.055f, gunR * 1.26f, -0.72f - gunLen - 0.04f}, {0.022f, 0.032f, 0.045f}, 0.005f, steelCol, 0.38f, 0.65f, 3.f);
     }
